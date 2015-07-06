@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007-2012, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -22,6 +23,7 @@
 #include "frameData.h"
 #include "log.h"
 #include "tileQueue.h"
+#include "chunkQueue.h"
 #include "server.h"
 
 #include <eq/fabric/iAttribute.h>
@@ -32,9 +34,11 @@ namespace server
 {
 CompoundUpdateInputVisitor::CompoundUpdateInputVisitor(
     const Compound::FrameMap& outputFrames,
-    const Compound::TileQueueMap& outputQueues )
-        : _outputFrames( outputFrames )
-        , _outputQueues( outputQueues )
+    const Compound::TileQueueMap& outputTileQueues,
+    const Compound::ChunkQueueMap& outputChunkQueues )
+    : _outputFrames( outputFrames )
+    , _outputTileQueues( outputTileQueues )
+    , _outputChunkQueues( outputChunkQueues )
 {}
 
 VisitorResult CompoundUpdateInputVisitor::visit( Compound* compound )
@@ -49,18 +53,19 @@ VisitorResult CompoundUpdateInputVisitor::visit( Compound* compound )
 
 void CompoundUpdateInputVisitor::_updateQueues( const Compound* compound )
 {
-    const TileQueues& inputQueues = compound->getInputTileQueues();
-    for( TileQueuesCIter i = inputQueues.begin(); i != inputQueues.end(); ++i )
+    const TileQueues* inputTileQueues;
+    compound->getInputPackageQueues( &inputTileQueues );
+    for( TileQueuesCIter i = inputTileQueues->begin(); i != inputTileQueues->end(); ++i )
     {
         //----- Find corresponding output queue
         TileQueue* queue  = *i;
         const std::string& name = queue->getName();
 
-        Compound::TileQueueMap::const_iterator j = _outputQueues.find( name );
+        Compound::TileQueueMap::const_iterator j = _outputTileQueues.find( name );
 
-        if( j == _outputQueues.end( ))
+        if( j == _outputTileQueues.end( ))
         {
-            LBVERB << "Can't find matching output queue, ignoring input queue "
+            LBVERB << "Can't find matching output tile queue, ignoring input tile queue "
                    << name << std::endl;
             queue->unsetData();
             continue;
@@ -68,8 +73,32 @@ void CompoundUpdateInputVisitor::_updateQueues( const Compound* compound )
 
         LBASSERT( queue->isAttached( ));
 
-        TileQueue* outputQueue = j->second;
-        queue->setOutputQueue( outputQueue, compound );
+        TileQueue* outputTileQueue = j->second;
+        queue->setOutputQueue( outputTileQueue, compound );
+    }
+
+    const ChunkQueues* inputChunkQueues;
+    compound->getInputPackageQueues( &inputChunkQueues );
+    for( ChunkQueuesCIter i = inputChunkQueues->begin(); i != inputChunkQueues->end(); ++i )
+    {
+        //----- Find corresponding output queue
+        ChunkQueue* queue  = *i;
+        const std::string& name = queue->getName();
+
+        Compound::ChunkQueueMap::const_iterator j = _outputChunkQueues.find( name );
+
+        if( j == _outputChunkQueues.end( ))
+        {
+            LBVERB << "Can't find matching output chunk queue, ignoring input chunk queue "
+                   << name << std::endl;
+            queue->unsetData();
+            continue;
+        }
+
+        LBASSERT( queue->isAttached( ));
+
+        ChunkQueue* outputChunkQueue = j->second;
+        queue->setOutputQueue( outputChunkQueue, compound );
     }
 }
 

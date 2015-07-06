@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric Stalder@gmail.com>
  *               2010-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -116,6 +117,8 @@ void Config::attach( const uint128_t& id, const uint32_t instanceID )
                      ConfigFunc( this, &Config::_cmdFinishAllFrames ), mainQ );
     registerCommand( fabric::CMD_CONFIG_CHECK_FRAME,
                      ConfigFunc( this, &Config::_cmdCheckFrame ), mainQ );
+    registerCommand( fabric::CMD_CONFIG_ADD_STATISTIC,
+                     ConfigFunc( this, &Config::_cmdAddStatistic ), mainQ );
 }
 
 namespace
@@ -1163,6 +1166,17 @@ bool Config::_cmdCheckFrame( co::ICommand& cmd )
 
     send( command.getRemoteNode(), fabric::CMD_CONFIG_FRAME_FINISH )
         << _currentFrame;
+    return true;
+}
+
+bool Config::_cmdAddStatistic( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    int64_t time = command.read< int64_t >();
+    eq::fabric::Statistic stat = command.read< eq::fabric::Statistic >();
+
+    getServer()->log( cmd.getNode(), time, stat );
+    
     return true;
 }
 

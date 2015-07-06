@@ -1,4 +1,5 @@
 # Copyright (c) 2011-2015 Stefan Eilemann <eile@eyescale.ch>
+#                         David Steiner   <steiner@ifi.uzh.ch>
 
 include_directories(SYSTEM ${OPENGL_INCLUDE_DIR} ${GLEW_MX_INCLUDE_DIRS})
 if(CUDA_FOUND)
@@ -99,6 +100,7 @@ set(EQUALIZER_PUBLIC_HEADERS
   util/accumBufferObject.h
   util/base.h
   util/bitmapFont.h
+  util/camcoder.h
   util/frameBufferObject.h
   util/objectManager.h
   util/pixelBufferObject.h
@@ -121,6 +123,7 @@ set(EQUALIZER_SOURCES
   util/accum.cpp
   util/accumBufferObject.cpp
   util/bitmapFont.cpp
+  util/camcoder.cpp
   util/frameBufferObject.cpp
   util/objectManager.cpp
   util/pixelBufferObject.cpp

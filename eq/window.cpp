@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -33,6 +34,7 @@
 #include "systemPipe.h"
 #include "systemWindow.h"
 #include "windowStatistics.h"
+#include "channelStatistics.h"
 
 #include <eq/util/objectManager.h>
 #include <eq/fabric/commands.h>

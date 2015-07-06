@@ -1,7 +1,7 @@
 
-/* Copyright (c) 2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2013-2015, David Steiner <steiner@ifi.uzh.ch>
+ *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Carsten Rohn <carsten.rohn@rtt.ag>
- *                    2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef EQS_TILEEQUALIZER_H
-#define EQS_TILEEQUALIZER_H
+#ifndef EQS_CHUNKEQUALIZER_H
+#define EQS_CHUNKEQUALIZER_H
 
 #include "packageEqualizer.h"
 
@@ -27,21 +27,21 @@ namespace eq
 namespace server
 {
 
-std::ostream& operator << ( std::ostream& os, const TileEqualizer* );
+std::ostream& operator << ( std::ostream& os, const ChunkEqualizer* );
 
-class TileEqualizer : public PackageEqualizer<eq::fabric::Tile, eq::fabric::Vector2i>
+class ChunkEqualizer : public PackageEqualizer<eq::fabric::Chunk, float>
 {
 public:
-    EQSERVER_API TileEqualizer();
-    TileEqualizer( const TileEqualizer& from );
-    ~TileEqualizer() {}
+    EQSERVER_API ChunkEqualizer();
+    ChunkEqualizer( const ChunkEqualizer& from );
+    ~ChunkEqualizer() {}
 
     virtual void toStream( std::ostream& os ) const { os << this; }
 
-    virtual uint32_t getType() const { return fabric::TILE_EQUALIZER; }
+    virtual uint32_t getType() const { return fabric::CHUNK_EQUALIZER; }
 };
 
 } //server
 } //eq
 
-#endif // EQS_TILEEQUALIZER_H
+#endif // EQS_CHUNKEQUALIZER_H

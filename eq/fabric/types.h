@@ -2,6 +2,7 @@
 /* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2014, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -56,6 +57,7 @@ class RenderContext;
 class SubPixel;
 class SwapBarrier;
 class Tile;
+class Chunk;
 class Viewport;
 class Wall;
 class WindowSettings;

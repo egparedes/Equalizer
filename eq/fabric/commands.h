@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2012, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder  <cedric Stalder@gmail.com>
  *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -89,6 +90,7 @@ namespace fabric
         CMD_CONFIG_SYNC_CLOCK,
         CMD_CONFIG_SWAP_OBJECT,
         CMD_CONFIG_CHECK_FRAME,
+        CMD_CONFIG_ADD_STATISTIC,
         CMD_CONFIG_CUSTOM = CMD_OBJECT_CUSTOM + 30
     };
 
@@ -176,6 +178,7 @@ namespace fabric
         CMD_CHANNEL_FRAME_VIEW_FINISH,
         CMD_CHANNEL_STOP_FRAME,
         CMD_CHANNEL_FRAME_TILES,
+        CMD_CHANNEL_FRAME_CHUNKS,
         CMD_CHANNEL_FINISH_READBACK,
         CMD_CHANNEL_DELETE_TRANSFER_CONTEXT,
         CMD_CHANNEL_CUSTOM = CMD_OBJECT_CUSTOM + 30

@@ -2,6 +2,7 @@
 %{
 /* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -200,6 +201,14 @@ tree_equalizer                  { return EQTOKEN_TREEEQUALIZER; }
 monitor_equalizer               { return EQTOKEN_MONITOREQUALIZER; }
 view_equalizer                  { return EQTOKEN_VIEWEQUALIZER; }
 tile_equalizer                  { return EQTOKEN_TILEEQUALIZER; }
+chunk_equalizer                 { return EQTOKEN_CHUNKEQUALIZER; }
+distribution_strategy           { return EQTOKEN_DISTRIBUTIONSTRATEGY; }
+NONE                            { return EQTOKEN_NONE; }
+EQUAL                           { return EQTOKEN_EQUAL; }
+RANDOM                          { return EQTOKEN_RANDOM; }
+LOAD_AWARE                      { return EQTOKEN_LOAD_AWARE; }
+LATENCY_AWARE                   { return EQTOKEN_LATENCY_AWARE; }
+CENT_LOAD_AWARE                 { return EQTOKEN_CENT_LOAD_AWARE; }
 damping                         { return EQTOKEN_DAMPING; }
 connection                      { return EQTOKEN_CONNECTION; }
 name                            { return EQTOKEN_NAME; }
@@ -274,6 +283,8 @@ outputframe                     { return EQTOKEN_OUTPUTFRAME; }
 inputframe                      { return EQTOKEN_INPUTFRAME; }
 outputtiles                     { return EQTOKEN_OUTPUTTILES; }
 inputtiles                      { return EQTOKEN_INPUTTILES; }
+outputchunks                    { return EQTOKEN_OUTPUTCHUNKS; }
+inputchunks                     { return EQTOKEN_INPUTCHUNKS; }
 stereo_mode                     { return EQTOKEN_STEREO_MODE; }
 stereo_anaglyph_left_mask       { return EQTOKEN_STEREO_ANAGLYPH_LEFT_MASK; }
 stereo_anaglyph_right_mask      { return EQTOKEN_STEREO_ANAGLYPH_RIGHT_MASK; }

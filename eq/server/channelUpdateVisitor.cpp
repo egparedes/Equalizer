@@ -2,6 +2,7 @@
 /* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2014, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -30,6 +31,7 @@
 #include "view.h"
 #include "window.h"
 #include "tileQueue.h"
+#include "chunkQueue.h"
 
 #include <eq/fabric/commands.h>
 #include <eq/fabric/paths.h>
@@ -162,10 +164,10 @@ void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
     const Channel* destChannel = compound->getInheritChannel();
     LBASSERT( destChannel );
 
-    context.frameID       = _frameID;
-    context.pvp           = compound->getInheritPixelViewport();
-    context.overdraw      = compound->getInheritOverdraw();
-    context.vp            = compound->getInheritViewport();
+    context.frameID                     = _frameID;
+    context.pvp = context.pvpGlobal     = compound->getInheritPixelViewport();
+    context.overdraw                    = compound->getInheritOverdraw();
+    context.vp = context.vpGlobal       = compound->getInheritViewport();
     context.range         = compound->getInheritRange();
     context.pixel         = compound->getInheritPixel();
     context.subpixel      = compound->getInheritSubPixel();
@@ -204,6 +206,8 @@ void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
     // TODO: pvp size overcommit check?
 
     compound->computeFrustum( context, _eye );
+    context.frustumGlobal = context.frustum;
+    context.orthoGlobal = context.ortho;
 }
 
 void ChannelUpdateVisitor::_updateDraw( const Compound* compound,
@@ -212,6 +216,11 @@ void ChannelUpdateVisitor::_updateDraw( const Compound* compound,
     if( compound->hasTiles( ))
     {
         _updateDrawTiles( compound, context );
+        return;
+    }
+    if( compound->hasChunks( ))
+    {
+        _updateDrawChunks( compound, context );
         return;
     }
 
@@ -246,8 +255,9 @@ void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
     }
 
     const Channel* destChannel = compound->getInheritChannel();
-    const TileQueues& inputQueues = compound->getInputTileQueues();
-    for( TileQueuesCIter i = inputQueues.begin(); i != inputQueues.end(); ++i )
+    const TileQueues* inputTileQueues;
+    compound->getInputPackageQueues( &inputTileQueues );
+    for( TileQueuesCIter i = inputTileQueues->begin(); i != inputTileQueues->end(); ++i )
     {
         const TileQueue* inputQueue = *i;
         const TileQueue* outputQueue = inputQueue->getOutputQueue( context.eye);
@@ -263,6 +273,46 @@ void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
                 << context << isLocal << id << tasks << frameIDs;
         _updated = true;
         LBLOG( LOG_TASKS ) << "TASK tiles " << _channel->getName() <<  " "
+                           << std::endl;
+    }
+}
+
+void ChannelUpdateVisitor::_updateDrawChunks( const Compound* compound,
+        const RenderContext& context )
+{
+    Frames frames;
+    co::ObjectVersions frameIDs;
+    const Frames& outputFrames = compound->getOutputFrames();
+    for( FramesCIter i = outputFrames.begin(); i != outputFrames.end(); ++i)
+    {
+        Frame* frame = *i;
+
+        if( !frame->hasData( _eye )) // TODO: filter: buffers, vp, eye
+            continue;
+
+        frames.push_back( frame );
+        frameIDs.push_back( co::ObjectVersion( frame ) );
+    }
+
+    const Channel* destChannel = compound->getInheritChannel();
+    const ChunkQueues* inputChunkQueues;
+    compound->getInputPackageQueues( &inputChunkQueues );
+    for( ChunkQueuesCIter i = inputChunkQueues->begin(); i != inputChunkQueues->end(); ++i )
+    {
+        const ChunkQueue* inputQueue = *i;
+        const ChunkQueue* outputQueue = inputQueue->getOutputQueue( context.eye );
+        const uint128_t& id = outputQueue->getQueueMasterID( context.eye );
+        LBASSERT( id != 0 );
+
+        const bool isLocal = (_channel == destChannel );
+        const uint32_t tasks = compound->getInheritTasks() &
+                               ( eq::fabric::TASK_CLEAR | eq::fabric::TASK_DRAW |
+                                 eq::fabric::TASK_READBACK );
+
+        _channel->send( fabric::CMD_CHANNEL_FRAME_CHUNKS )
+                << context << isLocal << id << tasks << frameIDs;
+        _updated = true;
+        LBLOG( LOG_TASKS ) << "TASK chunks " << _channel->getName() <<  " "
                            << std::endl;
     }
 }
@@ -428,7 +478,7 @@ void ChannelUpdateVisitor::_updateReadback( const Compound* compound,
                                             const RenderContext& context )
 {
     if( !compound->testInheritTask( fabric::TASK_READBACK ) ||
-        ( compound->hasTiles() && compound->isLeaf( )))
+        (( compound->hasTiles() || compound->hasChunks( )) && compound->isLeaf( )))
     {
         return;
     }

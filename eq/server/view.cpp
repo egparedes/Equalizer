@@ -2,6 +2,7 @@
 /* Copyright (c) 2009-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -31,7 +32,9 @@
 #include "segment.h"
 #include "equalizers/equalizer.h"
 #include "equalizers/tileEqualizer.h"
+#include "equalizers/chunkEqualizer.h"
 #include "tileQueue.h"
+#include "chunkQueue.h"
 
 #include <eq/fabric/commands.h>
 #include <eq/fabric/paths.h>
@@ -199,17 +202,30 @@ public:
 
         if( dest->getView() != _view )
             return TRAVERSE_PRUNE;
+        
+        const eq::fabric::Equalizer &equalizer = _view->getEqualizer();
 
-        const TileQueues& queues = compound->getOutputTileQueues();
-        for( TileQueuesCIter i = queues.begin(); i != queues.end(); ++i )
+        const TileQueues* outputTileQueues;
+        compound->getOutputPackageQueues( &outputTileQueues );
+        for( TileQueuesCIter i = outputTileQueues->begin(); i != outputTileQueues->end(); ++i )
         {
             TileQueue* queue = *i;
-            queue->setTileSize( _view->getEqualizer().getTileSize( ));
+            queue->setDistributionStrategy( equalizer.getDistributionStrategy( ));
+            queue->setPackageSize( equalizer.getTileSize( ));
+        }
+
+        const ChunkQueues* outputChunkQueues;
+        compound->getOutputPackageQueues( &outputChunkQueues );
+        for( ChunkQueuesCIter i = outputChunkQueues->begin(); i != outputChunkQueues->end(); ++i )
+        {
+            ChunkQueue* queue = *i;
+            queue->setDistributionStrategy( equalizer.getDistributionStrategy( ));
+            queue->setPackageSize( equalizer.getChunkSize( ));
         }
 
         Equalizers equalizers = compound->getEqualizers();
         for( EqualizersIter i = equalizers.begin(); i != equalizers.end(); ++i)
-            *(*i) = _view->getEqualizer();
+            *(*i) = equalizer;
 
         return TRAVERSE_CONTINUE;
     }

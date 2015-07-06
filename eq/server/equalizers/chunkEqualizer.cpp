@@ -1,8 +1,8 @@
 
-/* Copyright (c) 2011-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2013-2015, David Steiner <steiner@ifi.uzh.ch>
+ *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011, Carsten Rohn <carsten.rohn@rtt.ag>
  *               2011, Daniel Nachbaur <danielnachbaur@gmail.com>
- *               2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -18,44 +18,44 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "tileEqualizer.h"
-
-#include "../compound.h"
-#include "../compoundVisitor.h"
-#include "../config.h"
-#include "../server.h"
-#include "../tileQueue.h"
-#include "../view.h"
+#include "types.h"
+#include "compound.h"
+#include "config.h"
+#include "chunkQueue.h"
+#include "compoundVisitor.h"
+#include "server.h"
 
 #include <co/global.h>
+
+#include "chunkEqualizer.h"
 
 namespace eq
 {
 namespace server
 {
 
-TileEqualizer::TileEqualizer()
-    : PackageEqualizer<eq::fabric::Tile, eq::fabric::Vector2i>()
+ChunkEqualizer::ChunkEqualizer()
+    : PackageEqualizer<eq::fabric::Chunk, float>()
 {
-    setName("TileEqualizer");
-//     co::Global::setIAttribute( co::Global::IATTR_QUEUE_MIN_SIZE, 5 );
-//     co::Global::setIAttribute( co::Global::IATTR_QUEUE_REFILL, 10 );
+    setName("ChunkEqualizer");
+//     co::Global::setIAttribute( co::Global::IATTR_QUEUE_MIN_SIZE, 1 );
+//     co::Global::setIAttribute( co::Global::IATTR_QUEUE_REFILL, 1 );
 }
 
-TileEqualizer::TileEqualizer( const TileEqualizer& from )
-    : PackageEqualizer<eq::fabric::Tile, eq::fabric::Vector2i>( from )
+ChunkEqualizer::ChunkEqualizer( const ChunkEqualizer& from )
+    : PackageEqualizer<eq::fabric::Chunk, float>( from )
 {
 }
 
-std::ostream& operator << ( std::ostream& os, const TileEqualizer* lb )
+std::ostream& operator << ( std::ostream& os, const ChunkEqualizer* lb )
 {
     if( lb )
     {
         os << lunchbox::disableFlush
-           << "tile_equalizer" << std::endl
+           << "chunk_equalizer" << std::endl
            << "{" << std::endl
            << "    name \"" << lb->getName() << "\"" << std::endl
-           << "    size " << lb->getTileSize() << std::endl
+           << "    size " << lb->getChunkSize() << std::endl
            << "}" << std::endl << lunchbox::enableFlush;
     }
     return os;

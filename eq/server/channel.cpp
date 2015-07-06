@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2013, Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -40,8 +41,13 @@
 #include <co/objectICommand.h>
 
 #include <lunchbox/debug.h>
+#include <lunchbox/scopedMutex.h>
 
 #include <set>
+#include <vector>
+#include <sstream>
+#include <fstream>
+
 
 namespace eq
 {
@@ -80,6 +86,90 @@ namespace
     };
 }
 
+struct Channel::Private
+{
+    typedef std::vector< Channel::Private* > Instances;
+
+    static Private *create(Channel *parent)
+    {
+        lunchbox::ScopedMutex<> mutex();
+        Private *instance = new Private(parent);
+        _instances.push_back(instance);
+
+        return instance;
+    }
+
+    void log( co::NodePtr node LB_UNUSED, const Statistics& statistics LB_UNUSED )
+    {
+//         if (!_coAppNode)
+//         {
+//             Config *config = _parent->getConfig();
+//             Node *appNode = config->findAppNode();
+//             LBASSERT( appNode );
+//             _coAppNode = appNode->getNode();
+//         }
+//         co::NodeID appNodeID = _coAppNode->getNodeID();
+// 
+//         int64_t startTime = std::numeric_limits< int64_t >::max();
+//         int64_t endTime   = 0;
+//         int64_t transmitTime = 0;
+//         int64_t frame = std::numeric_limits< int64_t >::max();
+//         std::string name = "?";
+//         for ( Statistics::const_iterator it = statistics.begin();
+//                 it != statistics.end();
+//                 ++it )
+//         {
+//             switch( it->type )
+//             {
+//             case Statistic::CHANNEL_CLEAR:
+//             case Statistic::CHANNEL_DRAW:
+//             case Statistic::CHANNEL_ASSEMBLE:
+//             case Statistic::CHANNEL_READBACK:
+//             case Statistic::CHANNEL_TILES:
+//             case Statistic::CHANNEL_CHUNKS:
+//                 startTime = LB_MIN( startTime, it->startTime );
+//                 endTime   = LB_MAX( endTime, it->endTime );
+//                 break;
+// 
+//             case Statistic::CHANNEL_ASYNC_READBACK:
+//             case Statistic::CHANNEL_FRAME_TRANSMIT:
+//                 transmitTime += it->startTime - it->endTime;
+//                 break;
+//             case Statistic::CHANNEL_FRAME_WAIT_SENDTOKEN:
+//                 transmitTime -= it->endTime - it->startTime;
+//                 break;
+// 
+//             default:
+//                 break;
+//             }
+//             frame = LB_MIN( frame, it->frameNumber );
+//             name = Statistic::getName( it->type );
+// 
+//             int64_t timing = endTime - startTime;
+//             std::string appNodeString = (node->getNodeID() == appNodeID) ? "appnode\t" : "client\t";
+//             std::stringstream ss;
+//             ss << "channel " << name << ":\t" << appNodeString << node->getNodeID() << "\tframe\t" << frame << "\ttiming\t" << timing;
+// 
+//             _parent->getServer()->log( ss.str( ));
+//         }
+    }
+
+    static void destroy()
+    {
+    }
+
+private:
+    Private(Channel *parent)
+        : _parent( parent )
+    {}
+
+    Channel *_parent;
+    co::NodePtr _coAppNode;
+    static Instances _instances;
+};
+
+Channel::Private::Instances Channel::Private::_instances = Channel::Private::Instances();
+
 Channel::Channel( Window* parent )
         : Super( parent )
         , _active( 0 )
@@ -87,7 +177,7 @@ Channel::Channel( Window* parent )
         , _segment( 0 )
         , _state( STATE_STOPPED )
         , _lastDrawCompound( 0 )
-        , _private( 0 )
+        , _private( Private::create( this ))
 {
     const Global* global = Global::instance();
     for( unsigned i = 0; i < IATTR_ALL; ++i )
@@ -109,7 +199,7 @@ Channel::Channel( const Channel& from )
         , _segment( 0 )
         , _state( STATE_STOPPED )
         , _lastDrawCompound( 0 )
-        , _private( 0 )
+        , _private( Private::create( this ))
 {
     // Don't copy view and segment. Will be re-set by segment copy ctor
 }
@@ -240,6 +330,8 @@ void Channel::activate()
 
 void Channel::deactivate()
 {
+    _private->destroy();
+
     Window* window = getWindow();
     LBASSERT( _active != 0 );
     LBASSERT( window );
@@ -485,6 +577,7 @@ bool Channel::_cmdFrameFinishReply( co::ICommand& cmd )
     const Statistics& statistics = command.read< Statistics >();
 
     _fireLoadData( frameNumber, statistics, region );
+    _private->log( cmd.getNode(), statistics );
     return true;
 }
 

@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2014-2015, David Steiner   <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -17,6 +18,7 @@
 
 #include "renderContext.h"
 #include "tile.h"
+#include "chunk.h"
 
 namespace eq
 {
@@ -25,18 +27,21 @@ namespace fabric
 
 // cppcheck-suppress uninitMemberVar
 RenderContext::RenderContext()
-        : frustum( Frustumf::DEFAULT )
-        , ortho( Frustumf::DEFAULT )
-        , headTransform( Matrix4f::IDENTITY )
-        , orthoTransform( Matrix4f::IDENTITY )
-        , frameID( 0 )
-        , overdraw( Vector4i::ZERO )
-        , offset( Vector2i::ZERO )
-        , buffer( 0x0405 ) // GL_BACK
-        , taskID( 0 )
-        , period( 1 )
-        , phase( 0 )
-        , eye( EYE_CYCLOP )
+    : frustum( Frustumf::DEFAULT )
+    , ortho( Frustumf::DEFAULT )
+    , headTransform( Matrix4f::IDENTITY )
+    , orthoTransform( Matrix4f::IDENTITY )
+    , frameID( 0 )
+    , overdraw( Vector4i::ZERO )
+    , offset( Vector2i::ZERO )
+    , buffer( 0x0405 ) // GL_BACK
+    , taskID( 0 )
+    , period( 1 )
+    , phase( 0 )
+    , eye( EYE_CYCLOP )
+    , frustumGlobal( Frustumf::DEFAULT )
+    , orthoGlobal( Frustumf::DEFAULT )
+    , stolen( false )
 {
 }
 
@@ -46,6 +51,14 @@ void RenderContext::apply( const Tile& tile )
     ortho = tile.ortho;
     pvp = tile.pvp;
     vp = tile.vp;
+
+//     LBINFO << "RenderContext::apply stolen : " << stolen << std::endl;
+}
+
+void RenderContext::apply( const Chunk& chunk )
+{
+    range = chunk.range;
+    stolen = chunk.stolen;
 }
 
 std::ostream& operator << ( std::ostream& os, const RenderContext& ctx )

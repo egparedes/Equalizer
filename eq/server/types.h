@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2014, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2013-2015, David Steiner   <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -23,6 +24,7 @@
 #include <eq/fabric/focusMode.h>
 #include <eq/fabric/types.h>
 #include <lunchbox/refPtr.h>
+#include <vmmlib/vector.hpp>
 #include <vector>
 
 namespace eq
@@ -52,11 +54,17 @@ class Pipe;
 class Segment;
 class Server;
 class TileEqualizer;
-class TileQueue;
+class ChunkEqualizer;
 class TreeEqualizer;
 class View;
 class ViewEqualizer;
 class Window;
+
+template < class T, class S > class PackageQueue;
+typedef PackageQueue<fabric::Tile, vmml::Vector2i> TileQueue;
+
+template < class T, class S > class PackageQueue;
+typedef PackageQueue<fabric::Chunk, float> ChunkQueue;
 
 typedef std::vector< Config* >   Configs;
 typedef std::vector< Node* >     Nodes;
@@ -68,6 +76,7 @@ typedef std::vector< Canvas* >       Canvases;
 typedef std::vector< Compound* >     Compounds;
 typedef std::vector< Frame* >        Frames;
 typedef std::vector< TileQueue* >    TileQueues;
+typedef std::vector< ChunkQueue* >   ChunkQueues;
 typedef std::vector< Layout* >       Layouts;
 typedef std::vector< Equalizer* >    Equalizers;
 typedef std::vector< Observer* >     Observers;
@@ -99,6 +108,8 @@ typedef Pipes::const_iterator PipesCIter;
 typedef Pipes::iterator PipesIter;
 typedef TileQueues::const_iterator TileQueuesCIter;
 typedef TileQueues::iterator TileQueuesIter;
+typedef ChunkQueues::const_iterator ChunkQueuesCIter;
+typedef ChunkQueues::iterator ChunkQueuesIter;
 typedef Views::const_iterator ViewsCIter;
 typedef Views::iterator ViewsIter;
 typedef Equalizers::const_iterator EqualizersCIter;
@@ -127,6 +138,7 @@ using fabric::SwapBarrier;
 using fabric::SwapBarrierConstPtr;
 using fabric::SwapBarrierPtr;
 using fabric::Tile;
+using fabric::Chunk;
 using fabric::Vector2i;
 using fabric::Vector3f;
 using fabric::Vector3ub;

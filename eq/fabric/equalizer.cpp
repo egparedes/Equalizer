@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2012, Daniel Nachbaur <danielnachbaur@gmail.com>
  *               2012-2013, Stefan.Eilemann@epfl.ch
+ *               2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -43,6 +44,8 @@ public:
         , boundary2i( 1, 1 )
         , resistance2i( 0, 0 )
         , tilesize( 64, 64 )
+        , chunkSize( 0.05f )
+        , distributionStrategy( eq::fabric::DISTRIBUTION_STRATEGY_RANDOM )
         , mode( fabric::Equalizer::MODE_2D )
         , frozen( false )
     {
@@ -74,6 +77,8 @@ public:
         , boundary2i( rhs.boundary2i )
         , resistance2i( rhs.resistance2i )
         , tilesize( rhs.tilesize )
+        , chunkSize( rhs.chunkSize )
+        , distributionStrategy( rhs.distributionStrategy )
         , mode( rhs.mode )
         , frozen( rhs.frozen )
     {}
@@ -86,6 +91,8 @@ public:
     Vector2i boundary2i;
     Vector2i resistance2i;
     Vector2i tilesize;
+    float chunkSize;
+    fabric::DistributionStrategy distributionStrategy;
     fabric::Equalizer::Mode mode;
     bool frozen;
 };
@@ -203,6 +210,26 @@ void Equalizer::setAssembleOnlyLimit( const float limit )
     _data->assembleOnlyLimit = limit;
 }
 
+void Equalizer::setPackageSize( const Vector2i& size )
+{
+    _data->tilesize = size;
+}
+
+void Equalizer::getPackageSize(const Vector2i **size) const
+{
+    *size = &_data->tilesize;
+}
+
+void Equalizer::setPackageSize( const float& size )
+{
+    _data->chunkSize = size;
+}
+
+void Equalizer::getPackageSize(const float **size) const
+{
+    *size = &_data->chunkSize;
+}
+
 float Equalizer::getAssembleOnlyLimit() const
 {
     return _data->assembleOnlyLimit;
@@ -216,6 +243,27 @@ void Equalizer::setTileSize( const Vector2i& size )
 const Vector2i& Equalizer::getTileSize() const
 {
     return _data->tilesize;
+}
+
+void Equalizer::setChunkSize( const float& size )
+{
+    _data->chunkSize = size;
+}
+
+const float& Equalizer::getChunkSize() const
+{
+    return _data->chunkSize;
+}
+
+void Equalizer::setDistributionStrategy( const DistributionStrategy dist )
+{
+    LBINFO << "dist: " << static_cast<unsigned int>( dist ) << std::endl;
+    _data->distributionStrategy = dist;
+}
+
+fabric::DistributionStrategy Equalizer::getDistributionStrategy() const
+{
+    return _data->distributionStrategy;
 }
 
 void Equalizer::serialize( co::DataOStream& os ) const

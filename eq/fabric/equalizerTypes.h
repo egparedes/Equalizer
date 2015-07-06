@@ -29,9 +29,10 @@ static const uint32_t LOAD_EQUALIZER        = 1;
 static const uint32_t TREE_EQUALIZER        = LOAD_EQUALIZER << 1;
 static const uint32_t VIEW_EQUALIZER        = LOAD_EQUALIZER << 2;
 static const uint32_t TILE_EQUALIZER        = LOAD_EQUALIZER << 3;
-static const uint32_t MONITOR_EQUALIZER     = LOAD_EQUALIZER << 4;
-static const uint32_t DFR_EQUALIZER         = LOAD_EQUALIZER << 5;
-static const uint32_t FRAMERATE_EQUALIZER   = LOAD_EQUALIZER << 6;
+static const uint32_t CHUNK_EQUALIZER       = LOAD_EQUALIZER << 4;
+static const uint32_t MONITOR_EQUALIZER     = LOAD_EQUALIZER << 5;
+static const uint32_t DFR_EQUALIZER         = LOAD_EQUALIZER << 6;
+static const uint32_t FRAMERATE_EQUALIZER   = LOAD_EQUALIZER << 7;
 static const uint32_t EQUALIZER_ALL         = LB_BIT_ALL_32;
 
 }

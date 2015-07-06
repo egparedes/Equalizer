@@ -39,29 +39,41 @@ namespace server
         /** Visit all compounds. */
         virtual VisitorResult visit( Compound* compound );
 
-        const Compound::BarrierMap& getSwapBarriers() const
-            { return _swapBarriers; }
-        const Compound::FrameMap& getOutputFrames() const
-            { return _outputFrames; }
-        const Compound::TileQueueMap& getOutputQueues() const
-            { return _outputTileQueues; }
+    const Compound::BarrierMap& getSwapBarriers() const
+    {
+        return _swapBarriers;
+    }
+    const Compound::FrameMap& getOutputFrames() const
+    {
+        return _outputFrames;
+    }
+    const Compound::TileQueueMap& getOutputTileQueues() const
+    {
+        return _outputTileQueues;
+    }
+    const Compound::ChunkQueueMap& getOutputChunkQueues() const
+    {
+        return _outputChunkQueues;
+    }
 
-    private:
-        const uint32_t _frameNumber;
- 
-        Compound::BarrierMap   _swapBarriers;
-        Compound::FrameMap     _outputFrames;
-        Compound::TileQueueMap _outputTileQueues;
+private:
+    const uint32_t _frameNumber;
 
-        void _updateQueues( Compound* compound );
-        void _updateFrames( Compound* compound );
-        void _updateSwapBarriers( Compound* compound );
-        void _updateZoom( const Compound* compound, Frame* frame );
+    Compound::BarrierMap   _swapBarriers;
+    Compound::FrameMap     _outputFrames;
+    Compound::TileQueueMap _outputTileQueues;
+    Compound::ChunkQueueMap _outputChunkQueues;
 
-        void _generateTiles( TileQueue* queue, Compound* compound );
-        void _addTilesToQueue( TileQueue* queue, Compound* compound, 
-                               const std::vector< Vector2i >& tiles );
-    };
+    void _updateQueues( Compound* compound );
+    void _updateFrames( Compound* compound );
+    void _updateSwapBarriers( Compound* compound );
+    void _updateZoom( const Compound* compound, Frame* frame );
+
+    void _generateTiles( TileQueue* queue, Compound* compound );
+    void _addTilesToQueue( TileQueue* queue, Compound* compound,
+                           const std::vector< Vector2i >& tiles );
+    void _generateChunks( ChunkQueue* queue, Compound* compound );
+};
 }
 }
 #endif // EQSERVER_CONSTCOMPOUNDVISITOR_H

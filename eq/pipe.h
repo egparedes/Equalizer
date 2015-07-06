@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
  *               2010-2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -125,7 +126,7 @@ public:
                      const Eye eye, const bool output );
 
     /** @internal @return the queue for the given identifier and version. */
-    co::QueueSlave* getQueue( const uint128_t& queueID );
+    co::Consumer* getQueue( const uint128_t& queueID );
 
     /** @internal Clear the frame cache and delete all frames. */
     void flushFrames( util::ObjectManager& om );

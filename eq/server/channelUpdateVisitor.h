@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2007-2011, Stefan Eilemann <eile@equalizergraphics.com> 
+ *                    2014, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -69,6 +70,8 @@ namespace server
                           const RenderContext& context );
         void _updateDrawTiles( const Compound* compound,
                                const RenderContext& context );
+        void _updateDrawChunks( const Compound* compound,
+                                const RenderContext& context );
         void _updateDrawFinish( const Compound* compound ) const;
         void _updateFrameRate( const Compound* compound ) const;
 

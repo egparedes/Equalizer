@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2012, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -20,6 +21,7 @@
 
 #include <eq/fabric/api.h>
 #include <eq/fabric/vmmlib.h>
+#include <eq/fabric/distributionStrategy.h>
 
 namespace co
 {
@@ -115,10 +117,26 @@ public:
     EQFABRIC_API float getAssembleOnlyLimit() const;
 
     /** Set the tile size for the TileEqualizer. */
-    EQFABRIC_API void setTileSize( const Vector2i& size );
+    EQFABRIC_API void setPackageSize( const Vector2i& size );
+    EQFABRIC_API void setTileSize( const Vector2i& size );      //<! legacy
 
     /** @return the tile size for the TileEqualizer. */
-    EQFABRIC_API const Vector2i& getTileSize() const;
+    EQFABRIC_API const Vector2i& getTileSize() const;           //<! legacy
+    EQFABRIC_API void getPackageSize(const Vector2i **size) const;
+
+    /** Set the chunk size for the ChunkEqualizer. */
+    EQFABRIC_API void setPackageSize( const float& size );
+    EQFABRIC_API void setChunkSize( const float& size );        //<! legacy
+
+    /** @return the distribution strategy for the Chunk and Tile Equalizers. */
+    EQFABRIC_API DistributionStrategy getDistributionStrategy() const;
+
+    /** Set the distribution strategy for the Chunk and Tile Equalizers. */
+    EQFABRIC_API void setDistributionStrategy( const DistributionStrategy );
+
+    /** @return the chunk size for the ChunkEqualizer. */
+    EQFABRIC_API const float& getChunkSize() const;             //<! legacy
+    EQFABRIC_API void getPackageSize(const float **size) const;
     //@}
 
     EQFABRIC_API void serialize( co::DataOStream& os ) const; //!< @internal

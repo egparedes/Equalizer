@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -573,6 +574,12 @@ protected:
     /** Finish a batch of tile rendering operations. @version 1.1.6 */
     virtual void frameTilesFinish( const uint128_t& /*frameID*/ ) {}
 
+    /** Start a batch of chunk rendering operations. @version 1.1.6 */
+    virtual void frameChunksStart( const uint128_t& /*frameID*/ ) {}
+
+    /** Finish a batch of chunk rendering operations. @version 1.1.6 */
+    virtual void frameChunksFinish( const uint128_t& /*frameID*/ ) {}
+
     /** Notification that parameters influencing the vp/pvp have changed.*/
     EQ_API virtual void notifyViewportChanged();
 
@@ -603,6 +610,11 @@ private:
 
     /** Tile render loop. */
     void _frameTiles( RenderContext& context, const bool isLocal,
+                      const uint128_t& queueID, const uint32_t tasks,
+                      const co::ObjectVersions& frames );
+
+    /** Chunk render loop. */
+    void _frameChunks( RenderContext& context, const bool isLocal,
                       const uint128_t& queueID, const uint32_t tasks,
                       const co::ObjectVersions& frames );
 
@@ -649,7 +661,7 @@ private:
                     const co::NodeIDs& netNodes );
 
     /** Getsthe channel's current input queue. */
-    co::QueueSlave* _getQueue( const uint128_t& queueID );
+    co::Consumer* _getQueue( const uint128_t& queueID );
 
     Frames _getFrames( const co::ObjectVersions& frameIDs,
                        const bool isOutput );
@@ -674,6 +686,7 @@ private:
     bool _cmdFrameViewFinish( co::ICommand& command );
     bool _cmdStopFrame( co::ICommand& command );
     bool _cmdFrameTiles( co::ICommand& command );
+    bool _cmdFrameChunks( co::ICommand& command );
     bool _cmdDeleteTransferContext( co::ICommand& command );
 
     LB_TS_VAR( _pipeThread );

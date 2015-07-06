@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2009-2012, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2014-2015, David Steiner   <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -83,6 +84,10 @@ static StatisticData _statisticData[] =
    "finish frame", Vector3f( .5f, .5f, .5f ) },
  { Statistic::CONFIG_WAIT_FINISH_FRAME,
    "wait finish",  Vector3f( 1.0f, 0.f, 0.f ) },
+ { Statistic::CHANNEL_TILES,
+   "channel tiles",  Vector3f( 1.0f, 0.f, 0.f ) },
+ { Statistic::CHANNEL_CHUNKS,
+   "channel chunks",  Vector3f( 1.0f, 0.f, 0.f ) },
  { Statistic::ALL,
    "ALL EVENTS",   Vector3f( 0.0f, 0.f, 0.f ) }} ;
 }

@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2014, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -32,6 +33,7 @@
 #include "frame.h"
 #include "frameData.h"
 #include "tileQueue.h"
+#include "chunkQueue.h"
 #include "global.h"
 #include "layout.h"
 #include "log.h"
@@ -132,6 +134,21 @@ Compound::~Compound()
         delete *i;
     }
     _outputTileQueues.clear();
+
+
+    for( ChunkQueuesCIter i = _inputChunkQueues.begin();
+            i != _inputChunkQueues.end(); ++i )
+    {
+        delete *i;
+    }
+    _inputChunkQueues.clear();
+
+    for( ChunkQueuesCIter i = _outputChunkQueues.begin();
+            i != _outputChunkQueues.end(); ++i )
+    {
+        delete *i;
+    }
+    _outputChunkQueues.clear();
 }
 
 Compound::Data::Data()
@@ -407,16 +424,16 @@ void Compound::addOutputFrame( Frame* frame )
     frame->setCompound( this );
 }
 
-void Compound::addInputTileQueue( TileQueue* tileQueue )
+void Compound::addInputPackageQueue( TileQueue* tileQueue )
 {
     LBASSERT( tileQueue );
     if( tileQueue->getName().empty() )
-        _setDefaultTileQueueName( tileQueue );
+        _setDefaultPackageQueueName( tileQueue );
     _inputTileQueues.push_back( tileQueue );
     tileQueue->setCompound( this );
 }
 
-void Compound::removeInputTileQueue( TileQueue* tileQueue )
+void Compound::removeInputPackageQueue( TileQueue* tileQueue )
 {
     TileQueuesIter i;
     i = find (_inputTileQueues.begin(), _inputTileQueues.end(), tileQueue);
@@ -424,20 +441,53 @@ void Compound::removeInputTileQueue( TileQueue* tileQueue )
         _inputTileQueues.erase( i );
 }
 
-void Compound::addOutputTileQueue( TileQueue* tileQueue )
+void Compound::addOutputPackageQueue( TileQueue* tileQueue )
 {
     if( tileQueue->getName().empty() )
-        _setDefaultTileQueueName( tileQueue );
+        _setDefaultPackageQueueName( tileQueue );
     _outputTileQueues.push_back( tileQueue );
     tileQueue->setCompound( this );
 }
 
-void Compound::removeOutputTileQueue( TileQueue* tileQueue )
+void Compound::removeOutputPackageQueue( TileQueue* tileQueue )
 {
     TileQueuesIter i;
     i = find (_outputTileQueues.begin(), _outputTileQueues.end(), tileQueue);
     if ( i != _outputTileQueues.end() )
         _outputTileQueues.erase( i );
+}
+
+void Compound::addInputPackageQueue( ChunkQueue* chunkQueue )
+{
+    LBASSERT( chunkQueue );
+    if( chunkQueue->getName().empty() )
+        _setDefaultPackageQueueName( chunkQueue );
+    _inputChunkQueues.push_back( chunkQueue );
+    chunkQueue->setCompound( this );
+}
+
+void Compound::removeInputPackageQueue( ChunkQueue* chunkQueue )
+{
+    ChunkQueuesIter i;
+    i = find (_inputChunkQueues.begin(), _inputChunkQueues.end(), chunkQueue );
+    if ( i != _inputChunkQueues.end() )
+        _inputChunkQueues.erase( i );
+}
+
+void Compound::addOutputPackageQueue( ChunkQueue* chunkQueue )
+{
+    if( chunkQueue->getName().empty() )
+        _setDefaultPackageQueueName( chunkQueue );
+    _outputChunkQueues.push_back( chunkQueue );
+    chunkQueue->setCompound( this );
+}
+
+void Compound::removeOutputPackageQueue( ChunkQueue* chunkQueue )
+{
+    ChunkQueuesIter i;
+    i = find (_outputChunkQueues.begin(), _outputChunkQueues.end(), chunkQueue );
+    if ( i != _outputChunkQueues.end() )
+        _outputChunkQueues.erase( i );
 }
 
 void Compound::_setDefaultFrameName( Frame* frame )
@@ -460,7 +510,7 @@ void Compound::_setDefaultFrameName( Frame* frame )
     frame->setName( "frame" );
 }
 
-void Compound::_setDefaultTileQueueName( TileQueue* tileQueue )
+void Compound::_setDefaultPackageQueueName( TileQueue* tileQueue )
 {
     for( Compound* compound = this; compound; compound = compound->getParent())
     {
@@ -478,6 +528,26 @@ void Compound::_setDefaultTileQueueName( TileQueue* tileQueue )
         }
     }
     tileQueue->setName( "queue" );
+}
+
+void Compound::_setDefaultPackageQueueName( ChunkQueue* chunkQueue )
+{
+    for( Compound* compound = this; compound; compound = compound->getParent())
+    {
+        if( !compound->getName().empty( ))
+        {
+            chunkQueue->setName( "queue." + compound->getName( ));
+            return;
+        }
+
+        const Channel* channel = compound->getChannel();
+        if( channel && !channel->getName().empty( ))
+        {
+            chunkQueue->setName( "queue." + channel->getName( ));
+            return;
+        }
+    }
+    chunkQueue->setName( "queue" );
 }
 
 void Compound::adopt( Compound* child )
@@ -1115,6 +1185,26 @@ void Compound::register_()
         server->registerObject( queue );
         queue->setAutoObsolete( latency );
         LBLOG( LOG_ASSEMBLY ) << "Output queue \"" << queue->getName()
+                                  << "\" id " << queue->getID() << std::endl;
+    }
+
+    for( ChunkQueuesCIter i = _inputChunkQueues.begin();
+            i != _inputChunkQueues.end(); ++i )
+    {
+        ChunkQueue* queue = *i;
+        server->registerObject( queue );
+        queue->setAutoObsolete( latency );
+        LBLOG( LOG_ASSEMBLY ) << "Input chunk queue \"" << queue->getName()
+                                  << "\" id " << queue->getID() << std::endl;
+    }
+
+    for( ChunkQueuesCIter i = _outputChunkQueues.begin();
+            i != _outputChunkQueues.end(); ++i )
+    {
+        ChunkQueue* queue = *i;
+        server->registerObject( queue );
+        queue->setAutoObsolete( latency );
+        LBLOG( LOG_ASSEMBLY ) << "Output chunk queue \"" << queue->getName()
                               << "\" id " << queue->getID() << std::endl;
     }
 }
@@ -1152,6 +1242,21 @@ void Compound::deregister()
         queue->flush();
         server->deregisterObject( queue );
     }
+
+    for( ChunkQueuesCIter i = _inputChunkQueues.begin();
+            i != _inputChunkQueues.end(); ++i )
+    {
+        ChunkQueue* queue = *i;
+        server->deregisterObject( queue );
+    }
+
+    for( ChunkQueuesCIter i = _outputChunkQueues.begin();
+            i != _outputChunkQueues.end(); ++i )
+    {
+        ChunkQueue* queue = *i;
+        queue->flush();
+        server->deregisterObject( queue );
+    }
 }
 
 void Compound::backup()
@@ -1186,8 +1291,9 @@ void Compound::update( const uint32_t frameNumber )
     accept( updateOutputVisitor );
 
     const FrameMap& outputFrames = updateOutputVisitor.getOutputFrames();
-    const TileQueueMap& outputQueues = updateOutputVisitor.getOutputQueues();
-    CompoundUpdateInputVisitor updateInputVisitor( outputFrames, outputQueues );
+    const TileQueueMap& outputTileQueues = updateOutputVisitor.getOutputTileQueues();
+    const ChunkQueueMap& outputChunkQueues = updateOutputVisitor.getOutputChunkQueues();
+    CompoundUpdateInputVisitor updateInputVisitor( outputFrames, outputTileQueues, outputChunkQueues );
     accept( updateInputVisitor );
 
     // commit output frames after input frames have been set
@@ -1493,6 +1599,56 @@ void Compound::_updateInheritActive( const uint32_t frameNumber )
     }
 }
 
+void Compound::_setDefaultChunkQueueName( ChunkQueue* chunkQueue )
+{
+    _setDefaultPackageQueueName( chunkQueue );
+}
+
+void Compound::_setDefaultTileQueueName( TileQueue* tileQueue )
+{
+    _setDefaultPackageQueueName( tileQueue );
+}
+
+void Compound::addInputChunkQueue( ChunkQueue* chunkQueue )
+{
+    addInputPackageQueue( chunkQueue );
+}
+
+void Compound::addInputTileQueue( TileQueue* tileQueue )
+{
+    addInputPackageQueue( tileQueue );
+}
+
+void Compound::addOutputChunkQueue( ChunkQueue* chunkQueue )
+{
+    addOutputPackageQueue( chunkQueue );
+}
+
+void Compound::addOutputTileQueue( TileQueue* tileQueue )
+{
+    addOutputPackageQueue( tileQueue );
+}
+
+void Compound::removeInputChunkQueue( ChunkQueue* chunkQueue )
+{
+    removeInputPackageQueue( chunkQueue );
+}
+
+void Compound::removeInputTileQueue( TileQueue* tileQueue )
+{
+    removeInputPackageQueue( tileQueue );
+}
+
+void Compound::removeOutputChunkQueue( ChunkQueue* chunkQueue )
+{
+    removeOutputPackageQueue( chunkQueue );
+}
+
+void Compound::removeOutputTileQueue( TileQueue* tileQueue )
+{
+    removeOutputPackageQueue( tileQueue );
+}
+
 std::ostream& operator << ( std::ostream& os, const Compound& compound )
 {
     os << lunchbox::disableFlush << "compound" << std::endl;
@@ -1700,12 +1856,24 @@ std::ostream& operator << ( std::ostream& os, const Compound& compound )
     for( EqualizersCIter i = equalizers.begin(); i != equalizers.end(); ++i )
         os << *i;
 
-    const TileQueues& outputQueues = compound.getOutputTileQueues();
-    for( TileQueuesCIter i = outputQueues.begin(); i != outputQueues.end(); ++i)
+    const TileQueues* outputTileQueues;
+    compound.getOutputPackageQueues( &outputTileQueues );
+    for( TileQueuesCIter i = outputTileQueues->begin(); i != outputTileQueues->end(); ++i)
         os << "output" <<  *i;
 
-    const TileQueues& inputQueues = compound.getInputTileQueues();
-    for( TileQueuesCIter i = inputQueues.begin(); i != inputQueues.end(); ++i )
+    const TileQueues* inputTileQueues;
+    compound.getInputPackageQueues( &inputTileQueues );
+    for( TileQueuesCIter i = inputTileQueues->begin(); i != inputTileQueues->end(); ++i )
+        os << "input" << *i;
+
+    const ChunkQueues* outputChunkQueues;
+    compound.getOutputPackageQueues( &outputChunkQueues );
+    for( ChunkQueuesCIter i = outputChunkQueues->begin(); i != outputChunkQueues->end(); ++i)
+        os << "output" <<  *i;
+
+    const ChunkQueues* inputChunkQueues;
+    compound.getInputPackageQueues( &inputChunkQueues );
+    for( ChunkQueuesCIter i = inputChunkQueues->begin(); i != inputChunkQueues->end(); ++i )
         os << "input" << *i;
 
     if( compound.getSwapBarrier( ))

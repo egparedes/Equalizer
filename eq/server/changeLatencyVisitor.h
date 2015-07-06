@@ -2,6 +2,7 @@
 /* Copyright (c) 2010, Cedric Stalder <cedric.stalder@gmail.com>
  *               2010-2013, Stefan Eilemann <eile@eyescale.ch>
  *               2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -28,6 +29,7 @@
 #include "observer.h"
 #include "segment.h"
 #include "tileQueue.h"
+#include "chunkQueue.h"
 #include "view.h"
 
 namespace eq
@@ -60,21 +62,42 @@ public:
             frame->setAutoObsolete( _latency );
         }
 
-        const TileQueues& outputTileQueues = compound->getOutputTileQueues();
-        for( TileQueuesCIter i = outputTileQueues.begin();
-             i != outputTileQueues.end(); ++i )
+        const TileQueues* outputTileQueues;
+        compound->getOutputPackageQueues( &outputTileQueues );
+        for( TileQueuesCIter i = outputTileQueues->begin();
+             i != outputTileQueues->end(); ++i )
         {
             TileQueue* queue = *i;
             queue->setAutoObsolete( _latency );
         }
 
-        const TileQueues& inputTileQueues = compound->getInputTileQueues();
-        for( TileQueuesCIter i = inputTileQueues.begin();
-             i != inputTileQueues.end(); ++i )
+        const TileQueues* inputTileQueues;
+        compound->getInputPackageQueues( &inputTileQueues );
+        for( TileQueuesCIter i = inputTileQueues->begin();
+             i != inputTileQueues->end(); ++i )
         {
             TileQueue* queue = *i;
             queue->setAutoObsolete( _latency );
         }
+
+        const ChunkQueues* outputChunkQueues;
+        compound->getOutputPackageQueues( &outputChunkQueues );
+        for( ChunkQueuesCIter i = outputChunkQueues->begin();
+                i != outputChunkQueues->end(); ++i )
+        {
+            ChunkQueue* queue = *i;
+            queue->setAutoObsolete( _latency );
+        }
+
+        const ChunkQueues* inputChunkQueues;
+        compound->getInputPackageQueues( &inputChunkQueues );
+        for( ChunkQueuesCIter i = inputChunkQueues->begin();
+                i != inputChunkQueues->end(); ++i )
+        {
+            ChunkQueue* queue = *i;
+            queue->setAutoObsolete( _latency );
+        }
+
         return TRAVERSE_CONTINUE;
     }
 

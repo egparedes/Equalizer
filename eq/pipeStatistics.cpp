@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2009-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -62,6 +63,7 @@ PipeStatistics::~PipeStatistics()
         event.data.statistic.endTime = config->getTime();
     if( event.data.statistic.endTime <= event.data.statistic.startTime )
         event.data.statistic.endTime = event.data.statistic.startTime + 1;
+    event.data.time = config->getTime();        // TODO: more precise timing possible?
 
     _owner->processEvent( event.data );
 }

@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -49,6 +50,7 @@
 
 #include <co/global.h>
 #include <co/objectICommand.h>
+#include <co/stealingQueueSlave.h>
 #include <co/queueSlave.h>
 #include <co/worker.h>
 #include <boost/lexical_cast.hpp>
@@ -81,7 +83,7 @@ enum State
 typedef stde::hash_map< uint128_t, Frame* > FrameHash;
 typedef stde::hash_map< uint128_t, FrameDataPtr > FrameDataHash;
 typedef stde::hash_map< uint128_t, View* > ViewHash;
-typedef stde::hash_map< uint128_t, co::QueueSlave* > QueueHash;
+typedef stde::hash_map< uint128_t, co::Consumer* > QueueHash;
 typedef FrameHash::const_iterator FrameHashCIter;
 typedef FrameDataHash::const_iterator FrameDataHashCIter;
 typedef ViewHash::const_iterator ViewHashCIter;
@@ -579,13 +581,13 @@ void Pipe::flushFrames( util::ObjectManager& om )
     _impl->outputFrameDatas.clear();
 }
 
-co::QueueSlave* Pipe::getQueue( const uint128_t& queueID )
+co::Consumer* Pipe::getQueue( const uint128_t& queueID )
 {
     LB_TS_THREAD( _pipeThread );
     if( queueID == 0 )
         return 0;
 
-    co::QueueSlave* queue = _impl->queues[ queueID ];
+    co::Consumer* queue = _impl->queues[ queueID ];
     if( !queue )
     {
         queue = new co::QueueSlave;
@@ -605,7 +607,7 @@ void Pipe::_flushQueues()
 
     for( QueueHashCIter i = _impl->queues.begin(); i !=_impl->queues.end(); ++i)
     {
-        co::QueueSlave* queue = i->second;
+        co::Consumer* queue = i->second;
         client->unmapObject( queue );
         delete queue;
     }

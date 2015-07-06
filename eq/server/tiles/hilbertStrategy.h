@@ -1,7 +1,5 @@
 
-/* Copyright (c) 2011-2012, Stefan Eilemann <eile@eyescale.ch>
- *               2011-2012, Daniel Nachbaur <danielnachbaur@googlemail.com>
- *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
+/* Copyright (c) 2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -17,18 +15,33 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef EQSERVER_TILEQUEUE_H
-#define EQSERVER_TILEQUEUE_H
+#ifndef EQSERVER_TILES_HILBERTSTRATEGY_H
+#define EQSERVER_TILES_HILBERTSTRATEGY_H
 
-#include "packageQueue.h"
-#include "types.h"
+#include "sfc.h"
 
 namespace eq
 {
 namespace server
 {
-    std::ostream& operator << ( std::ostream& os, const TileQueue* frame );
+namespace tiles
+{
+
+/** Generates tiles for a channel using a hilbert strategy */
+inline void generateHilbert( std::vector< Vector2i >& tiles,
+                            const Vector2i& dim )
+{
+    int num = dim.x() * dim.y();
+    for( int i = 0; i < num; ++i )
+    {
+        uint32_t x, y;
+        hilbertDecode(i, x, y);
+        tiles.push_back( Vector2i( x, y ));
+    }
+}
+
+}
 }
 }
 
-#endif // EQSERVER_TILEQUEUE_H
+#endif // EQSERVER_TILES_HILBERTSTRATEGY_H

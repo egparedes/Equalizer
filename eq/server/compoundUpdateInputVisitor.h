@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007-2011, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -31,7 +32,8 @@ namespace server
     {
     public:
         CompoundUpdateInputVisitor( const Compound::FrameMap& outputFrames,
-                                   const Compound::TileQueueMap& outputQueues );
+                                    const Compound::TileQueueMap& outputTileQueues,
+                                    const Compound::ChunkQueueMap& outputChunkQueues );
         virtual ~CompoundUpdateInputVisitor() {}
 
         /** Visit all compounds. */
@@ -39,7 +41,8 @@ namespace server
 
     private:
         const Compound::FrameMap& _outputFrames;
-        const Compound::TileQueueMap& _outputQueues;
+        const Compound::TileQueueMap& _outputTileQueues;
+        const Compound::ChunkQueueMap& _outputChunkQueues;
 
         void _updateQueues( const Compound* compound );
         void _updateFrames( Compound* compound );

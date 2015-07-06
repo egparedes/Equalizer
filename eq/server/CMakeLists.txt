@@ -1,6 +1,7 @@
 # Copyright (c) 2010-2015 Daniel Pfeifer <daniel@pfeifer-mail.de>
 #                         Stefan Eilemann <eile@eyescale.ch>
 #                         Daniel Nachbaur <danielnachbaur@gmail.com>
+#                    2015 David Steiner <steiner@ifi.uzh.ch>
 
 find_package(BISON REQUIRED)
 find_package(FLEX  REQUIRED)
@@ -28,6 +29,7 @@ set(PUBLIC_HEADERS
     canvas.h
     channel.h
     channelListener.h
+    chunkQueue.h
     compound.h
     compoundListener.h
     compoundVisitor.h
@@ -37,6 +39,8 @@ set(PUBLIC_HEADERS
     equalizers/equalizer.h
     equalizers/loadEqualizer.h
     equalizers/tileEqualizer.h
+    equalizers/packageEqualizer.h
+    equalizers/packageEqualizer.ipp
     equalizers/viewEqualizer.h
     frame.h
     frameData.h
@@ -50,6 +54,8 @@ set(PUBLIC_HEADERS
     log.h
     node.h
     observer.h
+    packageQueue.h
+    packageQueue.ipp
     pipe.h
     segment.h
     server.h
@@ -67,6 +73,7 @@ set(EQUALIZERSERVER_HEADERS
     channelListener.h
     channelStopFrameVisitor.h
     channelUpdateVisitor.h
+    chunkQueue.cpp
     colorMask.h
     compoundActivateVisitor.h
     compoundExitVisitor.h
@@ -114,6 +121,7 @@ set(EQUALIZERSERVER_SOURCES
     equalizers/treeEqualizer.cpp
     equalizers/viewEqualizer.cpp
     equalizers/tileEqualizer.cpp
+    equalizers/chunkEqualizer.cpp
     frame.cpp
     frameData.cpp
     frustum.cpp
@@ -132,6 +140,7 @@ set(EQUALIZERSERVER_SOURCES
     segment.cpp
     server.cpp
     tileQueue.cpp
+    tiles/sfc.cpp
     view.cpp
     window.cpp
 )

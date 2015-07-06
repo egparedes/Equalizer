@@ -2,6 +2,7 @@
 /* Copyright (c) 2010-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
  *                    2013, Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -152,6 +153,12 @@ public:
     const PixelViewport& getPixelViewport() const { return _context->pvp; }
 
     /**
+     * @return the current pixel viewport for glViewport and glScissor.
+     * @version 1.x
+     */
+    const PixelViewport& getPixelViewportGlobal() const { return _context->pvpGlobal; }
+
+    /**
      * Select perspective or orthographic rendering.
      *
      * Influences the behaviour of getFrustum, getHeadTransform and the
@@ -179,6 +186,25 @@ public:
      * @version 1.0
      */
     const Frustumf& getOrtho() const { return _context->ortho; }
+
+    /**
+     * @return the current frustum for glFrustum or glOrtho.
+     * @version 1.x
+     */
+    const Frustumf& getFrustumGlobal() const
+        { return useOrtho() ? getOrthoGlobal() : getPerspectiveGlobal(); }
+
+    /**
+     * @return the current perspective frustum for glFrustum.
+     * @version 1.x
+     */
+    const Frustumf& getPerspectiveGlobal() const { return _context->frustumGlobal; }
+
+    /**
+     * @return the current orthographic frustum for glOrtho.
+     * @version 1.x
+     */
+    const Frustumf& getOrthoGlobal() const { return _context->orthoGlobal; }
 
     /**
      * Return the view matrix.
@@ -223,6 +249,12 @@ public:
     const Viewport& getViewport() const { return _context->vp; }
 
     /**
+     * @return the fractional viewport wrt the destination view.
+     * @version 1.x
+     */
+    const Viewport& getViewportGlobal() const { return _context->vpGlobal; }
+
+    /**
      * @return the database range for the current rendering task.
      * @version 1.0
      */
@@ -256,7 +288,15 @@ public:
      * @return the DPlex phase for the current rendering task.
      * @version 1.0
      */
-    uint32_t getPhase() const { return _context->phase; }
+    uint32_t getPhase() const {
+        return _context->phase;
+    }
+
+    /**
+     * @return true if the current rendering task has been stolen.
+     * @version 1.x
+     */
+    bool getStolen() const { return _context->stolen; }
 
     /**
      * Get the channel's current position wrt the destination channel.

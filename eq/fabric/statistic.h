@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2009-2012, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2014-2015, David Steiner   <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -66,6 +67,8 @@ struct Statistic
         CONFIG_FINISH_FRAME, //!< Sampling of Config::finishFrame
         /** Sampling of synchronization time during Config::finishFrame */
         CONFIG_WAIT_FINISH_FRAME,
+        CHANNEL_TILES, //!< Sampling of Channel::frameTiles
+        CHANNEL_CHUNKS, //!< Sampling of Channel::frameChunks
         ALL          // must be last
     };
 

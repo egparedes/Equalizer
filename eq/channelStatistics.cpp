@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2006-2012, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -82,10 +83,12 @@ ChannelStatistics::~ChannelStatistics()
         _owner->getWindow()->finish();
     }
 
+    Config* config = _owner->getConfig();
     if( event.data.statistic.endTime == 0 )
-        event.data.statistic.endTime = _owner->getConfig()->getTime();
+        event.data.statistic.endTime = config->getTime();
     if( event.data.statistic.endTime <= event.data.statistic.startTime )
         event.data.statistic.endTime = event.data.statistic.startTime + 1;
+    event.data.time = config->getTime();        // TODO: more precise timing possible?
 
     _owner->addStatistic( event.data );
 }

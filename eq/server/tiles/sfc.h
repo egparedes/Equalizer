@@ -1,7 +1,5 @@
 
-/* Copyright (c) 2011-2012, Stefan Eilemann <eile@eyescale.ch>
- *               2011-2012, Daniel Nachbaur <danielnachbaur@googlemail.com>
- *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
+/* Copyright (c) 2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -17,18 +15,34 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef EQSERVER_TILEQUEUE_H
-#define EQSERVER_TILEQUEUE_H
+#ifndef EQSERVER_TILES_SFC_H
+#define EQSERVER_TILES_SFC_H
 
-#include "packageQueue.h"
 #include "types.h"
 
 namespace eq
 {
 namespace server
 {
-    std::ostream& operator << ( std::ostream& os, const TileQueue* frame );
+namespace tiles
+{
+
+void hilbertDecode2D16bit( const uint32_t hilbert, uint32_t& index1, uint32_t& index2 );
+
+void mortonDecode2D16bit( const uint32_t morton, uint32_t& index1, uint32_t& index2 );
+
+inline void hilbertDecode( const uint32_t index, uint32_t& x, uint32_t& y )
+{
+    hilbertDecode2D16bit( index, x, y );
+}
+
+inline void mortonDecode( const uint32_t index, uint32_t& x, uint32_t& y )
+{
+    mortonDecode2D16bit( index, x, y );
+}
+
+}
 }
 }
 
-#endif // EQSERVER_TILEQUEUE_H
+#endif // EQSERVER_TILES_SFC_H

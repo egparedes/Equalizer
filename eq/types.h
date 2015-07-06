@@ -2,6 +2,7 @@
 /* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -102,6 +103,7 @@ using fabric::ResizeEvent;
 using fabric::Statistic;
 using fabric::SubPixel;
 using fabric::Tile;
+using fabric::Chunk;
 using fabric::Viewport;
 using fabric::Wall;
 using fabric::Zoom;
@@ -226,6 +228,7 @@ using fabric::Vector2f;   //!< A two-component float vector
 using fabric::Vector3f;   //!< A three-component float vector
 using fabric::Vector4f;   //!< A four-component float vector
 using fabric::Vector3ub;  //!< A three-component byte vector
+using fabric::AABBf;  //!< An axis-aligned bounding box
 using fabric::Frustumf;   //!< A frustum definition
 
 using fabric::EventOCommand;

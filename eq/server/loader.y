@@ -2,6 +2,7 @@
 /* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -30,8 +31,10 @@
 #include "equalizers/monitorEqualizer.h"
 #include "equalizers/viewEqualizer.h"
 #include "equalizers/tileEqualizer.h"
+#include "equalizers/chunkEqualizer.h"
 #include "frame.h"
 #include "tileQueue.h"
+#include "chunkQueue.h"
 #include "global.h"
 #include "layout.h"
 #include "node.h"
@@ -74,9 +77,11 @@
         static eq::server::LoadEqualizer* loadEqualizer = 0;
         static eq::server::TreeEqualizer* treeEqualizer = 0;
         static eq::server::TileEqualizer* tileEqualizer = 0;
+        static eq::server::ChunkEqualizer* chunkEqualizer = 0;
         static eq::server::SwapBarrierPtr swapBarrier;
         static eq::server::Frame*       frame = 0;
         static eq::server::TileQueue*   tileQueue = 0;
+        static eq::server::ChunkQueue*  chunkQueue = 0;
         static co::ConnectionDescriptionPtr connectionDescription;
         static eq::fabric::Wall         wall;
         static eq::fabric::Projection   projection;
@@ -205,6 +210,14 @@
 %token EQTOKEN_MONITOREQUALIZER
 %token EQTOKEN_VIEWEQUALIZER
 %token EQTOKEN_TILEEQUALIZER
+%token EQTOKEN_CHUNKEQUALIZER
+%token EQTOKEN_DISTRIBUTIONSTRATEGY
+%token EQTOKEN_NONE
+%token EQTOKEN_EQUAL
+%token EQTOKEN_RANDOM
+%token EQTOKEN_LOAD_AWARE
+%token EQTOKEN_LATENCY_AWARE
+%token EQTOKEN_CENT_LOAD_AWARE
 %token EQTOKEN_DAMPING
 %token EQTOKEN_CONNECTION
 %token EQTOKEN_NAME
@@ -278,6 +291,8 @@
 %token EQTOKEN_INPUTFRAME
 %token EQTOKEN_OUTPUTTILES
 %token EQTOKEN_INPUTTILES
+%token EQTOKEN_OUTPUTCHUNKS
+%token EQTOKEN_INPUTCHUNKS
 %token EQTOKEN_STEREO_MODE
 %token EQTOKEN_STEREO_ANAGLYPH_LEFT_MASK
 %token EQTOKEN_STEREO_ANAGLYPH_RIGHT_MASK
@@ -315,6 +330,7 @@
     co::ConnectionType   _connectionType;
     eq::server::LoadEqualizer::Mode _loadEqualizerMode;
     eq::server::TreeEqualizer::Mode _treeEqualizerMode;
+    eq::fabric::DistributionStrategy _distributionStrategy;
     float                   _viewport[4];
 }
 
@@ -325,6 +341,7 @@
 %type <_connectionType>   connectionType;
 %type <_loadEqualizerMode> loadEqualizerMode;
 %type <_treeEqualizerMode> treeEqualizerMode;
+%type <_distributionStrategy> distributionStrategy;
 %type <_viewport>         viewport;
 %type <_float>            FLOAT;
 
@@ -1031,6 +1048,8 @@ compoundField:
     | inputFrame
     | outputTiles
     | inputTiles
+    | outputChunks
+    | inputChunks
     | EQTOKEN_ATTRIBUTES '{' compoundAttributes '}'
 
 viewSegmentRef:
@@ -1230,7 +1249,7 @@ loadBalancerMode:
     }
 
 equalizer: dfrEqualizer | framerateEqualizer | loadEqualizer | treeEqualizer |
-           monitorEqualizer | viewEqualizer | tileEqualizer
+           monitorEqualizer | viewEqualizer | tileEqualizer | chunkEqualizer
 
 dfrEqualizer: EQTOKEN_DFREQUALIZER '{'
     { dfrEqualizer = new eq::server::DFREqualizer; }
@@ -1271,6 +1290,13 @@ tileEqualizer: EQTOKEN_TILEEQUALIZER
     {
         eqCompound->addEqualizer( tileEqualizer );
         tileEqualizer = 0;
+    }
+chunkEqualizer: EQTOKEN_CHUNKEQUALIZER
+    '{' { chunkEqualizer = new eq::server::ChunkEqualizer; }
+    chunkEqualizerFields '}'
+    {
+        eqCompound->addEqualizer( chunkEqualizer );
+        chunkEqualizer = 0;
     }
 
 dfrEqualizerFields: /* null */ | dfrEqualizerFields dfrEqualizerField
@@ -1319,6 +1345,23 @@ tileEqualizerField:
     EQTOKEN_NAME STRING                   { tileEqualizer->setName( $2 ); }
     | EQTOKEN_SIZE '[' UNSIGNED UNSIGNED ']'
                    { tileEqualizer->setTileSize( eq::fabric::Vector2i( $3, $4 )); }
+    | EQTOKEN_DISTRIBUTIONSTRATEGY distributionStrategy
+                   { tileEqualizer->setDistributionStrategy( $2 ); }
+chunkEqualizerFields: /* null */ | chunkEqualizerFields chunkEqualizerField
+chunkEqualizerField:
+    EQTOKEN_NAME STRING                   { chunkEqualizer->setName( $2 ); }
+    | EQTOKEN_SIZE FLOAT
+                   { chunkEqualizer->setPackageSize( $2 ); }
+    | EQTOKEN_DISTRIBUTIONSTRATEGY distributionStrategy
+                   { chunkEqualizer->setDistributionStrategy( $2 ); }
+
+distributionStrategy:
+    EQTOKEN_NONE              { $$ = eq::fabric::DISTRIBUTION_STRATEGY_NONE; }
+    | EQTOKEN_EQUAL           { $$ = eq::fabric::DISTRIBUTION_STRATEGY_EQUAL; }
+    | EQTOKEN_RANDOM          { $$ = eq::fabric::DISTRIBUTION_STRATEGY_RANDOM; }
+    | EQTOKEN_LOAD_AWARE      { $$ = eq::fabric::DISTRIBUTION_STRATEGY_LOAD_AWARE; }
+    | EQTOKEN_LATENCY_AWARE   { $$ = eq::fabric::DISTRIBUTION_STRATEGY_LATENCY_AWARE; }
+    | EQTOKEN_CENT_LOAD_AWARE { $$ = eq::fabric::DISTRIBUTION_STRATEGY_CENT_LOAD_AWARE; }
 
 swapBarrier:
     EQTOKEN_SWAPBARRIER '{' { swapBarrier = new eq::server::SwapBarrier; }
@@ -1362,20 +1405,38 @@ frameType:
 outputTiles: EQTOKEN_OUTPUTTILES '{' { tileQueue = new eq::server::TileQueue; }
     tileQueueFields '}'
         {
-            eqCompound->addOutputTileQueue( tileQueue );
+            eqCompound->addOutputPackageQueue( tileQueue );
             tileQueue = 0;
         }
 inputTiles: EQTOKEN_INPUTTILES '{' { tileQueue = new eq::server::TileQueue; }
     tileQueueFields '}'
         {
-            eqCompound->addInputTileQueue( tileQueue );
+            eqCompound->addInputPackageQueue( tileQueue );
             tileQueue = 0;
         }
 tileQueueFields: /*null*/ | tileQueueFields tileQueueField
 tileQueueField:
     EQTOKEN_NAME STRING { tileQueue->setName( $2 ); }
     | EQTOKEN_SIZE '[' UNSIGNED UNSIGNED ']'
-        { tileQueue->setTileSize( eq::fabric::Vector2i( $3, $4 )); }
+        { tileQueue->setPackageSize( eq::fabric::Vector2i( $3, $4 )); }
+
+outputChunks: EQTOKEN_OUTPUTCHUNKS '{' { chunkQueue = new eq::server::ChunkQueue; }
+    chunkQueueFields '}'
+        {
+            eqCompound->addOutputPackageQueue( chunkQueue );
+            chunkQueue = 0;
+        }
+inputChunks: EQTOKEN_INPUTCHUNKS '{' { chunkQueue = new eq::server::ChunkQueue; }
+    chunkQueueFields '}'
+        {
+            eqCompound->addInputPackageQueue( chunkQueue );
+            chunkQueue = 0;
+        }
+chunkQueueFields: /*null*/ | chunkQueueFields chunkQueueField
+chunkQueueField:
+    EQTOKEN_NAME STRING { chunkQueue->setName( $2 ); }
+    | EQTOKEN_SIZE FLOAT
+        { chunkQueue->setPackageSize( $2 ); }
 
 compoundAttributes: /*null*/ | compoundAttributes compoundAttribute
 compoundAttribute:

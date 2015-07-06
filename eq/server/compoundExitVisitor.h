@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2010, Stefan Eilemann <eile@eyescale.ch> 
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -34,38 +35,48 @@ namespace server
 
         /** Visit all compounds. */
         virtual VisitorResult visit( Compound* compound )
+        {
+            Channel* channel = compound->getChannel();
+            if( !channel || // non-channel root compounds
+                // old-school (non-Layout) destination channel
+                ( compound->isDestination() && !channel->getSegment( )))
             {
-                Channel* channel = compound->getChannel();
-                if( !channel || // non-channel root compounds
-                    // old-school (non-Layout) destination channel
-                    ( compound->isDestination() && !channel->getSegment( )))
-                {
-                    LBASSERT( !channel || !channel->getView( ));
-                    uint32_t eyes = compound->getEyes();
-                    if( eyes == fabric::EYE_UNDEFINED )
-                        eyes = fabric::EYES_ALL;
+                LBASSERT( !channel || !channel->getView( ));
+                uint32_t eyes = compound->getEyes();
+                if( eyes == fabric::EYE_UNDEFINED )
+                    eyes = fabric::EYES_ALL;
 
-                    compound->deactivate( eyes );
-                }
-
-                const Frames& outputFrames = compound->getOutputFrames();
-                for( FramesCIter i = outputFrames.begin(); 
-                     i != outputFrames.end(); ++i )
-                {
-                    Frame* frame = *i;
-                    frame->flush();
-                }
-
-                const TileQueues& outputQueues =compound->getOutputTileQueues();
-                for( TileQueuesCIter i = outputQueues.begin();
-                     i != outputQueues.end(); ++i )
-                {
-                    TileQueue* queue = *i;
-                    queue->flush();
-                }
-
-                return TRAVERSE_CONTINUE;
+                compound->deactivate( eyes );
             }
+
+            const Frames& outputFrames = compound->getOutputFrames();
+            for( FramesCIter i = outputFrames.begin(); 
+                    i != outputFrames.end(); ++i )
+            {
+                Frame* frame = *i;
+                frame->flush();
+            }
+
+            const TileQueues* outputTileQueues;
+            compound->getOutputPackageQueues( &outputTileQueues );
+            for( TileQueuesCIter i = outputTileQueues->begin();
+                    i != outputTileQueues->end(); ++i )
+            {
+                TileQueue* queue = *i;
+                queue->flush();
+            }
+
+            const ChunkQueues* outputChunkQueues;
+            compound->getOutputPackageQueues( &outputChunkQueues );
+            for( ChunkQueuesCIter i = outputChunkQueues->begin();
+                    i != outputChunkQueues->end(); ++i )
+            {
+                ChunkQueue* queue = *i;
+                queue->flush();
+            }
+
+            return TRAVERSE_CONTINUE;
+        }
     };
 }
 }

@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2008-2009, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -48,6 +49,7 @@ ConfigStatistics::~ConfigStatistics()
     event.data.statistic.endTime = _owner->getTime();
     if( event.data.statistic.endTime <= event.data.statistic.startTime )
         event.data.statistic.endTime = event.data.statistic.startTime + 1;
+    event.data.time = _owner->getTime();        // TODO: more precise timing possible?
     _owner->sendEvent( event );
 }
 

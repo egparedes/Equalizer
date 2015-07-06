@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric Stalder@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -757,6 +758,7 @@ bool Config::_handleEvent( const Event& event )
 
         case Event::STATISTIC:
             LBLOG( LOG_STATS ) << event << std::endl;
+            send( getServer(), fabric::CMD_CONFIG_ADD_STATISTIC ) << event.time << event.statistic;
             addStatistic( event.serial, event.statistic );
             break;
 
@@ -820,6 +822,8 @@ void Config::addStatistic( const uint32_t originator LB_UNUSED,
       case Statistic::CHANNEL_ASSEMBLE:
       case Statistic::CHANNEL_READBACK:
       case Statistic::CHANNEL_VIEW_FINISH:
+      case Statistic::CHANNEL_TILES:
+      case Statistic::CHANNEL_CHUNKS:
           type.group = "channel";
           break;
       case Statistic::CHANNEL_ASYNC_READBACK:

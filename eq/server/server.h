@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2005-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -24,9 +25,10 @@
 #include "visitorResult.h" // enum
 
 #include <eq/fabric/server.h>    // base class
-#include <co/commandQueue.h>  // member
-#include <co/localNode.h>     // base class
-#include <lunchbox/clock.h>   // member
+#include <co/commandQueue.h>     // member
+#include <co/localNode.h>        // base class
+#include <co/perfLogger.h>       // base class
+#include <lunchbox/clock.h>      // member
 
 namespace eq
 {
@@ -34,7 +36,8 @@ namespace server
 {
 /** The Equalizer server. */
 class Server : public fabric::Server< co::Node, Server, Config, NodeFactory,
-                                      co::LocalNode, ServerVisitor >
+                                      co::LocalNode, ServerVisitor >,
+               public co::PerfLogger
 {
 public:
     /** Construct a new server. */
@@ -65,10 +68,24 @@ public:
     /** @return the global time in milliseconds. */
     int64_t getTime() const { return _clock.getTime64(); }
 
+    /** Log message. */
+    void log( const std::string& message );
+
+    /** Log message. */
+    void log(const co::NodeID& nodeID, const std::string& name, const std::string& message, const std::string& src);
+
+    /** Log message. */
+    void log(int64_t time LB_UNUSED, const co::NodeID& nodeID, const std::string& name, const std::string& message, const std::string& src );
+
+    /** Log message. */
+    void log( co::NodePtr node, int64_t time, const Statistic& statistic );
+
 protected:
     virtual ~Server();
 
 private:
+    struct Private;
+
     /** The receiver->main command queue. */
     co::CommandQueue _mainThreadQueue;
 
@@ -80,7 +97,6 @@ private:
     /** The current state. */
     bool _running;
 
-    struct Private;
     Private* _private; // placeholder for binary-compatible changes
 
     friend class fabric::Config< Server, Config, Observer, Layout, Canvas,

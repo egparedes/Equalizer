@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
  *               2010-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -33,6 +34,7 @@
 #endif
 
 #include <eq/fabric/commands.h>
+#include <eq/fabric/statistic.h>
 #include <eq/fabric/configParams.h>
 
 #include <co/iCommand.h>
@@ -42,6 +44,7 @@
 #include <co/localNode.h>
 #include <lunchbox/refPtr.h>
 #include <lunchbox/sleep.h>
+#include <lunchbox/perThread.h>
 
 #include <sstream>
 
@@ -60,6 +63,143 @@ static NodeFactory _nf;
 typedef co::CommandFunc<Server> ServerFunc;
 typedef fabric::Server< co::Node, Server, Config, NodeFactory, co::LocalNode,
                         ServerVisitor > Super;
+
+struct Logger;
+void deleteLogger( Logger* logger );
+
+static lunchbox::PerThread< Logger, deleteLogger > _logInstance;
+struct Logger
+{
+    static Logger& instance( Server *parent )
+    {
+        Logger* logger = _logInstance.get();
+        if( !logger )
+        {
+            logger = new Logger( parent );
+            _logInstance = logger;
+        }
+        return *logger;
+    }
+
+    static void log( Server *parent, const std::string& message )
+    {
+         instance( parent )._perflog << message << "\n";
+    }
+
+    static void log( Server *parent, int64_t time, const co::NodeID &nodeID, const std::string& name, const std::string& message, const std::string& src )
+    {
+        Logger& logger = instance( parent );
+        logger._perflog << time << "\t" << nodeID << "\t" << name << ":\t" << message << "\tframe\t" << logger._frame << "\t(" << src << ")\n";
+    }
+
+    static void log( Server *parent, const co::NodeID &nodeID, const std::string& name, const std::string& message, const std::string& src )
+    {
+        Logger& logger = instance( parent );
+        logger._perflog << logger.getTime() << "\t" << nodeID << "\t" << name << ":\t" << message << "\tframe\t" << logger._frame << "\t(" << src << ")\n";
+    }
+
+    static void log( Server *parent, int64_t time, co::NodePtr node, const Statistic& statistic )
+    {
+//         if (!_coAppNode)
+//         {
+//             Config *config = _parent->getConfig();
+//             eq::server::Node *appNode = config->findAppNode();
+//             LBASSERT( appNode );
+//             _coAppNode = appNode->getNode();
+//         }
+//         co::NodeID appNodeID = _coAppNode->getNodeID();
+
+        int64_t startTime = std::numeric_limits< int64_t >::max();
+        int64_t endTime   = 0;
+//         int64_t transmitTime = 0;
+        int64_t timing = 0;
+        int64_t frame = std::numeric_limits< int64_t >::max();
+        std::string name = Statistic::getName( statistic.type );
+        std::string src;
+
+        std::stringstream ss;
+        switch( statistic.type )
+        {
+            case Statistic::CHANNEL_CLEAR:
+            case Statistic::CHANNEL_DRAW:
+            case Statistic::CHANNEL_ASSEMBLE:
+            case Statistic::CHANNEL_READBACK:
+            case Statistic::CHANNEL_TILES:
+            case Statistic::CHANNEL_CHUNKS:
+                src = "CHANNEL";
+                startTime = LB_MIN( startTime, statistic.startTime );
+                endTime   = LB_MAX( endTime, statistic.endTime );
+                timing = endTime - startTime;
+                ss << "\ttiming\t" << timing;
+                break;
+//             case Statistic::CHANNEL_ASYNC_READBACK:
+//             case Statistic::CHANNEL_FRAME_TRANSMIT:
+//                 src = "CHANNEL";
+//                 transmitTime += statistic.startTime - statistic.endTime;
+//                 ss << "\tttime\t" << transmitTime;
+//                 break;
+//             case Statistic::CHANNEL_FRAME_WAIT_SENDTOKEN:
+//                 src = "CHANNEL";
+//                 transmitTime -= statistic.endTime - statistic.startTime;
+//                 ss << "\tttime\t" << transmitTime;
+//                 break;
+            case Statistic::WINDOW_FPS:
+                src = "WINDOW";
+                ss << statistic.currentFPS << "\t" << statistic.averageFPS << "\t" ;
+                break;
+
+            default:
+                ss << "\t\t";
+                break;
+        }
+        ss << "\t\t\t";
+        if( src.size() > 0 )
+        {
+            frame = LB_MIN( frame, statistic.frameNumber );
+            {
+                lunchbox::ScopedMutex<> mutex();
+                if( frame > _frame ) _frame = frame;
+            }
+//             std::string appNodeString = (node->getNodeID() == appNodeID) ? "appnode\t" : "client\t";
+            log( parent, time, node->getNodeID(), name, ss.str(), src);
+        }
+    }
+
+    int64_t getTime()
+    {
+        return _parent->getTime();
+    }
+
+    std::string getLog()
+    {
+        return _perflog.str();
+    }
+
+private:
+    Logger(Server *parent)
+        : _parent( parent )
+    {}
+
+    Server *_parent;
+    co::NodePtr _coAppNode;
+    std::stringstream _perflog;
+    static int64_t _frame;
+};
+
+int64_t Logger::_frame = 0;
+
+void deleteLogger( Logger* logger )
+{
+    lunchbox::ScopedMutex<> mutex();
+    std::ofstream logfile;
+
+    LBINFO << "Creating performance log..." << std::endl;
+    logfile.open("performance.csv", std::ofstream::out | std::ofstream::app);     // TEST
+    logfile << logger->getLog();
+    logfile.flush();
+
+    delete logger;
+}
 
 Server::Server()
         : Super( &_nf )
@@ -395,6 +535,26 @@ bool Server::_cmdUnmap( co::ICommand& command )
 
     node->send( fabric::CMD_SERVER_UNMAP_REPLY ) << command.read< uint32_t >();
     return true;
+}
+
+void Server::log( const std::string& message )
+{
+    Logger::log( this, message );
+}
+
+void Server::log( const co::NodeID& nodeID, const std::string& name, const std::string& message, const std::string& src )
+{
+    Logger::log( this, nodeID, name, message, src );
+}
+
+void Server::log(int64_t time, const co::NodeID& nodeID, const std::string& name, const std::string& message, const std::string& src )
+{
+    Logger::log( this, time, nodeID, name, message, src );
+}
+
+void Server::log(co::NodePtr node, int64_t time, const Statistic& statistic )
+{
+    Logger::log( this, time, node, statistic );
 }
 
 }

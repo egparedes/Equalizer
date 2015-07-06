@@ -2,6 +2,7 @@
 /* Copyright (c) 2005-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                    2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -276,39 +277,90 @@ public:
      *
      * @param tileQueue the input tile queue.
      */
-    EQSERVER_API void addInputTileQueue( TileQueue* tileQueue );
+    EQSERVER_API void addInputPackageQueue( TileQueue* queue );
+    EQSERVER_API void addInputTileQueue( TileQueue* tileQueue );                //<! legacy
 
     /**
      * Remove an input tile queue from this compound.
      *
      * @param tileQueue the input tile queue.
      */
-    EQSERVER_API void removeInputTileQueue( TileQueue* tileQueue );
+    EQSERVER_API void removeInputPackageQueue( TileQueue* queue );
+    EQSERVER_API void removeInputTileQueue( TileQueue* tileQueue );             //<! legacy
 
     /** @return the vector of input tile queues. */
-    const TileQueues& getInputTileQueues() const { return _inputTileQueues;}
+    void getInputPackageQueues( const TileQueues** queues ) const { *queues = &_inputTileQueues; }
+    const TileQueues& getInputTileQueues() const { return _inputTileQueues; }   //<! legacy
 
     /**
      * Add a new output tile queue for this compound.
      *
      * @param queue the output tile queue.
      */
-    EQSERVER_API void addOutputTileQueue( TileQueue* queue );
+    EQSERVER_API void addOutputPackageQueue( TileQueue* queue );
+    EQSERVER_API void addOutputTileQueue( TileQueue* tileQueue );               //<! legacy
 
     /**
      * Remove an output tile queue from this compound.
      *
      * @param tileQueue the output tile queue.
      */
+    EQSERVER_API void removeOutputPackageQueue( TileQueue* queue );
     EQSERVER_API void removeOutputTileQueue( TileQueue* tileQueue );
 
     /** @return the vector of output tile queues. */
-    const TileQueues& getOutputTileQueues() const
-    { return _outputTileQueues; }
+    void getOutputPackageQueues( const TileQueues** queues ) const { *queues = &_outputTileQueues; }
+    const TileQueues& getOutputTileQueues() const { return _outputTileQueues; } //<! legacy
 
     /** @return true if the compound is a tile compound. */
     bool hasTiles() const
     { return !_outputTileQueues.empty() || !_inputTileQueues.empty(); }
+
+    /**
+     * Add a new input chunk queue for this compound.
+     *
+     * @param chunkQueue the input chunk queue.
+     */
+    EQSERVER_API void addInputPackageQueue( ChunkQueue* queue );
+    EQSERVER_API void addInputChunkQueue( ChunkQueue* chunkQueue );             //<! legacy
+
+    /**
+     * Remove an input chunk queue from this compound.
+     *
+     * @param chunkQueue the input chunk queue.
+     */
+    EQSERVER_API void removeInputPackageQueue( ChunkQueue* queue );
+    EQSERVER_API void removeInputChunkQueue( ChunkQueue* chunkQueue );          //<! legacy
+
+    /** @return the vector of input chunk queues. */
+    void getInputPackageQueues( const ChunkQueues** queues ) const { *queues = &_inputChunkQueues; }
+    const ChunkQueues& getInputChunkQueues() const { return _inputChunkQueues; } //<! legacy
+
+    /**
+     * Add a new output chunk queue for this compound.
+     *
+     * @param queue the output chunk queue.
+     */
+    EQSERVER_API void addOutputPackageQueue( ChunkQueue* queue );
+    EQSERVER_API void addOutputChunkQueue( ChunkQueue* chunkQueue );            //<! legacy
+
+    /**
+     * Remove an output chunk queue from this compound.
+     *
+     * @param chunkQueue the output chunk queue.
+     */
+    EQSERVER_API void removeOutputPackageQueue( ChunkQueue* queue );
+    EQSERVER_API void removeOutputChunkQueue( ChunkQueue* chunkQueue );         //<! legacy
+
+    /** @return the vector of output chunk queues. */
+    void getOutputPackageQueues( const ChunkQueues** queues ) const { *queues = &_outputChunkQueues; }
+    const ChunkQueues& getOutputChunkQueues() const { return _outputChunkQueues; } //<! legacy
+
+    /** @return true if the compound is a chunk compound. */
+    bool hasChunks() const
+    {
+        return !_outputChunkQueues.empty() || !_inputChunkQueues.empty();
+    }
     //@}
 
     /**
@@ -517,6 +569,7 @@ public:
     typedef FrameMap::const_iterator FrameMapCIter;
 
     typedef stde::hash_map<std::string, TileQueue*>   TileQueueMap;
+    typedef stde::hash_map<std::string, ChunkQueue*>  ChunkQueueMap;
 
 private:
     //-------------------- Members --------------------
@@ -587,6 +640,8 @@ private:
 
     TileQueues _inputTileQueues;
     TileQueues _outputTileQueues;
+    ChunkQueues _inputChunkQueues;
+    ChunkQueues _outputChunkQueues;
 
     struct Private;
     Private* _private; // placeholder for binary-compatible changes
@@ -606,7 +661,12 @@ private:
     void _updateInheritActive( const uint32_t frameNumber );
 
     void _setDefaultFrameName( Frame* frame );
-    void _setDefaultTileQueueName( TileQueue* tileQueue );
+
+    void _setDefaultPackageQueueName( TileQueue* queue );
+    void _setDefaultTileQueueName( TileQueue* tileQueue );              //<! legacy
+
+    void _setDefaultPackageQueueName( ChunkQueue* queue );
+    void _setDefaultChunkQueueName( ChunkQueue* chunkQueue );           //<! legacy
 
     void _fireChildAdded( Compound* child );
     void _fireChildRemove( Compound* child );

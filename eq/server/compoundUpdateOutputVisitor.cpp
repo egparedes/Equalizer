@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *               2013-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -24,12 +25,17 @@
 #include "log.h"
 #include "server.h"
 #include "tileQueue.h"
+#include "chunkQueue.h"
 #include "window.h"
+#include "node.h"
 
-#include "tiles/zigzagStrategy.h"
+#include "tiles/hilbertStrategy.h"
+// #include "tiles/mortonStrategy.h"
+// #include "tiles/zigzagStrategy.h"
 
 #include <eq/fabric/iAttribute.h>
 #include <eq/fabric/tile.h>
+#include <eq/fabric/chunk.h>
 
 namespace eq
 {
@@ -54,8 +60,9 @@ VisitorResult CompoundUpdateOutputVisitor::visit( Compound* compound )
 
 void CompoundUpdateOutputVisitor::_updateQueues( Compound* compound )
 {
-    const TileQueues& queues = compound->getOutputTileQueues();
-    for( TileQueuesCIter i = queues.begin(); i != queues.end(); ++i )
+    const TileQueues* outputTileQueues;
+    compound->getOutputPackageQueues( &outputTileQueues );
+    for( TileQueuesCIter i = outputTileQueues->begin(); i != outputTileQueues->end(); ++i )
     {
         //----- Check uniqueness of output queue name
         TileQueue* queue  = *i;
@@ -74,6 +81,29 @@ void CompoundUpdateOutputVisitor::_updateQueues( Compound* compound )
         //----- Generate tile task commands
         _generateTiles( queue, compound );
         _outputTileQueues[name] = queue;
+    }
+
+    const ChunkQueues* outputChunkQueues;
+    compound->getOutputPackageQueues( &outputChunkQueues );
+    for( ChunkQueuesCIter i = outputChunkQueues->begin(); i != outputChunkQueues->end(); ++i )
+    {
+        //----- Check uniqueness of output queue name
+        ChunkQueue* queue  = *i;
+        const std::string& name   = queue->getName();
+
+        if( _outputTileQueues.find( name ) != _outputTileQueues.end( ))
+        {
+            LBWARN << "Multiple output queues of the same name are unsupported"
+                   << ", ignoring output queue " << name << std::endl;
+            queue->unsetData();
+            continue;
+        }
+
+        queue->cycleData( _frameNumber, compound );
+
+        //----- Generate tile task commands
+        _generateChunks( queue, compound );
+        _outputChunkQueues[name] = queue;
     }
 }
 
@@ -132,7 +162,9 @@ void CompoundUpdateOutputVisitor::_updateFrames( Compound* compound )
 
         //----- Set frame data parameters:
         // 1) offset is position wrt destination view, used only by input frames
-        const bool tiled = !compound->getInputTileQueues().empty();
+        const TileQueues* inputTileQueues;
+        compound->getInputPackageQueues( &inputTileQueues );
+        const bool tiled = !inputTileQueues->empty();
         frameData->setOffset( tiled ? Vector2i( 0 , 0 ) :
                                       Vector2i( framePVP.x, framePVP.y ));
 
@@ -182,18 +214,17 @@ void CompoundUpdateOutputVisitor::_updateFrames( Compound* compound )
 void CompoundUpdateOutputVisitor::_generateTiles( TileQueue* queue,
                                                   Compound* compound )
 {
-    const Vector2i& tileSize = queue->getTileSize();
+    const Vector2i& dim = queue->getPackageSize();
     const PixelViewport pvp = compound->getInheritPixelViewport();
+    const Vector2i tileSize(pvp.w / dim.x(), pvp.h / dim.y( ));
+
     if( !pvp.hasArea( ))
         return;
-
-    const Vector2i dim( pvp.w / tileSize.x() + ((pvp.w%tileSize.x()) ? 1 : 0),
-                        pvp.h / tileSize.y() + ((pvp.h%tileSize.y()) ? 1 : 0));
 
     std::vector< Vector2i > tiles;
     tiles.reserve( dim.x() * dim.y() );
 
-    tiles::generateZigzag( tiles, dim );
+    tiles::generateHilbert( tiles, dim );
     _addTilesToQueue( queue, compound, tiles );
 }
 
@@ -201,44 +232,103 @@ void CompoundUpdateOutputVisitor::_addTilesToQueue( TileQueue* queue,
                                                     Compound* compound,
                                          const std::vector< Vector2i >& tiles )
 {
+    const Vector2i& dim = queue->getPackageSize();
+    const PixelViewport pvp = compound->getInheritPixelViewport();
+    const Vector2i tileSize(pvp.w / dim.x(), pvp.h / dim.y( ));
 
-    const Vector2i& tileSize = queue->getTileSize();
-    PixelViewport pvp = compound->getInheritPixelViewport();
     const double xFraction = 1.0 / pvp.w;
     const double yFraction = 1.0 / pvp.h;
 
-    for( std::vector< Vector2i >::const_iterator i = tiles.begin();
-         i != tiles.end(); ++i )
+    Config* config = compound->getConfig();
+    Node* appNode = config->findAppNode();
+    eq::server::Nodes nodes = config->getNodes();
+    co::Nodes slaveNodes;
+    for( eq::server::NodesCIter i = nodes.begin(); i != nodes.end(); ++i )
     {
-        const Vector2i& tile = *i;
-        PixelViewport tilePVP( tile.x() * tileSize.x(), tile.y() * tileSize.y(),
-                               tileSize.x(), tileSize.y( ));
-
-        if ( tilePVP.x + tileSize.x() > pvp.w ) // no full tile
-            tilePVP.w = pvp.w - tilePVP.x;
-
-        if ( tilePVP.y + tileSize.y() > pvp.h ) // no full tile
-            tilePVP.h = pvp.h - tilePVP.y;
-
-        const Viewport tileVP( tilePVP.x * xFraction, tilePVP.y * yFraction,
-                               tilePVP.w * xFraction, tilePVP.h * yFraction );
-
-        for( fabric::Eye eye = fabric::EYE_CYCLOP; eye < fabric::EYES_ALL;
-             eye = fabric::Eye(eye<<1) )
+        if(( *i)->getID() != appNode->getID( ))
         {
-            if ( !(compound->getInheritEyes() & eye) ||
-                 !compound->isInheritActive( eye ))
-            {
-                continue;
-            }
+            slaveNodes.push_back(( *i )->getNode( ));
+        }
+    }
+
+    for( fabric::Eye eye = fabric::EYE_CYCLOP; eye < fabric::EYES_ALL;
+            eye = fabric::Eye(eye<<1) )
+    {
+        if ( !(compound->getInheritEyes() & eye) ||
+                !compound->isInheritActive( eye ))
+        {
+            continue;
+        }
+
+        int nTiles = tiles.size();
+        queue->selectPackageDistributor( eye );
+        queue->setSlaveNodes( slaveNodes, eye );
+        for( int i = 0; i < nTiles; ++i )
+        {
+            const Vector2i& tile = tiles[i];
+            PixelViewport tilePVP( tile.x() * tileSize.x(), tile.y() * tileSize.y(),
+                                   tileSize.x(), tileSize.y( ));
+
+            if ( tilePVP.x + tileSize.x() > pvp.w ) // no full tile
+                tilePVP.w = pvp.w - tilePVP.x;
+
+            if ( tilePVP.y + tileSize.y() > pvp.h ) // no full tile
+                tilePVP.h = pvp.h - tilePVP.y;
+
+            const Viewport tileVP( tilePVP.x * xFraction, tilePVP.y * yFraction,
+                                   tilePVP.w * xFraction, tilePVP.h * yFraction );
 
             Tile tileItem( tilePVP, tileVP );
             compound->computeTileFrustum( tileItem.frustum, eye, tileItem.vp,
                                           false );
             compound->computeTileFrustum( tileItem.ortho, eye, tileItem.vp,
                                           true );
-            queue->addTile( tileItem, eye );
+            float position = (i + .5f) / nTiles;
+            queue->addPackage( tileItem, position, eye );
         }
+        queue->addEnd( eye );
+    }
+}
+
+void CompoundUpdateOutputVisitor::_generateChunks( ChunkQueue* queue,
+        Compound* compound )
+{
+    const float& chunkSize = queue->getPackageSize();
+    if ( chunkSize == 0.0f )
+        return;
+
+    Config* config = compound->getConfig();
+    Node* appNode = config->findAppNode();
+    eq::server::Nodes nodes = config->getNodes();
+    co::Nodes slaveNodes;
+    for( eq::server::NodesCIter i = nodes.begin(); i != nodes.end(); ++i )
+    {
+        if(( *i)->getID() != appNode->getID( ))
+        {
+            slaveNodes.push_back(( *i )->getNode( ));
+        }
+    }
+
+    for( fabric::Eye eye = fabric::EYE_CYCLOP; eye < fabric::EYES_ALL;
+            eye = fabric::Eye( eye<<1 ) )
+    {
+        if ( !( compound->getInheritEyes() & eye ) ||
+                !compound->isInheritActive( eye ) )
+        {
+            continue;
+        }
+
+        queue->selectPackageDistributor( eye );
+        queue->setSlaveNodes( slaveNodes, eye );
+        for ( float rangeBegin = 0.0f, rangeEnd = chunkSize;
+                rangeBegin < 1.0f;
+                rangeBegin = rangeEnd, rangeEnd += chunkSize )
+        {
+            Chunk chunk( Range( rangeBegin, rangeEnd > 1.0f ? 1.0f : rangeEnd ) );
+            float position = (rangeBegin + rangeEnd) * .5f;
+            queue->addPackage( chunk, position, eye );
+        }
+        queue->addEnd( eye );
     }
 }
 
@@ -318,4 +408,3 @@ void CompoundUpdateOutputVisitor::_updateSwapBarriers( Compound* compound )
 
 }
 }
-

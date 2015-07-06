@@ -1,7 +1,5 @@
 
-/* Copyright (c) 2011-2012, Stefan Eilemann <eile@eyescale.ch>
- *               2011-2012, Daniel Nachbaur <danielnachbaur@googlemail.com>
- *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
+/* Copyright (c) 2014-2015, David Steiner <steiner@ifi.uzh.ch> 
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -17,18 +15,36 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef EQSERVER_TILEQUEUE_H
-#define EQSERVER_TILEQUEUE_H
+#ifndef EQFABRIC_CHUNK_H
+#define EQFABRIC_CHUNK_H
 
-#include "packageQueue.h"
-#include "types.h"
+#include <eq/fabric/stealable.h>        // base class
+#include <eq/fabric/range.h>
 
 namespace eq
 {
-namespace server
+namespace fabric
 {
-    std::ostream& operator << ( std::ostream& os, const TileQueue* frame );
+/** @internal */
+class Chunk : public Stealable
+{
+public:
+    Chunk() {}
+    Chunk( const Range& range_ )
+        : range( range_ ) {}
+
+    Range range;
+};
 }
 }
 
-#endif // EQSERVER_TILEQUEUE_H
+namespace lunchbox
+{
+template<> inline void byteswap( eq::fabric::Chunk& chunk )
+{
+    byteswap( chunk.range );
+    byteswap( chunk.stolen );
+}
+}
+
+#endif // EQFABRIC_CHUNK_H

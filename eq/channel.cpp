@@ -2,6 +2,7 @@
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
+ *               2014-2015, David Steiner <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -50,15 +51,20 @@
 #include <eq/fabric/frameData.h>
 #include <eq/fabric/task.h>
 #include <eq/fabric/tile.h>
+#include <eq/fabric/chunk.h>
 
 #include <co/connectionDescription.h>
+#include <co/loadAwareDistributor.h>
 #include <co/exception.h>
 #include <co/objectICommand.h>
 #include <co/queueSlave.h>
 #include <co/sendToken.h>
 #include <lunchbox/rng.h>
+#include <lunchbox/sleep.h>
 #include <lunchbox/scopedMutex.h>
 #include <pression/plugins/compressor.h>
+
+#include <boost/crc.hpp>
 
 #ifdef EQUALIZER_USE_GLSTATS
 #  include "detail/statsRenderer.h"
@@ -84,6 +90,13 @@ using detail::STATE_INITIALIZING;
 using detail::STATE_RUNNING;
 using detail::STATE_FAILED;
 /** @endcond */
+
+// static int calcCrc32(void const *buffer, std::size_t byteCount)   // TEST
+// {
+//     boost::crc_32_type result;
+//     result.process_bytes(buffer, byteCount);
+//     return result.checksum();
+// }
 
 Channel::Channel( Window* parent )
         : Super( parent )
@@ -135,6 +148,8 @@ void Channel::attach( const uint128_t& id, const uint32_t instanceID )
                      CmdFunc( this, &Channel::_cmdStopFrame ), commandQ );
     registerCommand( fabric::CMD_CHANNEL_FRAME_TILES,
                      CmdFunc( this, &Channel::_cmdFrameTiles ), queue );
+    registerCommand( fabric::CMD_CHANNEL_FRAME_CHUNKS,
+                     CmdFunc( this, &Channel::_cmdFrameChunks ), queue );
     registerCommand( fabric::CMD_CHANNEL_FINISH_READBACK,
                      CmdFunc( this, &Channel::_cmdFinishReadback ), transferQ );
     registerCommand( fabric::CMD_CHANNEL_DELETE_TRANSFER_CONTEXT,
@@ -455,7 +470,7 @@ const View* Channel::getView() const
     return pipe->getView( getContext().view );
 }
 
-co::QueueSlave* Channel::_getQueue( const uint128_t& queueID )
+co::Consumer* Channel::_getQueue( const uint128_t& queueID )
 {
     LB_TS_THREAD( _pipeThread );
     Pipe* pipe = getPipe();
@@ -1005,7 +1020,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
     bool hasAsyncReadback = false;
     const uint32_t timeout = getConfig()->getTimeout();
 
-    co::QueueSlave* queue = _getQueue( queueID );
+    co::Consumer* queue = _getQueue( queueID );
     LBASSERT( queue );
     for( ;; )
     {
@@ -1035,7 +1050,9 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         {
             const int64_t time = getConfig()->getTime();
             frameDraw( context.frameID );
-            drawTime += getConfig()->getTime() - time;
+            const int64_t t = getConfig()->getTime() - time;
+            queue->setScore( t );
+            drawTime += t;
         }
 
         if( tasks & fabric::TASK_READBACK )
@@ -1098,6 +1115,127 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
     }
 
     frameTilesFinish( context.frameID );
+    resetContext();
+}
+
+void Channel::_frameChunks( RenderContext& context, const bool isLocal,
+                           const uint128_t& queueID, const uint32_t tasks,
+                           const co::ObjectVersions& frameIDs )
+{
+    _overrideContext( context );
+
+    frameChunksStart( context.frameID );
+
+    RBStatPtr stat;
+    Frames frames;
+    if( tasks & fabric::TASK_READBACK )
+    {
+        frames = _getFrames( frameIDs, true );
+        stat = new detail::RBStat( this );
+    }
+
+    int64_t startTime = getConfig()->getTime();
+    int64_t clearTime = 0;
+    int64_t drawTime = 0;
+    int64_t readbackTime = 0;
+    bool hasAsyncReadback = false;
+    const uint32_t timeout = getConfig()->getTimeout();
+
+    co::Consumer* queue = _getQueue( queueID );
+    LBASSERT( queue );
+    for( ;; )
+    {
+        co::ObjectICommand chunkCmd = queue->pop( timeout );
+        if( !chunkCmd.isValid( ))
+            break;
+
+        const Chunk& chunk = chunkCmd.read< Chunk >();
+        context.apply( chunk );
+
+        const PixelViewport chunkPVP = context.pvp;
+
+        if ( !isLocal )
+        {
+            context.pvp.x = 0;
+            context.pvp.y = 0;
+        }
+
+        if( tasks & fabric::TASK_CLEAR )
+        {
+            const int64_t time = getConfig()->getTime();
+            frameClear( context.frameID );
+            clearTime += getConfig()->getTime() - time;
+        }
+
+        if( tasks & fabric::TASK_DRAW )
+        {
+            const int64_t time = getConfig()->getTime();
+            frameDraw( context.frameID );
+            const int64_t t = getConfig()->getTime() - time;
+            queue->setScore( t );
+            drawTime += t;
+        }
+
+        if( tasks & fabric::TASK_READBACK )
+        {
+            const int64_t time = getConfig()->getTime();
+            const size_t nFrames = frames.size();
+
+            std::vector< size_t > nImages( nFrames, 0 );
+            for( size_t i = 0; i < nFrames; ++i )
+            {
+                nImages[i] = frames[i]->getImages().size();
+                frames[i]->getFrameData()->setPixelViewport(
+                    getPixelViewport( ));
+            }
+
+            frameReadback( context.frameID, frames );
+            readbackTime += getConfig()->getTime() - time;
+
+            for( size_t i = 0; i < nFrames; ++i )
+            {
+                const Frame* frame = frames[i];
+                const Images& images = frame->getImages();
+                for( size_t j = nImages[i]; j < images.size(); ++j )
+                {
+                    Image* image = images[j];
+                    const PixelViewport& pvp = image->getPixelViewport();
+                    image->setOffset( pvp.x + chunkPVP.x,
+                                      pvp.y + chunkPVP.y );
+                }
+            }
+
+            if( _asyncFinishReadback( nImages, frames ))
+                hasAsyncReadback = true;
+        }
+    }
+
+    if( tasks & fabric::TASK_CLEAR )
+    {
+        ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
+        event.event.data.statistic.startTime = startTime;
+        startTime += clearTime;
+        event.event.data.statistic.endTime = startTime;
+    }
+
+    if( tasks & fabric::TASK_DRAW )
+    {
+        ChannelStatistics event( Statistic::CHANNEL_DRAW, this );
+        event.event.data.statistic.startTime = startTime;
+        startTime += drawTime;
+        event.event.data.statistic.endTime = startTime;
+    }
+
+    if( tasks & fabric::TASK_READBACK )
+    {
+        stat->event.event.data.statistic.startTime = startTime;
+        startTime += readbackTime;
+        stat->event.event.data.statistic.endTime = startTime;
+
+        _setReady( hasAsyncReadback, stat.get(), frames );
+    }
+
+    frameChunksFinish( context.frameID );
     resetContext();
 }
 
@@ -1878,7 +2016,25 @@ bool Channel::_cmdFrameTiles( co::ICommand& cmd )
     LBLOG( LOG_TASKS ) << "TASK channel frame tiles " << getName() <<  " "
                        << command << " " << context << std::endl;
 
+    ChannelStatistics event( Statistic::CHANNEL_TILES, this );
     _frameTiles( context, isLocal, queueID, tasks, frames );
+    return true;
+}
+
+bool Channel::_cmdFrameChunks( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    RenderContext context = command.get< RenderContext >();
+    const bool isLocal = command.get< bool >();
+    const uint128_t& queueID = command.get< uint128_t >();
+    const uint32_t tasks = command.get< uint32_t >();
+    const co::ObjectVersions frames = command.get< co::ObjectVersions >();
+
+    LBLOG( LOG_TASKS ) << "TASK channel frame chunks " << getName() <<  " "
+                       << command << " " << context << std::endl;
+
+    ChannelStatistics event( Statistic::CHANNEL_CHUNKS, this );
+    _frameChunks( context, isLocal, queueID, tasks, frames );
     return true;
 }
 

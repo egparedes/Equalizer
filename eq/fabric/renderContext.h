@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2006-2012, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2014-2015, David Steiner   <steiner@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -40,6 +41,7 @@ namespace fabric
     public:
         EQFABRIC_API RenderContext();
         EQFABRIC_API void apply( const Tile& tile ); //!< @internal
+        EQFABRIC_API void apply( const Chunk& chunk ); //!< @internal
 
         Frustumf       frustum;        //!< frustum for projection matrix
         Frustumf       ortho;          //!< ortho frustum for projection matrix
@@ -67,7 +69,13 @@ namespace fabric
         uint32_t       alignToEight;   //!< @internal padding
 
         ColorMask      bufferMask;     //!< color mask for anaglyph stereo
-        bool           alignDummy[28]; //!< @internal padding
+
+        Frustumf       frustumGlobal;  //!< frustum for projection matrix
+        Frustumf       orthoGlobal;    //!< ortho frustum for projection matrix
+        PixelViewport  pvpGlobal;      //!< pixel viewport of channel wrt window
+        Viewport       vpGlobal;       //!< fractional viewport wrt dest view
+        bool           stolen;         //!< has been stolen
+        bool           alignDummy[16]; //!< @internal padding
     };
 
     EQFABRIC_API std::ostream& operator << ( std::ostream& os,
@@ -80,7 +88,9 @@ namespace lunchbox
 template<> inline void byteswap( eq::fabric::RenderContext& value )
 {
     byteswap( value.frustum );
+    byteswap( value.frustumGlobal );
     byteswap( value.ortho );
+    byteswap( value.orthoGlobal );
 
     byteswap( value.headTransform );
     byteswap( value.orthoTransform );
@@ -88,9 +98,11 @@ template<> inline void byteswap( eq::fabric::RenderContext& value )
     byteswap( value.view );
     byteswap( value.frameID );
     byteswap( value.pvp );
+    byteswap( value.pvpGlobal );
     byteswap( value.pixel );
     byteswap( value.overdraw );
     byteswap( value.vp );
+    byteswap( value.vpGlobal );
 
     byteswap( value.offset );
     byteswap( value.range );
@@ -104,6 +116,7 @@ template<> inline void byteswap( eq::fabric::RenderContext& value )
     byteswap( value.eye );
 
     byteswap( value.bufferMask );
+    byteswap( value.stolen );
 }
 }
 
