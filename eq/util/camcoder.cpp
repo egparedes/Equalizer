@@ -98,12 +98,10 @@ bool Camcoder::loadAnimation( const std::string& fileName )
         eq::KeyEvent keyEvent;
 
         file >> frame
-             >> keyEvent.key
-             >> position.x()
-             >> position.y()
-             >> position.z();
-        file >> rotation
-             >> modelRotation;
+             >> keyEvent.key;
+        position.read_from_stream( file );
+        rotation.read_from_stream( file );
+        modelRotation.read_from_stream( file );
 
         _steps.push_back( Step( frame, keyEvent, position, rotation, modelRotation ));
     }
@@ -129,12 +127,11 @@ bool Camcoder::saveAnimation( const std::string& fileName )
     for( Steps::const_iterator it = _steps.begin(); it != _steps.end(); ++it )
     {
         file << it->frame - first   << " "
-             << it->keyEvent.key    << " "
-             << it->position.x()    << " "
-             << it->position.y()    << " "
-             << it->position.z()    << " ";
-        file << it->rotation
-             << it->modelRotation   << "\n";
+             << it->keyEvent.key    << " ";
+        (it->position).write_to_stream( file );
+        (it->rotation).write_to_stream( file );
+        (it->modelRotation).write_to_stream( file );
+        file << std::endl;
     }
     file.close();
 
