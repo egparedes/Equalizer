@@ -1,5 +1,7 @@
 
 /* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2015, David Steiner <steiner@ifi.uzh.ch> 
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,34 +37,65 @@ class FrameData;
 
 namespace eqPly
 {
-    /**
-     * Manages the argument parsing and non-distributed part of the
-     * initialization data.
-     */
-    class LocalInitData : public InitData
-    {
-    public:
-        LocalInitData();
+/**
+ * Manages the argument parsing and non-distributed part of the
+ * initialization data.
+ */
+class LocalInitData : public InitData
+{
+public:
+    LocalInitData();
 
-        void parseArguments( const int argc, char** argv );
+    void parseArguments( const int argc, char** argv );
 
-        const std::string& getPathFilename() const { return _pathFilename; }
-        uint32_t           getMaxFrames()    const { return _maxFrames; }
-        bool               useColor()        const { return _color; }
-        bool               isResident()      const { return _isResident; }
+    const std::string& getPathInFilename()  const {
+        return _pathInFilename;
+    }
+    const std::string& getPathOutFilename() const {
+        return _pathOutFilename;
+    }
+    uint32_t           getMaxFrames()       const {
+        return _maxFrames;
+    }
+    bool               useColor()           const {
+        return _color;
+    }
+    bool               isResident()         const {
+        return _isResident;
+    }
+    bool               exitAfterPlayback()  const {
+        return _exitAfterPlayback;
+    }
 
-        const std::vector< std::string >& getFilenames() const
-            { return _filenames; }
+    const std::vector< std::string >& getFilenames() const
+        { return _filenames; }
 
-        LocalInitData& operator = ( const LocalInitData& from );
+    bool createLongShowcase() const {
+        return _createLongShowcase;
+    }
+    const eq::Vector3f& getHelixDollyArgs() const
+        { return _showcaseDollyArgs; }
+    const eq::Vector3f& getHelixRadiusArgs() const
+        { return _showcaseRadiusArgs; }
 
-    private:
-        eq::Strings _filenames;
-        std::string _pathFilename;
-        uint32_t    _maxFrames;
-        bool        _color;
-        bool        _isResident;
-    };
+    const eq::Vector3f& getHelixAngleArgs() const
+        { return _showcaseAngleArgs; }
+
+    LocalInitData& operator = ( const LocalInitData& from );
+
+private:
+    eq::Strings _filenames;
+    std::string _pathInFilename;
+    std::string _pathOutFilename;
+    uint32_t    _maxFrames;
+    bool        _exitAfterPlayback;
+    bool        _color;
+    bool        _isResident;
+    bool        _createLongShowcase;
+    eq::Vector3f _showcaseDollyArgs;
+    eq::Vector3f _showcaseRadiusArgs;
+    eq::Vector3f _showcaseAngleArgs;
+};
 }
 
 #endif // EQ_PLY_LOCALINITDATA_H

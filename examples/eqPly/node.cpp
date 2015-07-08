@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,6 +34,20 @@
 
 namespace eqPly
 {
+VMLoaderPtr Node::getModelLoader(const lunchbox::uint128_t &modelId)
+{
+    if( _loadersMap.count( modelId ) == 0 )
+    {
+        Config* config = static_cast< Config* >( getConfig( ));
+        const Model* model = config->getModel( modelId );
+        if( model == 0 )
+            return NULL;
+        _loadersMap[modelId] = new VMLoader();
+        _loadersMap[modelId]->init( model->getBinaryName() ); //, 4096, 32, 2, 2 );
+    }
+    return _loadersMap[modelId];
+}
+
 bool Node::configInit( const eq::uint128_t& initID )
 {
     // All render data is static or multi-buffered, we can run asynchronously

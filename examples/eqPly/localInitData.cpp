@@ -1,5 +1,7 @@
 
 /* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2015, David Steiner <steiner@ifi.uzh.ch> 
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,10 +46,15 @@ namespace po = boost::program_options;
 namespace eqPly
 {
 LocalInitData::LocalInitData()
-    : _pathFilename("")
+    : _pathInFilename("")
+    , _pathOutFilename("")
     , _maxFrames( 0xffffffffu )
     , _color( true )
     , _isResident( false )
+    , _createLongShowcase( false )
+    , _showcaseDollyArgs( .0, .0, .0 )
+    , _showcaseRadiusArgs( .0, .0, .0 )
+    , _showcaseAngleArgs( .0, .0, .0 )
 {
     _filenames.push_back( lunchbox::getExecutablePath() +
                           "/../share/Equalizer/data" );
@@ -55,11 +62,17 @@ LocalInitData::LocalInitData()
 
 LocalInitData& LocalInitData::operator = ( const LocalInitData& from )
 {
-    _maxFrames   = from._maxFrames;
-    _color       = from._color;
-    _isResident  = from._isResident;
-    _filenames    = from._filenames;
-    _pathFilename = from._pathFilename;
+    _maxFrames         = from._maxFrames;
+    _exitAfterPlayback = from._exitAfterPlayback;
+    _color             = from._color;
+    _isResident        = from._isResident;
+    _filenames         = from._filenames;
+    _pathInFilename    = from._pathInFilename;
+    _pathOutFilename   = from._pathOutFilename;
+    _createLongShowcase   = from._createLongShowcase;
+    _showcaseDollyArgs    = from._showcaseDollyArgs;
+    _showcaseRadiusArgs   = from._showcaseRadiusArgs;
+    _showcaseAngleArgs    = from._showcaseAngleArgs;
 
     setWindowSystem( from.getWindowSystem( ));
     setRenderMode( from.getRenderMode( ));
@@ -71,36 +84,40 @@ LocalInitData& LocalInitData::operator = ( const LocalInitData& from )
         disableLogo();
     if( !from.useROI( ))
         disableROI();
+    if( from.useOutOfCore() )
+        enableOutOfCore();
 
     return *this;
 }
 
 void LocalInitData::parseArguments( const int argc, char** argv )
 {
-    std::string wsHelp = "Window System API ( one of: ";
+        std::string wsHelp = "Window System API ( one of: ";
 #ifdef AGL
-    wsHelp += "AGL ";
+        wsHelp += "AGL ";
 #endif
 #ifdef GLX
     wsHelp += "GLX ";
 #endif
 #ifdef WGL
-    wsHelp += "WGL ";
+        wsHelp += "WGL ";
 #endif
 #ifdef EQUALIZER_USE_QT5WIDGETS
     wsHelp += "Qt ";
 #endif
-    wsHelp += ")";
+        wsHelp += ")";
 
     bool showHelp( false );
     std::vector<std::string> userDefinedModelPath;
     bool userDefinedBlackWhiteMode( false );
     std::string userDefinedWindowSystem("");
     std::string userDefinedRenderMode("");
+    std::string showcaseArgs("");
     bool userDefinedUseGLSL( false );
     bool userDefinedInvertFaces( false );
     bool userDefinedDisableLogo( false );
     bool userDefinedDisableROI( false );
+    bool userDefinedOutOfCore( false );
 
     const std::string& desc = EqPly::getHelp();
     po::options_description options( desc + " Version " +
@@ -129,27 +146,38 @@ void LocalInitData::parseArguments( const int argc, char** argv )
         ( "invertFaces,i"
           , po::bool_switch(&userDefinedInvertFaces)->default_value( false ),
           "Invert faces (valid during binary file creation)" )
-        ( "cameraPath,a", po::value<std::string>(&_pathFilename),
+        ( "cameraPath,a", po::value<std::string>(&_pathInFilename),
           "File containing camera path animation" )
+        ( "exit,e", po::bool_switch(&_exitAfterPlayback)->default_value( false ),
+          "Exit after playing camera path animation" )
+        ( "cameraPathOut,t", po::value<std::string>(&_pathOutFilename),
+          "File to save camera path animation to" )
         ( "noOverlay,o",
           po::bool_switch(&userDefinedDisableLogo)->default_value( false ),
           "Disable overlay logo" )
         ( "disableROI,d",
           po::bool_switch(&userDefinedDisableROI)->default_value( false ),
-          "Disable region of interest (ROI)" );
+          "Disable region of interest (ROI)" )
+        ( "longShowcase,l", po::value<std::string>( &showcaseArgs )
+                                ->implicit_value("-0.1:0.0005:1.1/0.55:0.0001:0.7/0.0:0.0005:1.0"),
+          "Create path in the model longest axis with the parameters dolly/radius/angle "
+          "(relative to bounding box size, see default)" )
+        ( "outOfCore,z"
+          , po::bool_switch(&userDefinedOutOfCore)->default_value( false ),
+          "Use out-of-core model rendering (only works with binary files)" );
 
     po::variables_map variableMap;
 
     try
-    {
+        {
         // parse program options, ignore all non related options
         po::store( po::command_line_parser( argc, argv ).options(
                        options ).allow_unregistered().run(),
                    variableMap );
         po::notify( variableMap );
-    }
+        }
     catch( std::exception& exception )
-    {
+        {
         LBERROR << "Error parsing command line: " << exception.what()
                 << std::endl;
         eq::exit(); // cppcheck-suppress unreachableCode
@@ -192,16 +220,55 @@ void LocalInitData::parseArguments( const int argc, char** argv )
     }
 
     if( userDefinedUseGLSL )
-        enableGLSL();
+            enableGLSL();
 
     if( userDefinedInvertFaces)
-        enableInvertedFaces();
+            enableInvertedFaces();
 
     if( userDefinedDisableLogo )
-        disableLogo();
+            disableLogo();
 
     if( userDefinedDisableROI )
-        disableROI();
+            disableROI();
+
+    if( variableMap.count("longShowcase") > 0 )
+    {
+        std::istringstream iss(showcaseArgs);
+
+        bool isOk = true;
+        char separator;
+        for( unsigned i=0; i < 3 && isOk; ++i )
+        {
+            iss >> _showcaseDollyArgs[i];
+            iss >> separator;
+            isOk = isOk && (separator == ':' || separator == '/');
+        }
+        for( unsigned i=0; i < 3 && isOk; ++i )
+        {
+            iss >> _showcaseRadiusArgs[i];
+            iss >> separator;
+            isOk = isOk && (separator == ':' || separator == '/');
+        }
+        iss >> separator;
+        for( unsigned i=0; i < 3 && isOk; ++i )
+        {
+            iss >> _showcaseAngleArgs[i];
+            iss >> separator;
+            isOk = isOk && (separator == ':' || separator == '/');
+        }
+
+        if( !isOk )
+        {
+            _showcaseDollyArgs = eq::Vector3f( -0.1f, 0.0005f, 1.0f );
+            _showcaseRadiusArgs = eq::Vector3f( 0.55f, 0.0001f, 0.7f );
+            _showcaseAngleArgs = eq::Vector3f( 0.0f, 0.0005f, 1.0f );
+        }
+
+        _createLongShowcase = true;
+    }
+
+    if (userDefinedOutOfCore)
+        enableOutOfCore();
 }
 
 }

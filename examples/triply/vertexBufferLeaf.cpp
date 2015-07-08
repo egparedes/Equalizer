@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
  *          2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,6 +37,17 @@
 
 namespace triply
 {
+
+VertexBufferLeaf::VertexBufferLeaf(VertexBufferData &data)
+    : _globalData( data ),
+      _vertexStart( 0 ), _indexStart( 0 ), _indexLength( 0 ), _vertexLength( 0 ),
+      _vDataLoaded( false )
+{
+}
+
+VertexBufferLeaf::~VertexBufferLeaf()
+{
+}
 
 /*  Finish partial setup - sort, reindex and merge into global data.  */
 void VertexBufferLeaf::setupTree( VertexData& data, const Index start,
@@ -212,17 +224,27 @@ void VertexBufferLeaf::setupRendering( VertexBufferState& state,
     {
         const char* charThis = reinterpret_cast< const char* >( this );
 
+        // If out-of-core rendering, the real data will be uploaded later
+        Vertex* verticesPtr =
+                ( state.useOutOfCore() ) ? NULL : &_globalData.vertices[_vertexStart];
+        Color* colorsPtr =
+                ( state.useOutOfCore() ) ? NULL : &_globalData.colors[_vertexStart];
+        Normal* normalsPtr =
+                ( state.useOutOfCore() ) ? NULL : &_globalData.normals[_vertexStart];
+        ShortIndex* indicesPtr =
+                ( state.useOutOfCore() ) ? NULL : &_globalData.indices[_indexStart];
+
         if( data[VERTEX_OBJECT] == state.INVALID )
             data[VERTEX_OBJECT] = state.newBufferObject( charThis + 0 );
         glBindBuffer( GL_ARRAY_BUFFER, data[VERTEX_OBJECT] );
         glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Vertex ),
-                        &_globalData.vertices[_vertexStart], GL_STATIC_DRAW );
+                      verticesPtr, GL_STATIC_DRAW );
 
         if( data[NORMAL_OBJECT] == state.INVALID )
             data[NORMAL_OBJECT] = state.newBufferObject( charThis + 1 );
         glBindBuffer( GL_ARRAY_BUFFER, data[NORMAL_OBJECT] );
         glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Normal ),
-                        &_globalData.normals[_vertexStart], GL_STATIC_DRAW );
+                      normalsPtr, GL_STATIC_DRAW );
 
         if( data[COLOR_OBJECT] == state.INVALID )
             data[COLOR_OBJECT] = state.newBufferObject( charThis + 2 );
@@ -230,15 +252,61 @@ void VertexBufferLeaf::setupRendering( VertexBufferState& state,
         {
             glBindBuffer( GL_ARRAY_BUFFER, data[COLOR_OBJECT] );
             glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Color ),
-                            &_globalData.colors[_vertexStart], GL_STATIC_DRAW );
+                          colorsPtr, GL_STATIC_DRAW );
         }
 
         if( data[INDEX_OBJECT] == state.INVALID )
             data[INDEX_OBJECT] = state.newBufferObject( charThis + 3 );
         glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, data[INDEX_OBJECT] );
-        glBufferData( GL_ELEMENT_ARRAY_BUFFER,
-                        _indexLength * sizeof( ShortIndex ),
-                        &_globalData.indices[_indexStart], GL_STATIC_DRAW );
+        glBufferData( GL_ELEMENT_ARRAY_BUFFER, _indexLength * sizeof( ShortIndex ),
+                      indicesPtr, GL_STATIC_DRAW );
+
+        // If using out-of-core rendering, upload real data to buffers in a page-by-page way
+        if( state.useOutOfCore() )
+        {
+            std::size_t vbLength = 0;
+            std::size_t verticesOffset = 0;
+            std::size_t colorsOffset = 0;
+            std::size_t normalsOffset = 0;
+
+            PLYLIBASSERT ( _verticesVB.numBlocks() == _normalsVB.numBlocks() );
+            PLYLIBASSERT ( !state.useColors() ||
+                           _verticesVB.numBlocks() == _colorsVB.numBlocks() );
+
+            for( unsigned int i=0; i < _verticesVB.numBlocks(); ++i )
+            {
+                _verticesVB.getMemBlock(i, verticesPtr, vbLength);
+                glBindBuffer( GL_ARRAY_BUFFER, data[VERTEX_OBJECT] );
+                glBufferSubData( GL_ARRAY_BUFFER, verticesOffset, vbLength * sizeof( Vertex ),
+                                 verticesPtr );
+                verticesOffset += vbLength * sizeof( Vertex ) ;
+
+                _normalsVB.getMemBlock(i, normalsPtr, vbLength);
+                glBindBuffer( GL_ARRAY_BUFFER, data[NORMAL_OBJECT] );
+                glBufferSubData( GL_ARRAY_BUFFER, normalsOffset, vbLength * sizeof( Normal ),
+                                 normalsPtr );
+                normalsOffset += vbLength * sizeof( Normal ) ;
+
+                if( state.useColors() )
+                {
+                    _colorsVB.getMemBlock(i, colorsPtr, vbLength);
+                    glBindBuffer( GL_ARRAY_BUFFER, data[COLOR_OBJECT] );
+                    glBufferSubData( GL_ARRAY_BUFFER, colorsOffset, vbLength * sizeof( Color ),
+                                     colorsPtr );
+                    colorsOffset += vbLength * sizeof( Color);
+                }
+            }
+
+            std::size_t idxOffset = 0;
+            for( unsigned int i=0; i < _indicesVB.numBlocks(); ++i )
+            {
+                _indicesVB.getMemBlock(i, indicesPtr, vbLength);
+                glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, data[INDEX_OBJECT] );
+                glBufferSubData( GL_ELEMENT_ARRAY_BUFFER, idxOffset, vbLength * sizeof( ShortIndex ),
+                                 indicesPtr );
+                idxOffset += vbLength * sizeof( ShortIndex ) ;
+            }
+        }
 
         break;
     }
@@ -263,9 +331,11 @@ void VertexBufferLeaf::setupRendering( VertexBufferState& state,
 /*  Draw the leaf.  */
 void VertexBufferLeaf::draw( VertexBufferState& state ) const
 {
-    if( state.stopRendering( ))
+    if( state.stopRendering( ) )
         return;
 
+    if( state.useOutOfCore() && !_vDataLoaded )
+        loadVirtualData( state.getVirtualVBD(), state.useColors() );
     state.updateRegion( _boundingBox );
     switch( state.getRenderMode() )
     {
@@ -274,6 +344,8 @@ void VertexBufferLeaf::draw( VertexBufferState& state ) const
           return;
       case RENDER_MODE_BUFFER_OBJECT:
           renderBufferObject( state );
+          if( state.useOutOfCore() )
+              freeVirtualData();
           return;
       case RENDER_MODE_DISPLAY_LIST:
       default:
@@ -287,14 +359,19 @@ void VertexBufferLeaf::renderBufferObject( VertexBufferState& state ) const
 {
     GLuint buffers[4];
     for( int i = 0; i < 4; ++i )
+    {
         buffers[i] =
             state.getBufferObject( reinterpret_cast< const char* >(this) + i );
+    }
+
     if( buffers[VERTEX_OBJECT] == state.INVALID ||
         buffers[NORMAL_OBJECT] == state.INVALID ||
         buffers[COLOR_OBJECT] == state.INVALID ||
         buffers[INDEX_OBJECT] == state.INVALID )
-
+    {
         setupRendering( state, buffers );
+    }
+
 
     if( state.useColors() )
     {
@@ -332,13 +409,27 @@ inline
 void VertexBufferLeaf::renderImmediate( VertexBufferState& state ) const
 {
     glBegin( GL_TRIANGLES );
-    for( Index offset = 0; offset < _indexLength; ++offset )
+    if( state.useOutOfCore() )
     {
-        const Index i =_vertexStart + _globalData.indices[_indexStart + offset];
-        if( state.useColors() )
-            glColor3ubv( &_globalData.colors[i][0] );
-        glNormal3fv( &_globalData.normals[i][0] );
-        glVertex3fv( &_globalData.vertices[i][0] );
+        for( Index idx = 0; idx < _indexLength; ++idx )
+        {
+            const ShortIndex i = _indicesVB[idx];
+            if( state.useColors() )
+                glColor3ubv( &(_colorsVB[i][0]) );
+            glNormal3fv( &(_normalsVB[i][0]) );
+            glVertex3fv( &(_verticesVB[i][0]) );
+        }
+    }
+    else
+    {
+        for( Index offset = 0; offset < _indexLength; ++offset )
+        {
+            const Index i =_vertexStart + _globalData.indices[_indexStart + offset];
+            if( state.useColors() )
+                glColor3ubv( &_globalData.colors[i][0] );
+            glNormal3fv( &_globalData.normals[i][0] );
+            glVertex3fv( &_globalData.vertices[i][0] );
+        }
     }
     glEnd();
 }
@@ -377,6 +468,41 @@ void VertexBufferLeaf::toStream( std::ostream& os )
     os.write( reinterpret_cast< char* >( &_vertexLength ),sizeof( ShortIndex ));
     os.write( reinterpret_cast< char* >( &_indexStart ), sizeof( Index ));
     os.write( reinterpret_cast< char* >( &_indexLength ), sizeof( Index ));
+}
+
+void VertexBufferLeaf::loadVirtualData(VirtualVertexBufferDataPtr virtualVBD, bool useColors) const
+{
+    if( _vDataLoaded )
+        return;
+    PLYLIBASSERT( virtualVBD != 0 );
+
+//    _vDataLoaded = virtualVBD->getVertexData(_vertexStart, _vertexLength, useColors,
+//                                             _verticesVB, _colorsVB, _normalsVB);
+    if (!_verticesVB.isValid())
+        _vDataLoaded = virtualVBD->getVertices(_vertexStart, _vertexLength, _verticesVB);
+    PLYLIBASSERT( _vDataLoaded );
+    if (useColors && !_colorsVB.isValid())
+        _vDataLoaded = virtualVBD->getColors(_vertexStart, _vertexLength, _colorsVB);
+    PLYLIBASSERT( _vDataLoaded );
+    if (!_normalsVB.isValid())
+        _vDataLoaded = virtualVBD->getNormals(_vertexStart, _vertexLength, _normalsVB);
+    PLYLIBASSERT( _vDataLoaded );
+    if (!_indicesVB.isValid())
+        _vDataLoaded = virtualVBD->getIndices(_indexStart, _indexLength, _indicesVB);
+    PLYLIBASSERT( _vDataLoaded );
+}
+
+void VertexBufferLeaf::freeVirtualData() const
+{
+    if( !_vDataLoaded )
+        return;
+
+    _verticesVB.discard();
+    _colorsVB.discard();
+    _normalsVB.discard();
+    _indicesVB.discard();
+
+    _vDataLoaded = false;
 }
 
 }

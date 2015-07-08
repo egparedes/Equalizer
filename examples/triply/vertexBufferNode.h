@@ -1,6 +1,7 @@
 
 /* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,8 +54,7 @@ public:
 
 protected:
     PLYLIB_API void toStream( std::ostream& os ) override;
-    PLYLIB_API void fromMemory( char** addr, VertexBufferData& globalData )
-        override;
+    PLYLIB_API void fromMemory( char** addr, VertexBufferData& globalData ) override;
 
     PLYLIB_API void setupTree( VertexData& data, const Index start,
                                const Index length, const Axis axis,

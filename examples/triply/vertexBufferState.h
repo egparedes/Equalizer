@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2009-2012, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2007, Tobias Wolf <twolf@access.unizh.ch>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -54,6 +55,12 @@ public:
     PLYLIB_API virtual bool useFrustumCulling() const { return _useFrustumCulling; }
     PLYLIB_API virtual void setFrustumCulling( const bool frustumCullingState )
         { _useFrustumCulling = frustumCullingState; }
+    PLYLIB_API virtual bool showBoundingSpheres() const { return _useBoundingSpheres; }
+    PLYLIB_API virtual void setBoundingSpheres( const bool boundingSpheresState )
+        { _useBoundingSpheres = boundingSpheresState; }
+    PLYLIB_API virtual bool useOutOfCore() const { return _outOfCore; }
+    PLYLIB_API virtual void setOutOfCore( const bool outOfCore )
+        { _outOfCore = outOfCore; }
 
     PLYLIB_API void setProjectionModelViewMatrix( const Matrix4f& pmv )
         { _pmvMatrix = pmv; }
@@ -77,6 +84,11 @@ public:
     PLYLIB_API const GLEWContext* glewGetContext() const
         { return _glewContext; }
 
+    PLYLIB_API void setVirtualVBD( VirtualVertexBufferDataPtr virtualVBD)
+        { _virtualVBD = virtualVBD; }
+    PLYLIB_API VirtualVertexBufferDataPtr getVirtualVBD() const
+        { return _virtualVBD; }
+
 protected:
     PLYLIB_API VertexBufferState( const GLEWContext* glewContext );
     PLYLIB_API virtual ~VertexBufferState() {}
@@ -88,6 +100,9 @@ protected:
     Vector4f      _region; //!< normalized x1 y1 x2 y2 region from cullDraw
     bool          _useColors;
     bool          _useFrustumCulling;
+    bool          _useBoundingSpheres;
+    bool          _outOfCore;
+    VirtualVertexBufferDataPtr _virtualVBD;
 
 private:
 };

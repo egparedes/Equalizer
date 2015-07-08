@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
  *          2009-2012, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -64,6 +65,7 @@ void VertexBufferRoot::setupTree( VertexData& data )
                                  axis, 0, _data );
     VertexBufferNode::updateBoundingSphere();
     VertexBufferNode::updateRange();
+    _data.calculateBoundingBox();
 
 #if 0
     // re-test all points to be in the bounding sphere
@@ -119,6 +121,7 @@ void VertexBufferRoot::cullDraw( VertexBufferState& state ) const
         const vmml::Visibility visibility = state.useFrustumCulling() ?
                             culler.test_sphere( treeNode->getBoundingSphere( )) :
                             vmml::VISIBILITY_FULL;
+        //PLYLIBASSERT (state.useFrustumCulling());
         switch( visibility )
         {
             case vmml::VISIBILITY_FULL:
@@ -127,7 +130,8 @@ void VertexBufferRoot::cullDraw( VertexBufferState& state ) const
                     treeNode->getRange()[1] <  range[1] )
                 {
                     treeNode->draw( state );
-                    //treeNode->drawBoundingSphere( state );
+                    if( state.showBoundingSpheres() )
+                        treeNode->drawBoundingSphere( state );
 #ifdef LOGCULL
                     verticesRendered += treeNode->getNumberOfVertices();
 #endif
@@ -145,7 +149,8 @@ void VertexBufferRoot::cullDraw( VertexBufferState& state ) const
                     if( treeNode->getRange()[0] >= range[0] )
                     {
                         treeNode->draw( state );
-                        //treeNode->drawBoundingSphere( state );
+                        if( state.showBoundingSpheres() )
+                            treeNode->drawBoundingSphere( state );
 #ifdef LOGCULL
                         verticesRendered += treeNode->getNumberOfVertices();
                         if( visibility == vmml::VISIBILITY_PARTIAL )
@@ -157,9 +162,13 @@ void VertexBufferRoot::cullDraw( VertexBufferState& state ) const
                 else
                 {
                     if( left )
+                    {
                         candidates.push_back( left );
+                    }
                     if( right )
+                    {
                         candidates.push_back( right );
+                    }
                 }
                 break;
             }
@@ -172,7 +181,7 @@ void VertexBufferRoot::cullDraw( VertexBufferState& state ) const
     _endRendering( state );
 
 #ifdef LOGCULL
-    const size_t verticesTotal = model->getNumberOfVertices();
+    const size_t verticesTotal = _data.vertices.size(); //model->getNumberOfVertices();
     PLYLIBINFO
         << getName() << " rendered " << verticesRendered * 100 / verticesTotal
         << "% of model, overlap <= " << verticesOverlap * 100 / verticesTotal
@@ -277,7 +286,11 @@ bool VertexBufferRoot::_constructFromPly( const std::string& filename )
     data.scale( 2.0f );
     setupTree( data );
     if( !writeToFile( filename ))
+    {
         PLYLIBWARN << "Unable to write binary representation." << std::endl;
+        PLYLIBWARN << "Out-of-core will not work." << std::endl;
+        _hasVertexData = false;
+    }
     
     return true;
 }
@@ -379,18 +392,20 @@ bool VertexBufferRoot::_readBinary( std::string filename )
 }
 
 /*  Read binary kd-tree representation, construct from ply if unavailable.  */
-bool VertexBufferRoot::readFromFile( const std::string& filename )
+bool VertexBufferRoot::readFromFile(const std::string& filename,
+                                    bool loadVertexData)
 {
-    if( _readBinary( getArchitectureFilename( filename )))
+    _hasVertexData = loadVertexData;
+    _name = filename;
+
+    if( _readBinary( getArchitectureFilename( filename ) ) ||
+        _constructFromPly( filename ) )
     {
-        _name = filename;
         return true;
     }
-    if( _constructFromPly( filename ))
-    {
-        _name = filename;
-        return true;
-    }
+
+    _name = "";
+
     return false;
 }
 
@@ -440,7 +455,11 @@ void VertexBufferRoot::fromMemory( char* start )
     if( nodeType != ROOT_TYPE )
         throw MeshException( "Error reading binary file. Expected the root "
                              "node, but found something else instead." );
-    _data.fromMemory( addr );
+
+    if(_hasVertexData)
+        _data.fromMemory( addr );
+    else
+        _data.skipFromMemory( addr );
     VertexBufferNode::fromMemory( addr, _data );
 }
 
@@ -454,6 +473,11 @@ void VertexBufferRoot::toStream( std:: ostream& os )
     os.write( reinterpret_cast< char* >( &nodeType ), sizeof( size_t ) );
     _data.toStream( os );
     VertexBufferNode::toStream( os );
+}
+
+std::string VertexBufferRoot::getBinaryName() const
+{
+    return getArchitectureFilename( _name );
 }
 
 }

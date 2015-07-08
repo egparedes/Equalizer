@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -68,6 +69,7 @@ public:
     void togglePilotMode();
     void toggleRenderMode();
     void toggleCompression();
+    void toggleBoundingSpheres();
 
     eq::uint128_t getModelID() const { return _modelID; }
     ColorMode getColorMode() const { return _colorMode; }
@@ -80,13 +82,16 @@ public:
     bool isIdle() const { return _idle; }
     triply::RenderMode getRenderMode() const { return _renderMode; }
     bool useCompression() const { return _compression; }
+    bool showBoundingSpheres() const { return _boundingSpheres; }
     //*}
 
     /** @name Camera parameters. */
     //*{
     void setCameraPosition( const eq::Vector3f& position );
-    void setRotation( const eq::Vector3f& rotation);
-    void setModelRotation( const eq::Vector3f& rotation    );
+    void setCameraRotation( const eq::Matrix4f& rotation );
+    void setModelRotation( const eq::Matrix4f& rotation );
+    void setRotation( const eq::Vector3f& rotation );
+    void setModelRotation( const eq::Vector3f& rotation );
     void spinCamera( const float x, const float y );
     void spinModel(  const float x, const float y, const float z );
     void moveCamera( const float x, const float y, const float z );
@@ -135,7 +140,7 @@ private:
     eq::Matrix4f _modelRotation;
     eq::Vector3f _position;
 
-    eq::uint128_t    _modelID;
+    eq::uint128_t _modelID;
     triply::RenderMode  _renderMode;
     ColorMode        _colorMode;
     float            _quality;
@@ -146,6 +151,7 @@ private:
     bool             _pilotMode;
     bool             _idle;
     bool             _compression;
+    bool             _boundingSpheres;
 
     eq::uint128_t _currentViewID;
     std::string _message;

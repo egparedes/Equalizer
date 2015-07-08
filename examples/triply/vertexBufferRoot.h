@@ -1,6 +1,7 @@
 
 /* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2009-2014, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,6 +35,7 @@
 #include "api.h"
 #include "vertexBufferData.h"
 #include "vertexBufferNode.h"
+#include "virtualVertexBufferData.h"
 
 
 namespace triply
@@ -42,23 +44,28 @@ namespace triply
 class VertexBufferRoot : public VertexBufferNode
 {
 public:
-    PLYLIB_API VertexBufferRoot() : VertexBufferNode(), _invertFaces(false) {}
+    PLYLIB_API VertexBufferRoot()
+        : VertexBufferNode(), _invertFaces(false), _hasVertexData(false)
+    {}
 
     PLYLIB_API virtual void cullDraw( VertexBufferState& state ) const;
     PLYLIB_API virtual void draw( VertexBufferState& state ) const;
 
     PLYLIB_API void setupTree( VertexData& data );
     PLYLIB_API bool writeToFile( const std::string& filename );
-    PLYLIB_API bool readFromFile( const std::string& filename );
-    bool hasColors() const { return !_data.colors.empty(); }
+    PLYLIB_API bool readFromFile( const std::string& filename,
+                                  bool loadVertexData=true);
+    bool hasColors() const { return _data.hasColors; }
+    BoundingBox getBoundingBox() const { return _data.getBoundingBox(); }
 
     void useInvertedFaces() { _invertFaces = true; }
 
     const std::string& getName() const { return _name; }
+    std::string getBinaryName() const;
 
 protected:
     PLYLIB_API virtual void toStream( std::ostream& os );
-    PLYLIB_API virtual void fromMemory( char* start );
+    PLYLIB_API virtual void fromMemory( char* start);
 
 private:
     bool _constructFromPly( const std::string& filename );
@@ -71,8 +78,12 @@ private:
     VertexBufferData _data;
     bool             _invertFaces;
     std::string      _name;
+
+    // For out-of-core rendering
+    bool                _hasVertexData;
 };
-}
+
+}  // namespace
 
 
 #endif // PLYLIB_VERTEXBUFFERROOT_H

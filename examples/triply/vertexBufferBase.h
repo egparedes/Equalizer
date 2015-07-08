@@ -1,6 +1,7 @@
 
 /* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,7 +54,7 @@ public:
     PLYLIB_API virtual Index getNumberOfVertices() const = 0;
 
     const BoundingSphere& getBoundingSphere() const
-        { return _boundingSphere; }
+    { return _boundingSphere; }
 
     const float* getRange() const { return &_range[0]; }
 
@@ -66,25 +67,25 @@ public:
 
 protected:
     VertexBufferBase() : _boundingSphere( 0.0f )
-        {
-            _range[0] = 0.0f;
-            _range[1] = 1.0f;
-        }
+    {
+        _range[0] = 0.0f;
+        _range[1] = 1.0f;
+    }
 
     virtual void toStream( std::ostream& os )
-        {
-            os.write( reinterpret_cast< char* >( &_boundingSphere ),
-                      sizeof( BoundingSphere ) );
-            os.write( reinterpret_cast< char* >( &_range ), sizeof( Range ) );
-        }
+    {
+        os.write( reinterpret_cast< char* >( &_boundingSphere ),
+                  sizeof( BoundingSphere ) );
+        os.write( reinterpret_cast< char* >( &_range ), sizeof( Range ) );
+    }
 
     virtual void fromMemory( char** addr, VertexBufferData& /*globalData*/ )
-        {
-            memRead( reinterpret_cast< char* >( &_boundingSphere ), addr,
-                     sizeof( BoundingSphere ) );
-            memRead( reinterpret_cast< char* >( &_range ), addr,
-                     sizeof( Range ) );
-        }
+    {
+        memRead( reinterpret_cast< char* >( &_boundingSphere ), addr,
+                 sizeof( BoundingSphere ) );
+        memRead( reinterpret_cast< char* >( &_range ), addr,
+                 sizeof( Range ) );
+    }
 
     virtual void setupTree( VertexData& data, const Index start,
                             const Index length, const Axis axis,
@@ -94,9 +95,11 @@ protected:
     virtual void updateRange() = 0;
 
     friend class VertexBufferDist;
+    friend class VertexBufferNode;
     BoundingSphere  _boundingSphere;
     Range           _range;
 };
-}
+
+} // namespace
 
 #endif // PLYLIB_VERTEXBUFFERBASE_H

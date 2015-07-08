@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,6 +43,8 @@ namespace triply
     class VertexBufferData
     {
     public:
+        VertexBufferData() : hasColors(false) {}
+
         void clear()
         {
             vertices.clear();
@@ -53,6 +56,8 @@ namespace triply
         /*  Write the vectors' sizes and contents to the given stream.  */
         void toStream( std::ostream& os )
         {
+            calculateBoundingBox();
+            writeBoundingBox( os );
             writeVector( os, vertices );
             writeVector( os, colors );
             writeVector( os, normals );
@@ -63,18 +68,61 @@ namespace triply
         void fromMemory( char** addr )
         {
             clear();
+            readBoundingBox( addr );
             readVector( addr, vertices );
             readVector( addr, colors );
             readVector( addr, normals );
             readVector( addr, indices );
+            hasColors = !colors.empty();
         }
-        
+
+        /*  Read the vectors' sizes and skip the contents from the given MMF address.  */
+        void skipFromMemory( char** addr )
+        {
+            clear();
+            readBoundingBox( addr );
+            skipVector< Vertex >( addr );
+            hasColors = ( skipVector< Color >( addr ) > 0 );
+            skipVector< Normal >( addr );
+            skipVector< ShortIndex >( addr );
+        }
+
+        void calculateBoundingBox()
+        {
+            boundingBox[0] = vertices[0];
+            boundingBox[1] = vertices[0];
+            for( size_t v = 1; v < vertices.size(); ++v )
+            {
+                for( size_t i = 0; i < 3; ++i )
+                {
+                    boundingBox[0][i] = std::min( boundingBox[0][i], vertices[v][i] );
+                    boundingBox[1][i] = std::max( boundingBox[1][i], vertices[v][i] );
+                }
+            }
+        }
+
+        BoundingBox getBoundingBox() const { return boundingBox; }
+
         std::vector< Vertex >       vertices;
         std::vector< Color >        colors;
         std::vector< Normal >       normals;
         std::vector< ShortIndex >   indices;
+        BoundingBox                 boundingBox;
+        bool                        hasColors;
         
-    private:
+    private:        
+
+        void writeBoundingBox( std::ostream& os )
+        {
+            os.write( reinterpret_cast< char* >( &boundingBox[0] ), 2 * sizeof( Vertex ) );
+        }
+
+        void readBoundingBox( char** addr )
+        {
+            memRead( reinterpret_cast< char* >( &boundingBox[0] ), addr, 2*sizeof( Vertex ) );
+        }
+
+
         /*  Helper function to write a vector to output stream.  */
         template< class T >
         void writeVector( std::ostream& os, std::vector< T >& v )
@@ -100,6 +148,20 @@ namespace triply
                 memRead( reinterpret_cast< char* >( &v[0] ), addr, 
                          length * sizeof( T ) );
             }
+        }
+
+        /*  Helper function to skip a vector from the MMF address.  */
+        template< class T >
+        size_t skipVector( char** addr)
+        {
+            size_t length;
+            memRead( reinterpret_cast< char* >( &length ), addr,
+                     sizeof( size_t ) );
+            if( length > 0 )
+            {
+                *addr += length * sizeof( T );
+            }
+            return length;
         }
     };
     

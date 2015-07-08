@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2014, Stefan.Eilemann@epfl.ch
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,6 +34,7 @@
 
 #include <triply/vertexBufferDist.h>
 #include <triply/vertexBufferRoot.h>
+#include <triply/virtualVertexBufferData.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923
@@ -45,6 +47,9 @@ class View;
 
 typedef triply::VertexBufferRoot  Model;
 typedef triply::VertexBufferDist  ModelDist;
+typedef triply::VirtualVertexBufferData  VMLoader;
+typedef triply::VirtualVertexBufferDataPtr  VMLoaderPtr;
+typedef std::map< eq::uint128_t, VMLoaderPtr > VMLoadersMap;
 
 typedef std::vector< Model* > Models;
 typedef std::vector< ModelDist* > ModelDists;

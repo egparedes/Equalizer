@@ -1,5 +1,6 @@
 
 # Copyright (c) 2011-2015 Stefan Eilemann <eile@eyescale.ch>
+#                    2015 Enrique G. Paredes <egparedes@ifi.uzh.ch>
 
 set(TRIPLY_PUBLIC_HEADERS
   api.h
@@ -12,7 +13,8 @@ set(TRIPLY_PUBLIC_HEADERS
   vertexBufferNode.h
   vertexBufferRoot.h
   vertexBufferState.h
-  vertexData.h)
+  vertexData.h
+  virtualVertexBufferData.h)
 
 set(TRIPLY_SOURCES
   plyfile.cpp
@@ -22,7 +24,8 @@ set(TRIPLY_SOURCES
   vertexBufferNode.cpp
   vertexBufferRoot.cpp
   vertexBufferState.cpp
-  vertexData.cpp)
+  vertexData.cpp
+  virtualVertexBufferData.cpp)
 
 set(TRIPLY_LINK_LIBRARIES
   ${COLLAGE_LIBRARIES} ${EQ_GL_LIBRARIES} ${GLEW_LIBRARY})

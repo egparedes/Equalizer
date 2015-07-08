@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -109,8 +110,8 @@ void VertexBufferDist::deregisterTree()
 }
 
 VertexBufferRoot* VertexBufferDist::loadModel( co::NodePtr master,
-                                                     co::LocalNodePtr localNode,
-                                                     const eq::uint128_t& modelID )
+                                               co::LocalNodePtr localNode,
+                                               const eq::uint128_t& modelID )
 {
     LBASSERT( !_root && !_node );
 
@@ -136,8 +137,12 @@ void VertexBufferDist::getInstanceData( co::DataOStream& os )
             LBASSERT( _root );
             const VertexBufferData& data = _root->_data;
 
-            os << data.vertices << data.colors << data.normals << data.indices
-               << _root->_name;
+            os << _root->_hasVertexData;
+            if (_root->_hasVertexData)
+            {
+                os << data.vertices << data.colors << data.normals << data.indices;
+            }
+            os << _root->_name;
         }
     }
     else
@@ -173,8 +178,12 @@ void VertexBufferDist::applyInstanceData( co::DataIStream& is )
             VertexBufferRoot* root = new VertexBufferRoot;
             VertexBufferData& data = root->_data;
 
-            is >> data.vertices >> data.colors >> data.normals >> data.indices
-               >> root->_name;
+            is >> root->_hasVertexData;
+            if (root->_hasVertexData)
+            {
+                is >> data.vertices >> data.colors >> data.normals >> data.indices;
+            }
+            is >> root->_name;
 
             node  = root;
             _root = root;

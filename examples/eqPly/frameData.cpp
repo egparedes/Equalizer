@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2009-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,6 +47,7 @@ FrameData::FrameData()
         , _pilotMode( false )
         , _idle( false )
         , _compression( true )
+        , _boundingSpheres( false )
 {
     reset();
 }
@@ -58,7 +60,7 @@ void FrameData::serialize( co::DataOStream& os, const uint64_t dirtyBits )
     if( dirtyBits & DIRTY_FLAGS )
         os << _modelID << _renderMode << _colorMode << _quality << _ortho
            << _statistics << _help << _wireframe << _pilotMode << _idle
-           << _compression;
+           << _compression << _boundingSpheres;
     if( dirtyBits & DIRTY_VIEW )
         os << _currentViewID;
     if( dirtyBits & DIRTY_MESSAGE )
@@ -73,7 +75,7 @@ void FrameData::deserialize( co::DataIStream& is, const uint64_t dirtyBits )
     if( dirtyBits & DIRTY_FLAGS )
         is >> _modelID >> _renderMode >> _colorMode >> _quality >> _ortho
            >> _statistics >> _help >> _wireframe >> _pilotMode >> _idle
-           >> _compression;
+           >> _compression >> _boundingSpheres;
     if( dirtyBits & DIRTY_VIEW )
         is >> _currentViewID;
     if( dirtyBits & DIRTY_MESSAGE )
@@ -170,6 +172,12 @@ void FrameData::toggleCompression()
     setDirty( DIRTY_FLAGS );
 }
 
+void FrameData::toggleBoundingSpheres()
+{
+    _boundingSpheres = !_boundingSpheres;
+    setDirty( DIRTY_FLAGS );
+}
+
 void FrameData::spinCamera( const float x, const float y )
 {
     if( x == 0.f && y == 0.f )
@@ -217,6 +225,18 @@ void FrameData::setCameraPosition( const eq::Vector3f& position )
     setDirty( DIRTY_CAMERA );
 }
 
+void FrameData::setCameraRotation( const eq::Matrix4f& rotation )
+{
+    _rotation = rotation;
+    setDirty( DIRTY_CAMERA );
+}
+
+void FrameData::setModelRotation( const eq::Matrix4f& rotation )
+{
+    _modelRotation = rotation;
+    setDirty( DIRTY_CAMERA );
+}
+
 void FrameData::setRotation( const eq::Vector3f& rotation )
 {
     _rotation = eq::Matrix4f::IDENTITY;
@@ -226,7 +246,7 @@ void FrameData::setRotation( const eq::Vector3f& rotation )
     setDirty( DIRTY_CAMERA );
 }
 
-void FrameData::setModelRotation(  const eq::Vector3f& rotation )
+void FrameData::setModelRotation( const eq::Vector3f& rotation )
 {
     _modelRotation = eq::Matrix4f::IDENTITY;
     _modelRotation.rotate_x( rotation.x() );

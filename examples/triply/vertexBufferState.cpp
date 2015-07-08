@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2011-2012, Stefan Eilemann <eile@eyescale.ch>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,9 +35,11 @@ namespace triply
 VertexBufferState::VertexBufferState( const GLEWContext* glewContext ) 
         : _pmvMatrix( Matrix4f::IDENTITY )
         , _glewContext( glewContext )
-        , _renderMode( RENDER_MODE_DISPLAY_LIST )
+        , _renderMode( RENDER_MODE_DISPLAY_LIST ) /* RENDER_MODE_BUFFER_OBJECT  */
         , _useColors( false )
         , _useFrustumCulling( true )
+        , _useBoundingSpheres( false )
+        , _outOfCore( false )
 {
     _range[0] = 0.f;
     _range[1] = 1.f;

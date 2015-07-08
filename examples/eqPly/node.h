@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2006-2012, Stefan Eilemann <eile@equalizergraphics.com> 
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,12 +48,15 @@ namespace eqPly
     public:
         Node( eq::Config* parent ) : eq::Node( parent ) {}
 
+        VMLoaderPtr getModelLoader( const eq::uint128_t& modelId );
+
     protected:
         virtual ~Node(){}
 
         virtual bool configInit( const eq::uint128_t& initID );
 
     private:
+        VMLoadersMap _loadersMap;
     };
 }
 

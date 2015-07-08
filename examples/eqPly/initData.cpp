@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *               2015, David Steiner <steiner@ifi.uzh.ch> 
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,11 +51,12 @@ InitData::InitData()
 #elif WGL
     , _windowSystem( "WGL" )
 #endif
-    , _renderMode( triply::RENDER_MODE_DISPLAY_LIST )
+    , _renderMode( triply::RENDER_MODE_BUFFER_OBJECT ) // triply::RENDER_MODE_DISPLAY_LIST
     , _useGLSL( false )
     , _invFaces( false )
     , _logo( true )
     , _roi ( true )
+    , _outOfCore( false )
 {}
 
 InitData::~InitData()
@@ -64,13 +67,13 @@ InitData::~InitData()
 void InitData::getInstanceData( co::DataOStream& os )
 {
     os << _frameDataID << _windowSystem << _renderMode << _useGLSL << _invFaces
-       << _logo << _roi;
+       << _logo << _roi << _outOfCore;
 }
 
 void InitData::applyInstanceData( co::DataIStream& is )
 {
     is >> _frameDataID >> _windowSystem >> _renderMode >> _useGLSL >> _invFaces
-       >> _logo >> _roi;
+       >> _logo >> _roi >> _outOfCore;
     LBASSERT( _frameDataID != 0 );
 }
 

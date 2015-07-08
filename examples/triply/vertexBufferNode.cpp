@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2008-2011, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -156,6 +157,11 @@ void VertexBufferNode::draw( VertexBufferState& state ) const
     if ( state.stopRendering( ))
         return;
 
+//    if ( _left->getLeft() != 0 && _left->getRight() != 0 )
+//        _left->loadVirtualData();
+//    if ( _right->getLeft() != 0 && _right->getRight() != 0 )
+//        _right->loadVirtualData();
+
     _left->draw( state );
     _right->draw( state );
 }
@@ -164,7 +170,7 @@ void VertexBufferNode::draw( VertexBufferState& state ) const
 /*  Read node from memory and continue with remaining nodes.  */
 void VertexBufferNode::fromMemory( char** addr, VertexBufferData& globalData )
 {
-    // read node itself   
+    // read node itself
     size_t nodeType;
     memRead( reinterpret_cast< char* >( &nodeType ), addr, sizeof( size_t ) );
     if( nodeType != NODE_TYPE )
@@ -179,11 +185,16 @@ void VertexBufferNode::fromMemory( char** addr, VertexBufferData& globalData )
                              "regular or a leaf node, but found neither." );
     *addr -= sizeof( size_t );
     if( nodeType == NODE_TYPE )
+    {
         _left = new VertexBufferNode;
+    }
     else
-        _left = new VertexBufferLeaf( globalData );
-    static_cast< VertexBufferNode* >( _left )->fromMemory( addr, globalData );
-    
+    {
+        _left = new VertexBufferLeaf( globalData);
+    }
+    //static_cast< VertexBufferNode* >( _left )->fromMemory( addr, globalData );
+    _left->fromMemory( addr, globalData );
+
     // read right child (peek ahead)
     memRead( reinterpret_cast< char* >( &nodeType ), addr, sizeof( size_t ) );
     if( nodeType != NODE_TYPE && nodeType != LEAF_TYPE )
@@ -191,10 +202,15 @@ void VertexBufferNode::fromMemory( char** addr, VertexBufferData& globalData )
                              "regular or a leaf node, but found neither." );
     *addr -= sizeof( size_t );
     if( nodeType == NODE_TYPE )
+    {
         _right = new VertexBufferNode;
+    }
     else
+    {
         _right = new VertexBufferLeaf( globalData );
-    static_cast< VertexBufferNode* >( _right )->fromMemory( addr, globalData );
+    }
+    //static_cast< VertexBufferNode* >( _right )->fromMemory( addr, globalData );
+    _right->fromMemory( addr, globalData );
 }
 
 

@@ -2,6 +2,7 @@
 /* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2009, Cedric Stalder <cedric.stalder@gmail.com>
  *               2011-2014, Stefan Eilemann <eile@eyescale.ch>
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -75,6 +76,9 @@ class VertexBufferNode;
 class VertexBufferRoot;
 class VertexBufferState;
 class VertexData;
+class VirtualVertexBufferData;
+
+typedef VirtualVertexBufferData* VirtualVertexBufferDataPtr;
 
 // basic type definitions
 typedef vmml::vector< 3, float >      Vertex;
@@ -84,6 +88,7 @@ typedef vmml::matrix< 4, 4, float >   Matrix4f;
 typedef vmml::vector< 4, float >      Vector4f;
 typedef size_t                        Index;
 typedef GLushort                      ShortIndex;
+typedef std::size_t                   PageKey;
 
 // mesh exception
 struct MeshException : public std::exception
@@ -129,7 +134,8 @@ typedef ArrayWrapper< float, 2 >    Range;
 const Index             LEAF_SIZE( 21845 );
 
 // binary mesh file version, increment if changing the file format
-const unsigned short    FILE_VERSION( 0x0118 );
+//const unsigned short    FILE_VERSION( 0x0118 );
+const unsigned short    FILE_VERSION( 0x0119 );
 
 // enumeration for the sort axis
 enum Axis
@@ -177,6 +183,18 @@ enum NodeType
     NODE_TYPE = 0xde,
     LEAF_TYPE = 0xef
 };
+
+enum PageType
+{
+    INVALID_PAGE_TYPE = -1,
+    POSITION_PAGE_TYPE = 0,
+    COLOR_PAGE_TYPE = 1,
+    NORMAL_PAGE_TYPE = 2,
+    SHORTINDEX_PAGE_TYPE = 3
+};
+
+const int TOTAL_PAGE_TYPES( SHORTINDEX_PAGE_TYPE + 1 );
+
 
 // helper function for MMF (memory mapped file) reading
 inline void memRead( char* destination, char** source, size_t length )

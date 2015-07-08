@@ -1,6 +1,8 @@
 
 /* Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, David Steiner <steiner@ifi.uzh.ch> 
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -50,6 +52,7 @@ namespace eqPly
         bool               useInvertedFaces() const { return _invFaces; }
         bool               showLogo() const         { return _logo; }
         bool               useROI() const           { return _roi; }
+        bool               useOutOfCore() const     { return _outOfCore; }
 
     protected:
         virtual void getInstanceData( co::DataOStream& os );
@@ -63,6 +66,7 @@ namespace eqPly
         void enableInvertedFaces() { _invFaces = true; }
         void disableLogo()         { _logo     = false; }
         void disableROI()          { _roi      = false; }
+        void enableOutOfCore()     { _outOfCore = true; }
 
     private:
         eq::uint128_t      _frameDataID;
@@ -72,6 +76,7 @@ namespace eqPly
         bool               _invFaces;
         bool               _logo;
         bool               _roi;
+        bool               _outOfCore;
     };
 }
 

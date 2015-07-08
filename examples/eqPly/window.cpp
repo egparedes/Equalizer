@@ -2,6 +2,7 @@
 /* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2007, Tobias Wolf <twolf@access.unizh.ch>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -92,6 +93,8 @@ bool Window::configInitGL( const eq::uint128_t& initID )
 
     if( initData.useGLSL() )
         _loadShaders();
+
+    _state->setOutOfCore(initData.useOutOfCore());
 
     return true;
 }

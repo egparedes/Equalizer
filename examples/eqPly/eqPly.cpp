@@ -1,6 +1,8 @@
 
 /* Copyright (c) 2005-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2012, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                    2015, David Steiner <steiner@ifi.uzh.ch> 
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,34 +43,35 @@ namespace
 {
 static const std::string _help(
     std::string( "eqPly - Equalizer polygonal rendering example\n" ) +
-    std::string( "\tRun-time commands:\n" ) +
-    std::string( "\t\tLeft Mouse Button:         Rotate model\n" ) +
-    std::string( "\t\tMiddle Mouse Button:       Move model in X, Y\n" ) +
-    std::string( "\t\tRight Mouse Button:        Move model in Z\n" ) +
-    std::string( "\t\t<Cursor Keys>:             Move head in X,Y plane\n" )+
-    std::string( "\t\t<Page Up,Down>:            Move head in Z\n" )+
-    std::string( "\t\t<Esc>, All Mouse Buttons:  Exit program\n" ) +
-    std::string( "\t\t<Space>:                   Reset camera (twice for Immersive Setup)\n" ) +
-    std::string( "\t\tF1, h:                     Toggle help overlay\n" ) +
-    std::string( "\t\to:                         Toggle perspective/orthographic\n"
-                                                                            ) +
-    std::string( "\t\ts:                         Toggle statistics overlay\n" ) +
-    std::string( "\t\tw:                         Toggle wireframe mode\n" ) +
-    std::string( "\t\td:                         Toggle color demo mode\n" ) +
-    std::string( "\t\ti:                         Toggle usage of idle anti-aliasing\n" ) +
-    std::string( "\t\tq, Q:                      Adjust non-idle image quality\n" ) +
-    std::string( "\t\tn:                         Toggle navigation mode (trackball, walk)\n" ) +
-    std::string( "\t\tr:                         Switch rendering mode (display list, VBO, immediate)\n" ) +
-    std::string( "\t\tu:                         Toggle image compression\n" ) +
-    std::string( "\t\tc:                         Switch active canvas\n" ) +
-    std::string( "\t\tv:                         Switch active view\n" ) +
-    std::string( "\t\tm:                         Switch model for active view\n" ) +
-    std::string( "\t\tl:                         Switch layout for active canvas\n" ) +
-    std::string( "\t\ta:                         Add active stereo window\n" ) +
-    std::string( "\t\tp:                         Add passive stereo window\n" ) +
-    std::string( "\t\tx:                         Remove window\n" ) +
-    std::string( "\t\ty, Y:                      Adjust model unit\n" ) +
-    std::string( "\t\tz, Z:                      Adjust eye base\n" ));
+    std::string( "  Run-time commands:\n" ) +
+    std::string( "    Left Mouse Button:         Rotate model\n" ) +
+    std::string( "    Middle Mouse Button:       Move model in X, Y\n" ) +
+    std::string( "    Right Mouse Button:        Move model in Z\n" ) +
+    std::string( "    <Cursor Keys>:             Move head in X,Y plane\n" )+
+    std::string( "    <Page Up,Down>:            Move head in Z\n" )+
+    std::string( "    <Esc>, All Mouse Buttons:  Exit program\n" ) +
+    std::string( "    <Space>:                   Reset camera (twice for Immersive Setup)\n" ) +
+    std::string( "    F1, h:                     Toggle help overlay\n" ) +
+    std::string( "    !:                         Toggle TIN camcorder\n" ) +
+    std::string( "    o:                         Toggle perspective/orthographic\n" ) +
+    std::string( "    s:                         Toggle statistics overlay\n" ) +
+    std::string( "    w:                         Toggle wireframe mode\n" ) +
+    std::string( "    d:                         Toggle color demo mode\n" ) +
+    std::string( "    b, B:                      Toggle bounding spheres drawing\n" ) +
+    std::string( "    i:                         Toggle usage of idle anti-aliasing\n" ) +
+    std::string( "    q, Q:                      Adjust non-idle image quality\n" ) +
+    std::string( "    n:                         Toggle navigation mode (trackball, walk)\n" ) +
+    std::string( "    r:                         Switch rendering mode (display list, VBO, immediate)\n" ) +
+    std::string( "    u:                         Toggle image compression\n" ) +
+    std::string( "    c:                         Switch active canvas\n" ) +
+    std::string( "    v:                         Switch active view\n" ) +
+    std::string( "    m:                         Switch model for active view\n" ) +
+    std::string( "    l:                         Switch layout for active canvas\n" ) +
+    std::string( "    a:                         Add active stereo window\n" ) +
+    std::string( "    p:                         Add passive stereo window\n" ) +
+    std::string( "    x:                         Remove window\n" ) +
+    std::string( "    y, Y:                      Adjust model unit\n" ) +
+    std::string( "    z, Z:                      Adjust eye base\n" ));
 }
 
 const std::string& EqPly::getHelp()

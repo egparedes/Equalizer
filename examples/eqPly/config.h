@@ -2,6 +2,8 @@
 /* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, David Steiner <steiner@ifi.uzh.ch> 
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,7 +36,7 @@
 // members
 #include "localInitData.h"
 #include "frameData.h"
-#include "cameraAnimation.h"
+#include <eq/util/camcoder.h>
 
 #include <eq/eq.h>
 #include <eq/admin/base.h>
@@ -69,6 +71,7 @@ public:
 
     /** @return the requested, default model or 0. */
     const Model* getModel( const eq::uint128_t& id );
+    const Models& getModels() const { return _models; }
 
     /** @sa eq::Config::handleEvent */
     virtual bool handleEvent( const eq::ConfigEvent* event );
@@ -102,7 +105,7 @@ private:
     ModelDists _modelDist;
     lunchbox::Lock  _modelLock;
 
-    CameraAnimation _animation;
+    eq::util::Camcoder _camcoder;
 
     uint64_t _messageTime;
 
@@ -132,6 +135,7 @@ private:
     void _adjustModelScale( const float factor );
     void _switchLayout( int32_t increment );
     void _toggleEqualizer();
+    void _toggleCamcoder();
 
     void _setHeadMatrix( const eq::Matrix4f& matrix );
     const eq::Matrix4f& _getHeadMatrix() const;

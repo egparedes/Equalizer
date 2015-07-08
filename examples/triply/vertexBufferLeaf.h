@@ -1,6 +1,7 @@
 
 /* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,6 +32,7 @@
 #define PLYLIB_VERTEXBUFFERLEAF_H
 
 #include "vertexBufferBase.h"
+#include "virtualVertexBufferData.h"
 
 namespace triply
 {
@@ -38,10 +40,8 @@ namespace triply
 class VertexBufferLeaf : public VertexBufferBase
 {
 public:
-    VertexBufferLeaf( VertexBufferData& data )
-        : _globalData( data ), _vertexStart( 0 ),
-          _indexStart( 0 ), _indexLength( 0 ) {}
-    virtual ~VertexBufferLeaf() {}
+    VertexBufferLeaf( VertexBufferData& data );
+    virtual ~VertexBufferLeaf();
 
     virtual void draw( VertexBufferState& state ) const;
     virtual Index getNumberOfVertices() const { return _indexLength; }
@@ -63,6 +63,9 @@ private:
     void renderDisplayList( VertexBufferState& state ) const;
     void renderBufferObject( VertexBufferState& state ) const;
 
+    void loadVirtualData(VirtualVertexBufferDataPtr virtualVBD, bool useColors) const;
+    void freeVirtualData() const;
+
     friend class VertexBufferDist;
     VertexBufferData&   _globalData;
     BoundingBox         _boundingBox;
@@ -70,7 +73,15 @@ private:
     Index               _indexStart;
     Index               _indexLength;
     ShortIndex          _vertexLength;
+
+    // For out-of-core rendering
+    mutable VertexVB         _verticesVB;
+    mutable ColorVB          _colorsVB;
+    mutable NormalVB         _normalsVB;
+    mutable ShortIndexVB     _indicesVB;
+    mutable bool            _vDataLoaded;
 };
-}
+
+} // namespace
 
 #endif // PLYLIB_VERTEXBUFFERLEAF_H

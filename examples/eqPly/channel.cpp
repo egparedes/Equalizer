@@ -35,6 +35,7 @@
 #include "config.h"
 #include "configEvent.h"
 #include "pipe.h"
+#include "node.h"
 #include "view.h"
 #include "window.h"
 #include "vertexBufferState.h"
@@ -134,7 +135,8 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
     const Model* model = _getModel();
 
     if( oldModel != model )
-        state.setFrustumCulling( false ); // create all display lists/VBOs
+        //state.setFrustumCulling( false ); // create all display lists/VBOs
+        state.setFrustumCulling( state.useFrustumCulling() );
 
     if( model )
         _updateNearFar( model->getBoundingSphere( ));
@@ -170,7 +172,11 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
         glColor3f( .75f, .75f, .75f );
 
     if( model )
+    {
+        state.setVirtualVBD(
+            static_cast<Node*>( getNode() )->getModelLoader( _modelID ) );
         _drawModel( model );
+    }
     else
     {
         glNormal3f( 0.f, -1.f, 0.f );
@@ -591,10 +597,8 @@ void Channel::_drawModel( const Model* scene )
     VertexBufferState& state = window->getState();
     const FrameData& frameData = _getFrameData();
 
-    if( frameData.getColorMode() == COLOR_MODEL && scene->hasColors( ))
-        state.setColors( true );
-    else
-        state.setColors( false );
+    state.setColors( frameData.getColorMode() == COLOR_MODEL && scene->hasColors( ) );
+    state.setBoundingSpheres( frameData.showBoundingSpheres() );
     state.setChannel( this );
 
     // Compute cull matrix

@@ -2,6 +2,8 @@
 /* Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
  *               2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *               2015, David Steiner <steiner@ifi.uzh.ch> 
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,15 +42,15 @@ namespace eqPly
 {
 
 Config::Config( eq::ServerPtr parent )
-        : eq::Config( parent )
-        , _spinX( 5 )
-        , _spinY( 5 )
-        , _advance( 0 )
-        , _currentCanvas( 0 )
-        , _messageTime( 0 )
-        , _redraw( true )
-        , _useIdleAA( true )
-        , _numFramesAA( 0 )
+    : eq::Config( parent )
+    , _spinX( 5 )
+    , _spinY( 5 )
+    , _advance( 0 )
+    , _currentCanvas( 0 )
+    , _messageTime( 0 )
+    , _redraw( true )
+    , _useIdleAA( true )
+    , _numFramesAA( 0 )
 {
 }
 
@@ -68,9 +70,6 @@ Config::~Config()
 
 bool Config::init()
 {
-    if( !_animation.isValid( ))
-        _animation.loadAnimation( _initData.getPathFilename( ));
-
     // init distributed objects
     if( !_initData.useColor( ))
         _frameData.setColorMode( COLOR_WHITE );
@@ -98,7 +97,43 @@ bool Config::init()
     else
         _currentCanvas = canvases.front();
 
-    _setMessage( "Welcome to eqPly\nPress F1 for help" );
+    if( !_camcoder.isValid( ))
+    {
+        bool loaded = false;
+        if( _initData.createLongShowcase() )
+        {
+            View* view = _getCurrentView();
+            const eq::uint128_t& currentID = view ? view->getModelID() :
+                                             _frameData.getModelID();
+            eq::AABBf box( getModel( currentID )->getBoundingBox()[0],
+                           getModel( currentID )->getBoundingBox()[1] );
+            loaded = _camcoder.createLongShowcasePath( _initData.getHelixDollyArgs(),
+                                                _initData.getHelixRadiusArgs(),
+                                                _initData.getHelixAngleArgs(),
+                                                box);
+        }
+        else
+        {
+            loaded = _camcoder.loadAnimation( _initData.getPathInFilename( ));
+        }
+
+        if( loaded )
+        {
+            _camcoder.setCurrentFrame( getCurrentFrame( ));
+            _camcoder.startPlaying();
+        }
+    }
+
+    std::string renderModeString;
+    if( _initData.getRenderMode( ) == triply::RENDER_MODE_IMMEDIATE )
+        renderModeString = "immediate";
+    else if( _initData.getRenderMode( ) == triply::RENDER_MODE_DISPLAY_LIST )
+        renderModeString = "displaylist";
+    else if( _initData.getRenderMode( ) == triply::RENDER_MODE_BUFFER_OBJECT )
+        renderModeString = "vbo";
+
+    _setMessage( "Welcome to eqPly [mode = " + renderModeString +
+                 "]\nPress F1 for help" );
     return true;
 }
 
@@ -147,13 +182,15 @@ void Config::_loadModels()
             if( _initData.useInvertedFaces() )
                 model->useInvertedFaces();
 
-            if( !model->readFromFile( filename.c_str( )))
+            if( !model->readFromFile( filename.c_str( ), !_initData.useOutOfCore()))
             {
                 LBWARN << "Can't load model: " << filename << std::endl;
                 delete model;
             }
             else
+            {
                 _models.push_back( model );
+            }
         }
         else
         {
@@ -162,8 +199,7 @@ void Config::_loadModels()
                 continue;
 
             // recursively search directories
-            const eq::Strings subFiles = lunchbox::searchDirectory( filename,
-                                                                    ".*" );
+            const eq::Strings subFiles = lunchbox::searchDirectory( filename, ".*" );
             for(eq::StringsCIter i = subFiles.begin(); i != subFiles.end(); ++i)
                 filenames.push_back( filename + '/' + *i );
         }
@@ -269,17 +305,8 @@ uint32_t Config::startFrame()
 
 void Config::_updateData()
 {
-    // update camera
-    if( _animation.isValid( ))
-    {
-        const eq::Vector3f&  modelRotation = _animation.getModelRotation();
-        const CameraAnimation::Step& curStep = _animation.getNextStep();
-
-        _frameData.setModelRotation( modelRotation);
-        _frameData.setRotation( curStep.rotation );
-        _frameData.setCameraPosition( curStep.position );
-    }
-    else
+    _camcoder.setCurrentFrame( getCurrentFrame( ));
+    if( !_camcoder.isPlaying( ))
     {
         if( _frameData.usePilotMode())
             _frameData.spinCamera( -0.001f * _spinX, -0.001f * _spinY );
@@ -287,6 +314,30 @@ void Config::_updateData()
             _frameData.spinModel( -0.001f * _spinX, -0.001f * _spinY, 0.f );
 
         _frameData.moveCamera( 0.0f, 0.0f, 0.001f * _advance );
+    }
+    else if( _camcoder.atLastStep( ))
+    {
+        _spinX = 0;
+        _spinY = 0;
+    }
+
+    if( _camcoder.isRecording( ))
+    {
+        eq::util::Camcoder::Step curStep( _frameData.getCameraPosition(),
+                                          _frameData.getCameraRotation(),
+                                          _frameData.getModelRotation() );
+        _camcoder.setNextStep( curStep );
+    }
+    else if( _camcoder.isPlaying( ))   // update camera
+    {
+        const eq::util::Camcoder::Step& curStep = _camcoder.getNextStep();
+        if( _initData.exitAfterPlayback() && !_camcoder.isPlaying( ))
+            stopRunning();
+
+        _frameData.setModelRotation( curStep.modelRotation );
+        _frameData.setCameraRotation( curStep.rotation );
+        _frameData.setCameraPosition( curStep.position );
+        _handleKeyEvent( curStep.keyEvent );
     }
 
     // idle mode
@@ -313,7 +364,7 @@ bool Config::needRedraw()
 
 uint32_t Config::getAnimationFrame()
 {
-    return _animation.getCurrentFrame();
+    return _camcoder.getCurrentFrame();
 }
 
 bool Config::_needNewFrame()
@@ -335,143 +386,148 @@ bool Config::handleEvent( const eq::ConfigEvent* event )
 {
     switch( event->data.type )
     {
-        case eq::Event::KEY_PRESS:
+    case eq::Event::KEY_PRESS:
+    {
+        if( _handleKeyEvent( event->data.keyPress ))
         {
-            if( _handleKeyEvent( event->data.keyPress ))
+            _redraw = true;
+            return true;
+        }
+        break;
+    }
+
+    case eq::Event::CHANNEL_POINTER_BUTTON_PRESS:
+    {
+        const eq::uint128_t& viewID = event->data.context.view.identifier;
+        _frameData.setCurrentViewID( viewID );
+        if( viewID == 0 )
+        {
+            _currentCanvas = 0;
+            return false;
+        }
+
+        const View* view = _getCurrentView();
+        const eq::Layout* layout = view->getLayout();
+        const eq::Canvases& canvases = getCanvases();
+        for( eq::CanvasesCIter i = canvases.begin();
+                i != canvases.end(); ++i )
+        {
+            eq::Canvas* canvas = *i;
+            const eq::Layout* canvasLayout = canvas->getActiveLayout();
+
+            if( canvasLayout == layout )
             {
+                _currentCanvas = canvas;
+                return true;
+            }
+            //return true;
+        }
+        return true;
+    }
+
+    case eq::Event::CHANNEL_POINTER_BUTTON_RELEASE:
+    {
+        const eq::PointerEvent& releaseEvent =
+            event->data.pointerButtonRelease;
+        if( releaseEvent.buttons == eq::PTR_BUTTON_NONE)
+        {
+            if( releaseEvent.button == eq::PTR_BUTTON1 )
+            {
+                _spinX = releaseEvent.dy;
+                _spinY = releaseEvent.dx;
                 _redraw = true;
                 return true;
             }
-            break;
-        }
-
-        case eq::Event::CHANNEL_POINTER_BUTTON_PRESS:
-        {
-            const eq::uint128_t& viewID = event->data.context.view.identifier;
-            _frameData.setCurrentViewID( viewID );
-            if( viewID == 0 )
+            if( releaseEvent.button == eq::PTR_BUTTON2 )
             {
-                _currentCanvas = 0;
-                return false;
+                _advance = -releaseEvent.dy;
+                _redraw = true;
+                return true;
             }
-
-            const View* view = _getCurrentView();
-            const eq::Layout* layout = view->getLayout();
-            const eq::Canvases& canvases = getCanvases();
-            for( eq::CanvasesCIter i = canvases.begin();
-                 i != canvases.end(); ++i )
-            {
-                eq::Canvas* canvas = *i;
-                const eq::Layout* canvasLayout = canvas->getActiveLayout();
-
-                if( canvasLayout == layout )
-                {
-                    _currentCanvas = canvas;
-                    return true;
-                }
-            }
-            return true;
         }
-
-        case eq::Event::CHANNEL_POINTER_BUTTON_RELEASE:
+        break;
+    }
+    case eq::Event::CHANNEL_POINTER_MOTION:
+    {
+        switch( event->data.pointerMotion.buttons )
         {
-            const eq::PointerEvent& releaseEvent =
-                event->data.pointerButtonRelease;
-            if( releaseEvent.buttons == eq::PTR_BUTTON_NONE)
-            {
-                if( releaseEvent.button == eq::PTR_BUTTON1 )
-                {
-                    _spinX = releaseEvent.dy;
-                    _spinY = releaseEvent.dx;
-                    _redraw = true;
-                    return true;
-                }
-                if( releaseEvent.button == eq::PTR_BUTTON2 )
-                {
-                    _advance = -releaseEvent.dy;
-                    _redraw = true;
-                    return true;
-                }
-            }
-            break;
-        }
-        case eq::Event::CHANNEL_POINTER_MOTION:
-        {
-            switch( event->data.pointerMotion.buttons )
-            {
-              case eq::PTR_BUTTON1:
-                  _spinX = 0;
-                  _spinY = 0;
-
-                  if( _frameData.usePilotMode())
-                      _frameData.spinCamera(
-                          -0.005f * event->data.pointerMotion.dy,
-                          -0.005f * event->data.pointerMotion.dx );
-                  else
-                      _frameData.spinModel(
-                          -0.005f * event->data.pointerMotion.dy,
-                          -0.005f * event->data.pointerMotion.dx, 0.f );
-                  _redraw = true;
-                  return true;
-
-              case eq::PTR_BUTTON2:
-                  _advance = -event->data.pointerMotion.dy;
-                  _frameData.moveCamera( 0.f, 0.f, .005f * _advance );
-                  _redraw = true;
-                  return true;
-
-              case eq::PTR_BUTTON3:
-                  _frameData.moveCamera(  .0005f * event->data.pointerMotion.dx,
-                                         -.0005f * event->data.pointerMotion.dy,
-                                          0.f );
-                  _redraw = true;
-                  return true;
-            }
-            break;
-        }
-
-        case eq::Event::CHANNEL_POINTER_WHEEL:
-        {
-            _frameData.moveCamera( -0.05f * event->data.pointerWheel.xAxis,
-                                   0.f,
-                                   0.05f * event->data.pointerWheel.yAxis );
-            _redraw = true;
-            return true;
-        }
-
-        case eq::Event::MAGELLAN_AXIS:
-        {
+        case eq::PTR_BUTTON1:
             _spinX = 0;
             _spinY = 0;
-            _advance = 0;
-            _frameData.spinModel( 0.0001f * event->data.magellan.xRotation,
-                                  0.0001f * event->data.magellan.yRotation,
-                                  0.0001f * event->data.magellan.zRotation );
-            _frameData.moveCamera( 0.0001f * event->data.magellan.xAxis,
-                                   0.0001f * event->data.magellan.yAxis,
-                                   0.0001f * event->data.magellan.zAxis );
+
+            if( _frameData.usePilotMode())
+            {
+                _frameData.spinCamera(
+                    -0.005f * event->data.pointerMotion.dy,
+                    -0.005f * event->data.pointerMotion.dx );
+            }
+            else
+            {
+                _frameData.spinModel(
+                    -0.005f * event->data.pointerMotion.dy,
+                    -0.005f * event->data.pointerMotion.dx, 0.f );
+            }
+            _redraw = true;
+            return true;
+
+        case eq::PTR_BUTTON2:
+            _advance = -event->data.pointerMotion.dy;
+            _frameData.moveCamera( 0.f, 0.f, .005f * _advance );
+            _redraw = true;
+            return true;
+
+        case eq::PTR_BUTTON3:
+            _frameData.moveCamera(  .0005f * event->data.pointerMotion.dx,
+                                    -.0005f * event->data.pointerMotion.dy,
+                                    0.f );
             _redraw = true;
             return true;
         }
+        break;
+    }
 
-        case eq::Event::MAGELLAN_BUTTON:
-        {
-            if( event->data.magellan.button == eq::PTR_BUTTON1 )
-                _frameData.toggleColorMode();
+    case eq::Event::CHANNEL_POINTER_WHEEL:
+    {
+            _frameData.moveCamera( -0.05f * event->data.pointerWheel.xAxis,
+                               0.f,
+                                   0.05f * event->data.pointerWheel.yAxis );
+        _redraw = true;
+        return true;
+    }
 
-            _redraw = true;
-            return true;
-        }
+    case eq::Event::MAGELLAN_AXIS:
+    {
+        _spinX = 0;
+        _spinY = 0;
+        _advance = 0;
+        _frameData.spinModel( 0.0001f * event->data.magellan.xRotation,
+                              0.0001f * event->data.magellan.yRotation,
+                              0.0001f * event->data.magellan.zRotation );
+        _frameData.moveCamera( 0.0001f * event->data.magellan.xAxis,
+                               0.0001f * event->data.magellan.yAxis,
+                               0.0001f * event->data.magellan.zAxis );
+        _redraw = true;
+        return true;
+    }
 
-        case eq::Event::WINDOW_EXPOSE:
-        case eq::Event::WINDOW_RESIZE:
-        case eq::Event::WINDOW_CLOSE:
-        case eq::Event::VIEW_RESIZE:
-            _redraw = true;
-            break;
+    case eq::Event::MAGELLAN_BUTTON:
+    {
+        if( event->data.magellan.button == eq::PTR_BUTTON1 )
+            _frameData.toggleColorMode();
 
-        default:
-            break;
+        _redraw = true;
+        return true;
+    }
+
+    case eq::Event::WINDOW_EXPOSE:
+    case eq::Event::WINDOW_RESIZE:
+    case eq::Event::WINDOW_CLOSE:
+    case eq::Event::VIEW_RESIZE:
+        _redraw = true;
+        break;
+
+    default:
+        break;
     }
 
     _redraw |= eq::Config::handleEvent( event );
@@ -483,7 +539,7 @@ bool Config::handleEvent( eq::EventICommand command )
     switch( command.getEventType( ))
     {
     case IDLE_AA_LEFT:
-        if( _useIdleAA )
+        if( _useIdleAA && !_camcoder.isPlaying( ) )
         {
             const int32_t steps = command.read< int32_t >();
             _numFramesAA = LB_MAX( _numFramesAA, steps );
@@ -502,282 +558,296 @@ bool Config::handleEvent( eq::EventICommand command )
 
 bool Config::_handleKeyEvent( const eq::KeyEvent& event )
 {
+    if( event.key == 0 )
+        return false;
+    if( event.key != '!' )
+        _camcoder.setKeyEvent( event );
+
     switch( event.key )
     {
-        case 'z':
-            _adjustEyeBase( -0.1f );
-            return true;
-        case 'Z':
-            _adjustEyeBase( 0.1f );
-            return true;
-        case 'y':
-            _adjustModelScale( 0.1f );
-            return true;
-        case 'Y':
-            _adjustModelScale( 10.0f );
-            return true;
-        case 't':
-            _adjustTileSize( -1 );
-            return true;
-        case 'T':
-            _adjustTileSize( 1 );
-             return true;
-        case 'u':
-            _frameData.toggleCompression();
-            return true;
+    case 'z':
+        _adjustEyeBase( -0.1f );
+        return true;
+    case 'Z':
+        _adjustEyeBase( 0.1f );
+        return true;
+    case 'y':
+        _adjustModelScale( 0.1f );
+        return true;
+    case 'Y':
+        _adjustModelScale( 10.0f );
+        return true;
+    case 't':
+        _adjustTileSize( -1 );
+        return true;
+    case 'T':
+        _adjustTileSize( 1 );
+        return true;
+    case 'u':
+        _frameData.toggleCompression();
+        return true;
 
-        case 'n':
-        case 'N':
-            _frameData.togglePilotMode();
-            return true;
-        case ' ':
-            stopFrames();
-            _spinX   = 0;
-            _spinY   = 0;
-            _advance = 0;
-            _frameData.reset();
-            _setHeadMatrix( eq::Matrix4f::IDENTITY );
-            return true;
+    case 'n':
+    case 'N':
+        _frameData.togglePilotMode();
+        return true;
+    case ' ':
+        stopFrames();
+        _spinX   = 0;
+        _spinY   = 0;
+        _advance = 0;
+        _frameData.reset();
+        _setHeadMatrix( eq::Matrix4f::IDENTITY );
+        return true;
 
-        case 'i':
-            _useIdleAA = !_useIdleAA;
-            return true;
+    case 'i':
+        _useIdleAA = !_useIdleAA;
+        return true;
 
-        case 'k':
-        {
-            lunchbox::RNG rng;
-            if( rng.get< bool >( ))
-                _frameData.toggleOrtho();
-            if( rng.get< bool >( ))
-                _frameData.toggleStatistics();
-            if( rng.get< bool >( ))
-                _switchCanvas();
-            if( rng.get< bool >( ))
-                _switchView();
-            if( rng.get< bool >( ))
-                _switchLayout( 1 );
-            if( rng.get< bool >( ))
-                _switchModel();
-            if( rng.get< bool >( ))
-                eqAdmin::addWindow( _getAdminServer(), rng.get< bool >( ));
-            if( rng.get< bool >( ))
-            {
-                eqAdmin::removeWindow( _getAdminServer( ));
-                _currentCanvas = 0;
-            }
-            if( rng.get< bool >( ))
-                _switchViewMode();
-            return true;
-        }
-
-        case 'o':
-        case 'O':
+    case 'k':
+    {
+        lunchbox::RNG rng;
+        if( rng.get< bool >( ))
             _frameData.toggleOrtho();
-            return true;
-
-        case 's':
-        case 'S':
+        if( rng.get< bool >( ))
             _frameData.toggleStatistics();
-            return true;
-
-        case 'f':
-            _freezeLoadBalancing( true );
-            return true;
-
-        case 'F':
-            _freezeLoadBalancing( false );
-            return true;
-
-        case eq::KC_F1:
-        case 'h':
-        case 'H':
-            _frameData.toggleHelp();
-            return true;
-
-        case 'd':
-        case 'D':
-            _frameData.toggleColorMode();
-            return true;
-
-        case 'q':
-            _frameData.adjustQuality( -.1f );
-            return true;
-
-        case 'Q':
-            _frameData.adjustQuality( .1f );
-            return true;
-
-        case 'c':
-        case 'C':
+        if( rng.get< bool >( ))
             _switchCanvas();
-            return true;
-
-        case 'v':
-        case 'V':
+        if( rng.get< bool >( ))
             _switchView();
-            return true;
-
-        case 'm':
-        case 'M':
-            _switchModel();
-            return true;
-
-        case 'l':
+        if( rng.get< bool >( ))
             _switchLayout( 1 );
-            return true;
-        case 'L':
-            _switchLayout( -1 );
-            return true;
-
-        case 'w':
-        case 'W':
-            _frameData.toggleWireframe();
-            return true;
-
-        case 'r':
-        case 'R':
-            _frameData.toggleRenderMode();
-            return true;
-        case 'g':
-        case 'G':
-            _switchViewMode();
-            return true;
-        case 'a':
-            eqAdmin::addWindow( _getAdminServer(), false /* active stereo */ );
-            return true;
-        case 'p':
-            eqAdmin::addWindow( _getAdminServer(), true /* passive stereo */ );
-            return true;
-        case 'x':
+        if( rng.get< bool >( ))
+            _switchModel();
+        if( rng.get< bool >( ))
+            eqAdmin::addWindow( _getAdminServer(), rng.get< bool >( ));
+        if( rng.get< bool >( ))
+        {
             eqAdmin::removeWindow( _getAdminServer( ));
             _currentCanvas = 0;
-            LBASSERT( update() );
-            return false;
+        }
+        if( rng.get< bool >( ))
+            _switchViewMode();
+        return true;
+    }
+
+    case 'o':
+    case 'O':
+        _frameData.toggleOrtho();
+        return true;
+
+    case 's':
+    case 'S':
+        _frameData.toggleStatistics();
+        return true;
+
+    case 'f':
+        _freezeLoadBalancing( true );
+        return true;
+
+    case 'F':
+        _freezeLoadBalancing( false );
+        return true;
+
+    case eq::KC_F1:
+    case 'h':
+    case 'H':
+        _frameData.toggleHelp();
+        return true;
+
+    case 'd':
+    case 'D':
+        _frameData.toggleColorMode();
+        return true;
+
+    case 'q':
+        _frameData.adjustQuality( -.1f );
+        return true;
+
+    case 'Q':
+        _frameData.adjustQuality( .1f );
+        return true;
+
+    case 'b':
+    case 'B':
+        _frameData.toggleBoundingSpheres();
+        return true;
+
+    case 'c':
+    case 'C':
+        _switchCanvas();
+        return true;
+
+    case 'v':
+    case 'V':
+        _switchView();
+        return true;
+
+    case 'm':
+    case 'M':
+        _switchModel();
+        return true;
+
+    case 'l':
+        _switchLayout( 1 );
+        return true;
+    case 'L':
+        _switchLayout( -1 );
+        return true;
+
+    case 'w':
+    case 'W':
+        _frameData.toggleWireframe();
+        return true;
+
+    case 'r':
+    case 'R':
+        _frameData.toggleRenderMode();
+        return true;
+    case 'g':
+    case 'G':
+        _switchViewMode();
+        return true;
+    case 'a':
+        eqAdmin::addWindow( _getAdminServer(), false /* active stereo */ );
+        return true;
+    case 'p':
+        eqAdmin::addWindow( _getAdminServer(), true /* passive stereo */ );
+        return true;
+    case 'x':
+        eqAdmin::removeWindow( _getAdminServer( ));
+        _currentCanvas = 0;
+        LBASSERT( update() );
+        return false;
 
         // Head Tracking Emulation
-        case eq::KC_UP:
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.y() += 0.1f;
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case eq::KC_DOWN:
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.y() -= 0.1f;
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case eq::KC_RIGHT:
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.x() += 0.1f;
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case eq::KC_LEFT:
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.x() -= 0.1f;
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case eq::KC_PAGE_DOWN:
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.z() += 0.1f;
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case eq::KC_PAGE_UP:
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.z() -= 0.1f;
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case '.':
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.pre_rotate_x( .1f );
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case ',':
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.pre_rotate_x( -.1f );
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case ';':
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.pre_rotate_y( .1f );
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case '\'':
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.pre_rotate_y( -.1f );
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case '[':
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.pre_rotate_z( -.1f );
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
-        case ']':
-        {
-            eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.pre_rotate_z( .1f );
-            _setHeadMatrix( headMatrix );
-            return true;
-        }
+    case eq::KC_UP:
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.y() += 0.1f;
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case eq::KC_DOWN:
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.y() -= 0.1f;
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case eq::KC_RIGHT:
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.x() += 0.1f;
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case eq::KC_LEFT:
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.x() -= 0.1f;
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case eq::KC_PAGE_DOWN:
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.z() += 0.1f;
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case eq::KC_PAGE_UP:
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.z() -= 0.1f;
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case '.':
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.pre_rotate_x( .1f );
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case ',':
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.pre_rotate_x( -.1f );
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case ';':
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.pre_rotate_y( .1f );
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case '\'':
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.pre_rotate_y( -.1f );
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case '[':
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.pre_rotate_z( -.1f );
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
+    case ']':
+    {
+        eq::Matrix4f headMatrix = _getHeadMatrix();
+        headMatrix.pre_rotate_z( .1f );
+        _setHeadMatrix( headMatrix );
+        return true;
+    }
 
-        case '+':
-            _changeFocusDistance( .1f );
-            return true;
+    case '+':
+        _changeFocusDistance( .1f );
+        return true;
 
-        case '-':
-            _changeFocusDistance( -.1f );
-            return true;
+    case '-':
+        _changeFocusDistance( -.1f );
+        return true;
 
-        case '1':
-            _setFocusMode( eq::FOCUSMODE_FIXED );
-            return true;
+    case '1':
+        _setFocusMode( eq::FOCUSMODE_FIXED );
+        return true;
 
-        case '2':
-            _setFocusMode( eq::FOCUSMODE_RELATIVE_TO_ORIGIN );
-            return true;
+    case '2':
+        _setFocusMode( eq::FOCUSMODE_RELATIVE_TO_ORIGIN );
+        return true;
 
-        case '3':
-            _setFocusMode( eq::FOCUSMODE_RELATIVE_TO_OBSERVER );
-            return true;
+    case '3':
+        _setFocusMode( eq::FOCUSMODE_RELATIVE_TO_OBSERVER );
+        return true;
 
-        case '4':
-            _adjustResistance( 1 );
-            return true;
+    case '4':
+        _adjustResistance( 1 );
+        return true;
 
-        case '5':
-            _adjustResistance( -1 );
-            return true;
+    case '5':
+        _adjustResistance( -1 );
+        return true;
 
-        case 'j':
-            stopFrames();
-            return true;
+    case 'j':
+        stopFrames();
+        return true;
 
-        case 'e':
-            _toggleEqualizer();
-            return true;
+    case 'e':
+        _toggleEqualizer();
+        return true;
 
-        default:
-            return false;
+    case '!':
+        _toggleCamcoder();
+        return true;
+
+    default:
+        return false;
     }
 }
 
@@ -1008,6 +1078,21 @@ void Config::_toggleEqualizer()
     View* view = _getCurrentView();
     if ( view )
         view->toggleEqualizer();
+}
+
+void Config::_toggleCamcoder()
+{
+    if( _camcoder.isRecording( ))
+    {
+        _setMessage( "Stopping camcoder" );
+        _camcoder.stopRecording();
+        _camcoder.saveAnimation( _initData.getPathOutFilename( ));
+    }
+    else
+    {
+        _setMessage( "Starting camcoder" );
+        _camcoder.startRecording();
+    }
 }
 
 // Note: real applications would use one tracking device per observer
