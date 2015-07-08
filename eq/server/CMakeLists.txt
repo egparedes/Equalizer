@@ -1,7 +1,7 @@
 # Copyright (c) 2010-2015 Daniel Pfeifer <daniel@pfeifer-mail.de>
 #                         Stefan Eilemann <eile@eyescale.ch>
 #                         Daniel Nachbaur <danielnachbaur@gmail.com>
-#                    2015 David Steiner <steiner@ifi.uzh.ch>
+#                         David Steiner <steiner@ifi.uzh.ch>
 
 find_package(BISON REQUIRED)
 find_package(FLEX  REQUIRED)

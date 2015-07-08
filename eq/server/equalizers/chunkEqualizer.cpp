@@ -1,6 +1,6 @@
 
 /* Copyright (c) 2013-2015, David Steiner <steiner@ifi.uzh.ch>
- *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2011-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011, Carsten Rohn <carsten.rohn@rtt.ag>
  *               2011, Daniel Nachbaur <danielnachbaur@gmail.com>
  *

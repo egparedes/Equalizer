@@ -27,29 +27,28 @@ namespace eq
 {
 namespace fabric
 {
-    /** @internal */
+/** @internal */
 #pragma pack(push, 1)
-    class Tile : public Stealable
-    {
-    public:
-        Tile() {}
-        Tile( const PixelViewport& pvp_, const Viewport& vp_ )
-                : Stealable(), pvp( pvp_ ), vp( vp_ ) {}
+class Tile : public Stealable
+{
+public:
+    Tile() {}
+    Tile( const PixelViewport& pvp_, const Viewport& vp_ )
+        : Stealable(), pvp( pvp_ ), vp( vp_ ) {}
 
-        uint32_t checksum;  // TEST
-        Frustumf frustum;
-        Frustumf ortho;
-        PixelViewport pvp;
-        Viewport vp;
-    };
+    uint32_t checksum;  // TEST
+    Frustumf frustum;
+    Frustumf ortho;
+    PixelViewport pvp;
+    Viewport vp;
+};
 #pragma pack(pop)
 /*
-    std::ostream& operator << ( std::ostream& os, const Tile& tile )
-    {
-        os << "[ " << tile.frustum << " " << tile.ortho << " " << tile.pvp << " " << tile.vp <<" ]";
-        return os;
-    }
-*/
+std::ostream& operator << ( std::ostream& os, const Tile& tile )
+{
+    os << "[ " << tile.frustum << " " << tile.ortho << " " << tile.pvp << " " << tile.vp <<" ]";
+    return os;
+}*/
 }
 }
 

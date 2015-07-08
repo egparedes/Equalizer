@@ -57,17 +57,18 @@ public:
 protected:
 
     void run() final
-    {
-        _server->run();
-        _server->close();
-        _server->deleteConfigs();
+        {
+            _server->run();
+            _server->close();
+            _server->deleteConfigs();
 
-        LBASSERTINFO( _server->getRefCount() == 1,
-                      "Server thread done, still referenced by " <<
-                      _server->getRefCount( ));
-        _server = 0;
-        eq::server::Global::clear();
-    }
+            LBINFO << "Server thread done, still referenced by "
+                   << _server->getRefCount() - 1 << std::endl;
+
+            LBASSERTINFO( _server->getRefCount() == 1, _server );
+            _server = 0;
+            eq::server::Global::clear();
+        }
 
 private:
     eq::server::ServerPtr _server;
