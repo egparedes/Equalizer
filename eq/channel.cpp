@@ -1028,6 +1028,10 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         if( !tileCmd.isValid( ))
             break;
 
+        bool wait = tileCmd.read< bool >();
+        if( wait )
+            continue;
+
         const Tile& tile = tileCmd.read< Tile >();
         context.apply( tile );
 
@@ -1148,6 +1152,10 @@ void Channel::_frameChunks( RenderContext& context, const bool isLocal,
         co::ObjectICommand chunkCmd = queue->pop( timeout );
         if( !chunkCmd.isValid( ))
             break;
+
+        bool wait = chunkCmd.read< bool >();
+        if( wait )
+            continue;
 
         const Chunk& chunk = chunkCmd.read< Chunk >();
         context.apply( chunk );
