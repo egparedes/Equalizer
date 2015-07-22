@@ -213,7 +213,6 @@ void VertexBufferNode::fromMemory( char** addr, VertexBufferData& globalData )
     _right->fromMemory( addr, globalData );
 }
 
-
 /*  Write node to output stream and continue with remaining nodes.  */
 void VertexBufferNode::toStream( std::ostream& os )
 {

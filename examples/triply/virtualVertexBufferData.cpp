@@ -247,6 +247,8 @@ VirtualVertexBufferData::PageData< T >&
 VirtualVertexBufferData::getPage(PageKey key, PageType pType)
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+
+    _lock[pType].set();
     if (!_mmaped)
         openMMap();
     bool loadFromDisk = !mapHasKey(key, pType);
@@ -290,6 +292,7 @@ VirtualVertexBufferData::getPage(PageKey key, PageType pType)
         PLYLIBASSERT( _mmaped );
         readData( getPageAddress(key, pType), pageData->data, getPageByteSize(key, pType) );
     }
+    _lock[pType].unset();
 
     return *pageData;
 }

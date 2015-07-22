@@ -34,6 +34,7 @@
 
 #include "api.h"
 #include "typedefs.h"
+#include "virtualVertexBufferData.h"
 #include <map>
 
 namespace triply

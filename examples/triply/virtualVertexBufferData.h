@@ -235,7 +235,6 @@ inline bool VirtualVertexBufferData::getElems(std::size_t start, std::size_t cou
     std::size_t pages = 1 + ((count + offset) / _pageSize);
     vBuffer.discard();
 
-    _lock[pType].set();
     vBuffer._offset = offset;
     vBuffer._pageSize = _pageSize;
     vBuffer._size = count;
@@ -248,7 +247,6 @@ inline bool VirtualVertexBufferData::getElems(std::size_t start, std::size_t cou
     }
     vBuffer._bufferData = this;
     vBuffer._valid = true;
-    _lock[pType].unset();
 
     return true;
 }
@@ -263,6 +261,7 @@ inline void VirtualVertexBufferData::readData( char* addr, std::vector< T >& v, 
     }
 }
 
+typedef VirtualVertexBufferData* VirtualVertexBufferDataPtr;
 typedef lunchbox::RefPtr< VirtualVertexBufferData > SharedVirtualVertexBufferDataPtr;
 
 

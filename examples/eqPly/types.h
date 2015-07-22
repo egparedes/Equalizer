@@ -32,6 +32,8 @@
 
 #include <eq/eq.h>
 
+#include <triply/zTreeDist.h>
+#include <triply/zTreeRoot.h>
 #include <triply/vertexBufferDist.h>
 #include <triply/vertexBufferRoot.h>
 #include <triply/virtualVertexBufferData.h>
@@ -45,8 +47,10 @@ namespace eqPly
 class LocalInitData;
 class View;
 
-typedef triply::VertexBufferRoot  Model;
-typedef triply::VertexBufferDist  ModelDist;
+//typedef triply::VertexBufferRoot  Model;
+//typedef triply::VertexBufferDist  ModelDist;
+typedef triply::ZTreeRoot  Model;
+typedef triply::ZTreeDist  ModelDist;
 typedef triply::VirtualVertexBufferData  VMLoader;
 typedef triply::VirtualVertexBufferDataPtr  VMLoaderPtr;
 typedef std::map< eq::uint128_t, VMLoaderPtr > VMLoadersMap;

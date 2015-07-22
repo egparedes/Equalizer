@@ -1,7 +1,7 @@
 
-/* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
+/* Copyright (c)      2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+ *                    2007, Tobias Wolf <twolf@access.unizh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,20 +28,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef PLYLIB_VERTEXBUFFERLEAF_H
-#define PLYLIB_VERTEXBUFFERLEAF_H
+#ifndef PLYLIB_ZTREELEAF_H
+#define PLYLIB_ZTREELEAF_H
 
-#include "vertexBufferBase.h"
+#include "zTreeBase.h"
 #include "virtualVertexBufferData.h"
 
 namespace triply
 {
 /*  The class for kd-tree leaf nodes.  */
-class VertexBufferLeaf : public VertexBufferBase
+class ZTreeLeaf : public ZTreeBase
 {
 public:
-    VertexBufferLeaf( VertexBufferData& data );
-    virtual ~VertexBufferLeaf();
+    ZTreeLeaf( VertexBufferData& data );
+    virtual ~ZTreeLeaf();
 
     virtual void draw( VertexBufferState& state ) const;
     virtual Index getNumberOfVertices() const { return _indexLength; }
@@ -50,10 +50,11 @@ protected:
     virtual void toStream( std::ostream& os );
     virtual void fromMemory( char** addr, VertexBufferData& globalData );
 
-    virtual void setupTree( VertexData& data, const Index start,
-                            const Index length, const Axis axis,
-                            const size_t depth,
-                            VertexBufferData& globalData );
+    virtual void setupTree(VertexData& modelData,
+                           std::vector< ZKeyIndexPair >& zKeys,
+                           const ZKey beginKey,const ZKey endKey, const size_t depth,
+                           Vertex center, VertexBufferData& globalData ) override;
+
     virtual const BoundingSphere& updateBoundingSphere();
     virtual void updateRange();
 
@@ -64,18 +65,19 @@ private:
     void renderBufferObject( VertexBufferState& state ) const;
 
     void loadVirtualData(VirtualVertexBufferDataPtr virtualVBD, bool useColors) const;
-    void freeVirtualData() const;
 
-    friend class VertexBufferDist;
+    friend class ZTreeDist;
 
     VertexBufferData&   _globalData;
     BoundingBox         _boundingBox;
+    Vertex              _center;
     Index               _vertexStart;
     Index               _indexStart;
     Index               _indexLength;
     ShortIndex          _vertexLength;
 
     // For out-of-core rendering
+    mutable VirtualVertexBufferDataPtr  _virtualGlobalData;
     mutable VertexVB         _verticesVB;
     mutable ColorVB          _colorsVB;
     mutable NormalVB         _normalsVB;
@@ -85,4 +87,4 @@ private:
 
 } // namespace
 
-#endif // PLYLIB_VERTEXBUFFERLEAF_H
+#endif // PLYLIB_ZTREELEAF_H

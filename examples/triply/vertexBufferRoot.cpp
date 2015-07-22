@@ -46,13 +46,6 @@ namespace triply
 
 typedef vmml::frustum_culler< float >  FrustumCuller;
 
-/*  Determine number of bits used by the current architecture.  */
-size_t getArchitectureBits();
-/*  Determine whether the current architecture is little endian or not.  */
-bool isArchitectureLittleEndian();
-/*  Construct architecture dependent file name.  */
-std::string getArchitectureFilename( const std::string& filename );
-
 /*  Begin kd-tree setup, go through full range starting with x axis.  */
 void VertexBufferRoot::setupTree( VertexData& data )
 {
@@ -84,7 +77,7 @@ void VertexBufferRoot::setupTree( VertexData& data )
 #endif
 }
 
-// #define LOGCULL
+//#define LOGCULL
 void VertexBufferRoot::cullDraw( VertexBufferState& state ) const
 {
     _beginRendering( state );
@@ -239,32 +232,6 @@ void VertexBufferRoot::_endRendering( VertexBufferState& state ) const
     default:
         ;
     }
-}
-
-
-/*  Determine number of bits used by the current architecture.  */
-size_t getArchitectureBits()
-{
-    return ( sizeof( void* ) * 8 );
-}
-
-
-/*  Determine whether the current architecture is little endian or not.  */
-bool isArchitectureLittleEndian()
-{
-    unsigned char test[2] = { 1, 0 };
-    short* x = reinterpret_cast< short* >( test );
-    return ( *x == 1 );
-}
-
-
-/*  Construct architecture dependent file name.  */
-std::string getArchitectureFilename( const std::string& filename )
-{
-    std::ostringstream oss;
-    oss << filename << ( isArchitectureLittleEndian() ? ".le" : ".be" );
-    oss << getArchitectureBits() << ".bin";
-    return oss.str();    
 }
 
 

@@ -14,7 +14,12 @@ set(TRIPLY_PUBLIC_HEADERS
   vertexBufferRoot.h
   vertexBufferState.h
   vertexData.h
-  virtualVertexBufferData.h)
+  virtualVertexBufferData.h
+  zTreeBase.h
+  zTreeDist.h
+  zTreeLeaf.h
+  zTreeNode.h
+  zTreeRoot.h)
 
 set(TRIPLY_SOURCES
   plyfile.cpp
@@ -25,7 +30,13 @@ set(TRIPLY_SOURCES
   vertexBufferRoot.cpp
   vertexBufferState.cpp
   vertexData.cpp
-  virtualVertexBufferData.cpp)
+  virtualVertexBufferData.cpp
+  zTreeBase.cpp
+  zTreeDist.cpp
+  zTreeLeaf.cpp
+  zTreeNode.cpp
+  zTreeRoot.cpp)
+
 
 set(TRIPLY_LINK_LIBRARIES
   ${COLLAGE_LIBRARIES} ${EQ_GL_LIBRARIES} ${GLEW_LIBRARY})
