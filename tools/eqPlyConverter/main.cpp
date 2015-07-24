@@ -27,7 +27,8 @@
  */
 
 #include <eq/eq.h>
-#include <triply/vertexBufferRoot.h>
+//#include <triply/vertexBufferRoot.h>
+#include <triply/zTreeRoot.h>
 
 namespace
 {
@@ -59,7 +60,8 @@ int main( const int argc, char** argv )
 
         if( _isPlyfile( filename ))
         {
-            triply::VertexBufferRoot* model = new triply::VertexBufferRoot;
+            //triply::VertexBufferRoot* model = new triply::VertexBufferRoot;
+            triply::ZTreeRoot* model = new triply::ZTreeRoot;
             if( !model->readFromFile( filename.c_str( )))
                 LBWARN << "Can't load model: " << filename << std::endl;
 
