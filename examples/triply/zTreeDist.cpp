@@ -43,7 +43,7 @@ ZTreeDist::ZTreeDist()
 {
     for( unsigned i=0; i < 8; ++i)
     {
-        _childrenNodes[i] = 0;
+        _childNodes[i] = 0;
     }
 }
 
@@ -54,10 +54,13 @@ ZTreeDist::ZTreeDist( ZTreeRoot* root )
 {
     for( unsigned i=0; i < 8; ++i)
     {
-        _childrenNodes[i] = 0;
+        _childNodes[i] = 0;
+    }
+    for( unsigned i=0; i < 8; ++i)
+    {
         if( root->getChild( i ) )
         {
-            _childrenNodes[i] = new ZTreeDist( root, root->getChild( i ) );
+            _childNodes[i] = new ZTreeDist( root, root->getChild( i ) );
         }
     }
 }
@@ -69,7 +72,7 @@ ZTreeDist::ZTreeDist( ZTreeRoot* root, ZTreeBase* node )
 {
     for( unsigned i=0; i < 8; ++i)
     {
-        _childrenNodes[i] = 0;
+        _childNodes[i] = 0;
     }
 
     if( !node || node->getNumberofChildren() == 0)
@@ -79,7 +82,7 @@ ZTreeDist::ZTreeDist( ZTreeRoot* root, ZTreeBase* node )
     {
         if( node->getChild( i ) )
         {
-            _childrenNodes[i] = new ZTreeDist( root, node->getChild( i ) );
+            _childNodes[i] = new ZTreeDist( root, node->getChild( i ) );
         }
     }
 }
@@ -88,10 +91,10 @@ ZTreeDist::~ZTreeDist()
 {
     for( unsigned i=0; i < 8; ++i)
     {
-        if( _childrenNodes[i] != 0 )
+        if( _childNodes[i] != 0 )
         {
-            delete _childrenNodes[i];
-            _childrenNodes[i] = 0;
+            delete _childNodes[i];
+            _childNodes[i] = 0;
         }
     }
 }
@@ -103,9 +106,9 @@ void ZTreeDist::registerTree( co::LocalNodePtr node )
 
     for( unsigned i=0; i < 8; ++i)
     {
-        if( _childrenNodes[i] != 0 )
+        if( _childNodes[i] != 0 )
         {
-            _childrenNodes[i]->registerTree( node );
+            _childNodes[i]->registerTree( node );
         }
     }
 }
@@ -119,9 +122,9 @@ void ZTreeDist::deregisterTree()
 
     for( unsigned i=0; i < 8; ++i)
     {
-        if( _childrenNodes[i] != 0 )
+        if( _childNodes[i] != 0 )
         {
-            _childrenNodes[i]->deregisterTree();
+            _childNodes[i]->deregisterTree();
         }
     }
 }
@@ -145,7 +148,7 @@ unsigned ZTreeDist::getNumberOfChildren() const
     unsigned result = 0;
     for( unsigned i=0; i < 8; ++i)
     {
-        if( _childrenNodes[i] != 0 )
+        if( _childNodes[i] != 0 )
             result++;
     }
     return result;
@@ -161,9 +164,9 @@ void ZTreeDist::getInstanceData( co::DataOStream& os )
     {
         for( unsigned i=0; i < 8; ++i)
         {
-            if( _childrenNodes[i] != 0 )
+            if( _childNodes[i] != 0 )
             {
-                os << i << _childrenNodes[i]->getID();
+                os << i << _childNodes[i]->getID();
             }
         }
 
@@ -241,8 +244,8 @@ void ZTreeDist::applyInstanceData( co::DataIStream& is )
         {
             if( childIDs[i] != 0 )
             {
-                _childrenNodes[i] = new ZTreeDist( _root, 0 );
-                co::f_bool_t childSync = to->syncObject( _childrenNodes[i], from, childIDs[i] );
+                _childNodes[i] = new ZTreeDist( _root, 0 );
+                co::f_bool_t childSync = to->syncObject( _childNodes[i], from, childIDs[i] );
                 LBCHECK( childSync.wait( ) );
             }
         }
@@ -250,7 +253,7 @@ void ZTreeDist::applyInstanceData( co::DataIStream& is )
         for( unsigned i=0; i < 8; ++i)
         {
             if( childIDs[i] != 0 )
-                node->_childNodes[i] = _childrenNodes[i]->_node;
+                node->_childNodes[i] = _childNodes[i]->_node;
         }
     }
     else

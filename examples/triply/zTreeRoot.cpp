@@ -569,6 +569,7 @@ void ZTreeRoot::setupTree( VertexData& modelData )
     std::vector< ZKeyIndexPair > zKeys;
     zKeys.resize( modelData.triangles.size() );
 
+    PLYLIBINFO << "--ZTREEPLY-- Generating Z Keys..." << std::endl;
 #pragma omp parallel for
     for( Index i=0; i < zKeys.size(); ++i )
     {
@@ -590,6 +591,7 @@ void ZTreeRoot::setupTree( VertexData& modelData )
 
 //        PLYLIBINFO << "--ZTREEPLY-- Z key[" << i << "]= " << zKeys[ i ].first << std::endl;
     }
+    PLYLIBINFO << "--ZTREEPLY-- Sorting Z Keys..." << std::endl;
     detail::sortPairs( zKeys );
 //    for( Index i=0; i < zKeys.size(); ++i )
 //    {

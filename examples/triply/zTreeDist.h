@@ -65,7 +65,7 @@ protected:
 private:
     ZTreeRoot* _root;
     ZTreeBase* _node;
-    ZTreeDist* _childrenNodes[8];
+    ZTreeDist* _childNodes[8];
     bool _isRoot;
 };
 }
