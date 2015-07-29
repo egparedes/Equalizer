@@ -65,7 +65,7 @@ int main( const int argc, char** argv )
             triply::ModelTreeRoot* model = new triply::ModelTreeRoot;
             if( !model->readFromFile( filename.c_str( ), partition, true ) )
                 LBWARN << "Can't generate model: " << filename << std::endl;
-
+            
             delete model;
         }
         else
