@@ -33,7 +33,7 @@
 
 #include "config.h"
 #include "pipe.h"
-#include "vertexBufferState.h"
+#include "treeRenderState.h"
 
 #include "fragmentShader.glsl.h"
 #include "vertexShader.glsl.h"
@@ -83,7 +83,7 @@ bool Window::configInitGL( const eq::uint128_t& initID )
     glCullFace( GL_BACK );
 
     LBASSERT( !_state );
-    _state = new VertexBufferState( getObjectManager( ));
+    _state = new TreeRenderState( getObjectManager( ));
 
     const Config*   config   = static_cast< const Config* >( getConfig( ));
     const InitData& initData = config->getInitData();
@@ -150,7 +150,7 @@ void Window::_loadLogo()
 
 void Window::_loadShaders()
 {
-    if( _state->getProgram( getPipe( )) != VertexBufferState::INVALID )
+    if( _state->getProgram( getPipe( )) != TreeRenderState::INVALID )
         // already loaded
         return;
 

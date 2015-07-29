@@ -182,7 +182,9 @@ void Config::_loadModels()
             if( _initData.useInvertedFaces() )
                 model->useInvertedFaces();
 
-            if( !model->readFromFile( filename.c_str( ), !_initData.useOutOfCore()))
+            if( !model->readFromFile( filename.c_str( ),
+                                      Model::makeTreePartitionRule( _initData.getTreePartition().c_str() ),
+                                      !_initData.useOutOfCore()))
             {
                 LBWARN << "Can't load model: " << filename << std::endl;
                 delete model;

@@ -1,6 +1,5 @@
 
-/* Copyright (c)      2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
- *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2008-2013, Stefan Eilemann <eile@equalizergraphics.com> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,18 +26,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "zTreeBase.h"
-#include "vertexBufferState.h"
+#include "modelTreeBase.h"
+#include "treeRenderState.h"
 
 namespace triply
 {
 
-const size_t ZTreeBase::NumberOfLevels = SORTKEY_BIT_SIZE / 3;
-const size_t ZTreeBase::MaxLevel = ZTreeBase::NumberOfLevels - 1;
-const ZKey ZTreeBase::MinZKey = 0;
-const ZKey ZTreeBase::MaxZKey = ( ~0ull ) >> ( 8*sizeof( ZKey ) - SORTKEY_BIT_SIZE );
+const unsigned ModelTreeBase::LeftChildId = 0;
+const unsigned ModelTreeBase::RightChildId = 1;
+const unsigned ModelTreeBase::MaxZLevel = ( ZKEY_BIT_SIZE / 3 ) - 1;
+const ZKey ModelTreeBase::MinZKey = 0;
+const ZKey ModelTreeBase::MaxZKey = ( ~0ull ) >> ( 8 * sizeof( ZKey ) - ZKEY_BIT_SIZE );
 
-void ZTreeBase::drawBoundingSphere(VertexBufferState& state ) const
+void ModelTreeBase::drawBoundingSphere(TreeRenderState& state ) const
 {
     GLuint displayList = state.getDisplayList( &_boundingSphere );
 

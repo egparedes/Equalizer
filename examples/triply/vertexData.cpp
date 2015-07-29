@@ -42,6 +42,127 @@ using std::sort;
 
 using namespace triply;
 
+namespace detail
+{
+    inline static ZKey genZCode( const Vertex& point, const BoundingBox& bbox,
+                                 unsigned maxLevel)
+    {
+        Vertex minPoint = bbox[0];
+        Vertex maxPoint = bbox[1];
+        ZKey key = 0;
+
+        for( int i=maxLevel; i >= 0; --i )
+        {
+          key <<= 3;
+          if( point[0] + point[0] > minPoint[0] + maxPoint[0] )
+          {
+            key |= 0x1;
+            minPoint[0] = (minPoint[0] + maxPoint[0]) * 0.5;
+          }
+          else
+          {
+            maxPoint[0] = (minPoint[0] + maxPoint[0]) * 0.5;
+          }
+          if( point[1] + point[1] > minPoint[1] + maxPoint[1] )
+          {
+            key |= 0x2;
+            minPoint[1] = (minPoint[1] + maxPoint[1]) * 0.5;
+          }
+          else
+          {
+            maxPoint[1] = (minPoint[1] + maxPoint[1]) * 0.5;
+          }
+          if( point[2] + point[2] > minPoint[2] + maxPoint[2] )
+          {
+            key |= 0x4;
+            minPoint[2] = (minPoint[2] + maxPoint[2]) * 0.5;
+          }
+          else
+          {
+            maxPoint[2] = (minPoint[2] + maxPoint[2]) * 0.5;
+          }
+        }
+
+        return key;
+    }
+
+    inline static void insertionSort(ZKeyIndexPair *pairs, std::size_t size)
+    {
+        unsigned i, j;
+        ZKeyIndexPair k;
+        for( i=0; i != size; i++, pairs[j]=k)
+        {
+            for( j=i, k=pairs[j]; j && k.first < pairs[j-1].first; j--)
+            {
+                pairs[j] = pairs[j-1];
+            }
+        }
+    }
+
+    template <std::size_t RadixMinSize=32>
+    static void inplaceRadixSort(ZKeyIndexPair* pairs, std::size_t size, unsigned char byte)
+    {
+        using std::swap;
+
+        if( size < RadixMinSize )
+        {
+            insertionSort(pairs, size);
+        }
+        else
+        {
+            unsigned i, k, end;
+            ZKeyIndexPair j;
+
+            unsigned count[256] = {};
+            for( i=0; i < size; ++i )
+            {
+                count[getByte(pairs[i].first, byte)]++;
+            }
+
+            unsigned bucket[256];
+            bucket[0] = 0;
+            for( i=1; i < 256; i++ )
+            {
+                bucket[i] = bucket[i-1] + count[i-1];
+            }
+
+            for( i=0; i < 256; i++ )
+            {
+                end = (i>0?bucket[i-1]:0) + count[i];
+                for( ; bucket[i] < end; bucket[i]++ )
+                {
+                    j = pairs[bucket[i]];
+                    while( (k=getByte(j.first, byte))!=i )
+                    {
+                        unsigned xx = bucket[k];
+                        bucket[k]++;
+                        swap(j, pairs[xx]);
+                    }
+                    pairs[bucket[i]] = j;
+                }
+            }
+
+            if( byte-- > 0 )
+            {
+                for( i=0; i<256; i++ )
+                {
+                    if( count[i]>0 )
+                    {
+                        inplaceRadixSort(pairs + bucket[i]-count[i], count[i], byte);
+                    }
+                }
+            }
+        }
+    }
+
+    template <std::size_t RadixMinSize=32>
+    inline static void sortZKeyIndexPairs( std::vector< ZKeyIndexPair >& pairs )
+    {
+        inplaceRadixSort( pairs.data(), pairs.size(), ZKEY_BIT_SIZE );
+    }
+
+} // namespace detail
+
 /*  Contructor.  */
 VertexData::VertexData()
     : _invertFaces( false )
@@ -423,4 +544,32 @@ void VertexData::sort( const Index start, const Index length, const Axis axis )
 
     ::sort( triangles.begin() + start, triangles.begin() + start + length,
             _TriangleSort( *this, axis ) );
+}
+
+
+void VertexData::genZKeys( std::vector< ZKeyIndexPair >& zKeys, unsigned maxLevel )
+{
+    // Compute Z-codes for triangles and sort them
+    if( _boundingBox[0].length() == 0.0f && _boundingBox[1].length() == 0.0f )
+        calculateBoundingBox();
+
+    PLYLIBASSERT(  _boundingBox[0] != _boundingBox[1] );
+
+    zKeys.resize( triangles.size() );
+
+#pragma omp parallel for
+    for( Index i=0; i < zKeys.size(); ++i )
+    {
+        // Compute Z-key of triangle centroid
+        zKeys[ i ].first = detail::genZCode( ( vertices[ triangles[i][0] ] +
+                                               vertices[ triangles[i][1] ] +
+                                               vertices[ triangles[i][2] ] ) / 3.0f,
+                                             _boundingBox, maxLevel );
+        zKeys[ i ].second = i;
+    }
+}
+
+void VertexData::sortZKeys( std::vector< ZKeyIndexPair >& zKeys )
+{
+    detail::sortZKeyIndexPairs( zKeys );
 }

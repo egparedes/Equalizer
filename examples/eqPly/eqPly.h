@@ -32,8 +32,8 @@
 #include "types.h"
 
 #include <eq/eq.h>
-#include <triply/vertexBufferDist.h>
-#include <triply/vertexBufferRoot.h>
+#include <triply/modelTreeDist.h>
+#include <triply/modelTreeRoot.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923

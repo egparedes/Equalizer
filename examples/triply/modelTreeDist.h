@@ -28,8 +28,8 @@
  */
 
 
-#ifndef PLYLIB_VERTEXBUFFERDIST_H
-#define PLYLIB_VERTEXBUFFERDIST_H
+#ifndef PLYLIB_MODELTREEDIST_H
+#define PLYLIB_MODELTREEDIST_H
 
 #include "api.h"
 #include "typedefs.h"
@@ -38,35 +38,40 @@
 
 namespace triply
 {
-/** Uses co::Object to distribute a model, holds a VertexBufferBase node. */
-class VertexBufferDist : public co::Object
+/** Uses co::Object to distribute a model, holds a ModelTreeBase node. */
+class ModelTreeDist : public co::Object
 {
 public:
-    PLYLIB_API VertexBufferDist();
-    PLYLIB_API VertexBufferDist( triply::VertexBufferRoot* root );
-    PLYLIB_API virtual ~VertexBufferDist();
+    PLYLIB_API ModelTreeDist();
+    PLYLIB_API ModelTreeDist( triply::ModelTreeRoot* treeRoot );
+    PLYLIB_API virtual ~ModelTreeDist();
 
-    PLYLIB_API void registerTree( co::LocalNodePtr node );
+    PLYLIB_API void registerTree( co::LocalNodePtr localNode );
     PLYLIB_API void deregisterTree();
 
-    PLYLIB_API triply::VertexBufferRoot* loadModel( co::NodePtr master,
-                                                    co::LocalNodePtr localNode,
-                                                    const eq::uint128_t& modelID );
+    PLYLIB_API triply::ModelTreeRoot* loadModel( co::NodePtr masterNode,
+                                                 co::LocalNodePtr localNode,
+                                                 const eq::uint128_t& modelID );
+
 protected:
-    PLYLIB_API VertexBufferDist( VertexBufferRoot* root,
-                                 VertexBufferBase* node );
+    PLYLIB_API ModelTreeDist( ModelTreeRoot* treeRoot,
+                              ModelTreeBase* treeNode );
+
+    PLYLIB_API unsigned getNumberOfChildren( ) const;
 
     PLYLIB_API virtual void getInstanceData( co::DataOStream& os );
     PLYLIB_API virtual void applyInstanceData( co::DataIStream& is );
 
 private:
-    VertexBufferRoot* _root;
-    VertexBufferBase* _node;
-    VertexBufferDist* _left;
-    VertexBufferDist* _right;
+    void allocateChildren();
+    void deallocateChildren();
+
+    ModelTreeRoot*  _treeRoot;
+    ModelTreeBase*  _treeNode;
+    ModelTreeDist** _children;
     bool _isRoot;
 };
 }
 
 
-#endif // PLYLIB_VERTEXBUFFERDIST_H
+#endif // PLYLIB_MODELTREEDIST_H

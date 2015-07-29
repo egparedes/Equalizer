@@ -63,6 +63,8 @@
 #  define PLYLIBINFO    std::cout
 #endif
 
+#define NUM_ELEMS( a ) (sizeof( a ) / sizeof( a[ 0 ] ))
+
 #include <cstdint>
 #include <exception>
 #include <iostream>
@@ -71,17 +73,13 @@
 namespace triply
 {
 // class forward declarations
-class VertexBufferBase;
-class VertexBufferData;
-class VertexBufferNode;
-class VertexBufferRoot;
-class VertexBufferState;
+class ModelTreeBase;
+class ModelTreeData;
+class ModelTreeNode;
+class ModelTreeRoot;
+class TreeRenderState;
 class VertexData;
-class VirtualVertexBufferData;
-class ZTreeBase;
-class ZTreeNode;
-class ZTreeRoot;
-class ZTreeLeaf;
+class PagedTreeData;
 
 // basic type definitions
 typedef vmml::vector< 3, float >      Vertex;
@@ -131,9 +129,6 @@ typedef vmml::vector< 3, Index >    Triangle;
 typedef ArrayWrapper< Vertex, 2 >   BoundingBox;
 typedef vmml::vector< 4, float >    BoundingSphere;
 typedef ArrayWrapper< float, 2 >    Range;
-typedef ArrayWrapper< ZKey, 2 >     ZRange;
-typedef std::pair< ZKey, Index >    ZKeyIndexPair;
-
 typedef std::pair< ZKey, Index >    ZKeyIndexPair;
 
 struct ZKeyIndexPairLessCmpFunctor
@@ -144,7 +139,15 @@ struct ZKeyIndexPairLessCmpFunctor
    }
 };
 
-const ShortIndex        SORTKEY_BIT_SIZE( 3 * (8*sizeof( ZKey ) / 3) );
+// Tree description
+enum TreePartitionRule
+{
+    KDTREE_PARTITION = 0,
+    OCTREE_PARTITION = 1,
+};
+
+
+const unsigned short    ZKEY_BIT_SIZE( 3 * ( 8*sizeof( ZKey ) / 3 ) );
 
 // maximum triangle count per leaf node (keep in mind that the number of
 // different vertices per leaf must stay below ShortIndex range; usually
@@ -152,8 +155,7 @@ const ShortIndex        SORTKEY_BIT_SIZE( 3 * (8*sizeof( ZKey ) / 3) );
 const Index             LEAF_SIZE( 21845 );
 
 // binary mesh file version, increment if changing the file format
-//const unsigned short    FILE_VERSION( 0x0118 );
-const unsigned short    FILE_VERSION( 0x0119 );
+const unsigned short    FILE_VERSION( 0x011A );
 
 // enumeration for the sort axis
 enum Axis
@@ -243,7 +245,7 @@ inline size_t getArchitectureBits()
 
 /*  Construct architecture dependent file name.  */
 inline std::string getArchitectureFilename( const std::string& filename,
-                                            const std::string& tag="")
+                                            const std::string& tag )
 {
     std::ostringstream oss;
     oss << filename;

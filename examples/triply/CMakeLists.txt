@@ -6,36 +6,26 @@ set(TRIPLY_PUBLIC_HEADERS
   api.h
   ply.h
   typedefs.h
-  vertexBufferBase.h
-  vertexBufferData.h
-  vertexBufferDist.h
-  vertexBufferLeaf.h
-  vertexBufferNode.h
-  vertexBufferRoot.h
-  vertexBufferState.h
+  modelTreeBase.h
+  modelTreeData.h
+  modelTreeDist.h
+  modelTreeLeaf.h
+  modelTreeNode.h
+  modelTreeRoot.h
+  treeRenderState.h
   vertexData.h
-  virtualVertexBufferData.h
-  zTreeBase.h
-  zTreeDist.h
-  zTreeLeaf.h
-  zTreeNode.h
-  zTreeRoot.h)
+  pagedTreeData.h)
 
 set(TRIPLY_SOURCES
   plyfile.cpp
-  vertexBufferBase.cpp
-  vertexBufferDist.cpp
-  vertexBufferLeaf.cpp
-  vertexBufferNode.cpp
-  vertexBufferRoot.cpp
-  vertexBufferState.cpp
+  modelTreeBase.cpp
+  modelTreeDist.cpp
+  modelTreeLeaf.cpp
+  modelTreeNode.cpp
+  modelTreeRoot.cpp
+  treeRenderState.cpp
   vertexData.cpp
-  virtualVertexBufferData.cpp
-  zTreeBase.cpp
-  zTreeDist.cpp
-  zTreeLeaf.cpp
-  zTreeNode.cpp
-  zTreeRoot.cpp)
+  pagedTreeData.cpp)
 
 
 set(TRIPLY_LINK_LIBRARIES

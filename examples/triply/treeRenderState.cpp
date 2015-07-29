@@ -28,11 +28,11 @@
  */
 
 
-#include "vertexBufferState.h"
+#include "treeRenderState.h"
 
 namespace triply 
 {
-VertexBufferState::VertexBufferState( const GLEWContext* glewContext ) 
+TreeRenderState::TreeRenderState( const GLEWContext* glewContext ) 
         : _pmvMatrix( Matrix4f::IDENTITY )
         , _glewContext( glewContext )
         , _renderMode( RENDER_MODE_DISPLAY_LIST ) /* RENDER_MODE_BUFFER_OBJECT  */
@@ -47,7 +47,7 @@ VertexBufferState::VertexBufferState( const GLEWContext* glewContext )
     PLYLIBASSERT( glewContext );
 } 
 
-void VertexBufferState::setRenderMode( const RenderMode mode ) 
+void TreeRenderState::setRenderMode( const RenderMode mode ) 
 { 
     if( _renderMode == mode )
         return;
@@ -62,7 +62,7 @@ void VertexBufferState::setRenderMode( const RenderMode mode )
     }
 }
 
-void VertexBufferState::resetRegion()
+void TreeRenderState::resetRegion()
 {
     _region[0] = std::numeric_limits< float >::max();
     _region[1] = std::numeric_limits< float >::max();
@@ -70,7 +70,7 @@ void VertexBufferState::resetRegion()
     _region[3] = -std::numeric_limits< float >::max();
 }
 
-void VertexBufferState::updateRegion( const BoundingBox& box )
+void TreeRenderState::updateRegion( const BoundingBox& box )
 {
     const Vertex corners[8] = { Vertex( box[0][0], box[0][1], box[0][2] ),
                                 Vertex( box[1][0], box[0][1], box[0][2] ),
@@ -108,7 +108,7 @@ void VertexBufferState::updateRegion( const BoundingBox& box )
     _region[3] = std::max( _region[3], normalized[3] );
 }
 
-Vector4f VertexBufferState::getRegion() const
+Vector4f TreeRenderState::getRegion() const
 {
     if( _region[0] > _region[2] || _region[1] > _region[3] )
         return Vector4f::ZERO;
@@ -116,27 +116,27 @@ Vector4f VertexBufferState::getRegion() const
     return _region;
 }
 
-GLuint VertexBufferStateSimple::getDisplayList( const void* key )
+GLuint SimpleTreeRenderState::getDisplayList( const void* key )
 {
     if( _displayLists.find( key ) == _displayLists.end() )
         return INVALID;
     return _displayLists[key];
 }
         
-GLuint VertexBufferStateSimple::newDisplayList( const void* key )
+GLuint SimpleTreeRenderState::newDisplayList( const void* key )
 {
     _displayLists[key] = glGenLists( 1 );
     return _displayLists[key];
 }
         
-GLuint VertexBufferStateSimple::getBufferObject( const void* key )
+GLuint SimpleTreeRenderState::getBufferObject( const void* key )
 {
     if( _bufferObjects.find( key ) == _bufferObjects.end() )
         return INVALID;
     return _bufferObjects[key];
 }
         
-GLuint VertexBufferStateSimple::newBufferObject( const void* key )
+GLuint SimpleTreeRenderState::newBufferObject( const void* key )
 {
     if( !GLEW_VERSION_1_5 )
         return INVALID;
@@ -144,7 +144,7 @@ GLuint VertexBufferStateSimple::newBufferObject( const void* key )
     return _bufferObjects[key];
 }
         
-void VertexBufferStateSimple::deleteAll()
+void SimpleTreeRenderState::deleteAll()
 {
     for( GLMapCIter i = _displayLists.begin(); i != _displayLists.end(); ++i )
         glDeleteLists( i->second, 1 );

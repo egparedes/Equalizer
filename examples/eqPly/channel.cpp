@@ -38,7 +38,7 @@
 #include "node.h"
 #include "view.h"
 #include "window.h"
-#include "vertexBufferState.h"
+#include "treeRenderState.h"
 
 // light parameters
 static GLfloat lightPosition[] = {0.0f, 0.0f, 1.0f, 0.0f};
@@ -130,7 +130,7 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
         return;
 
     Window* window = static_cast< Window* >( getWindow( ));
-    VertexBufferState& state = window->getState();
+    TreeRenderState& state = window->getState();
     const Model* oldModel = _model;
     const Model* model = _getModel();
 
@@ -594,7 +594,7 @@ const Model* Channel::_getModel()
 void Channel::_drawModel( const Model* scene )
 {
     Window* window = static_cast< Window* >( getWindow( ));
-    VertexBufferState& state = window->getState();
+    TreeRenderState& state = window->getState();
     const FrameData& frameData = _getFrameData();
 
     state.setColors( frameData.getColorMode() == COLOR_MODEL && scene->hasColors( ) );
@@ -618,13 +618,13 @@ void Channel::_drawModel( const Model* scene )
 
     const eq::Pipe* pipe = getPipe();
     const GLuint program = state.getProgram( pipe );
-    if( program != VertexBufferState::INVALID )
+    if( program != TreeRenderState::INVALID )
         glUseProgram( program );
 
     scene->cullDraw( state );
 
     state.setChannel( 0 );
-    if( program != VertexBufferState::INVALID )
+    if( program != TreeRenderState::INVALID )
         glUseProgram( 0 );
 
     const InitData& initData =

@@ -32,11 +32,9 @@
 
 #include <eq/eq.h>
 
-#include <triply/zTreeDist.h>
-#include <triply/zTreeRoot.h>
-#include <triply/vertexBufferDist.h>
-#include <triply/vertexBufferRoot.h>
-#include <triply/virtualVertexBufferData.h>
+#include <triply/modelTreeDist.h>
+#include <triply/modelTreeRoot.h>
+#include <triply/pagedTreeData.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923
@@ -47,12 +45,10 @@ namespace eqPly
 class LocalInitData;
 class View;
 
-//typedef triply::VertexBufferRoot  Model;
-//typedef triply::VertexBufferDist  ModelDist;
-typedef triply::ZTreeRoot  Model;
-typedef triply::ZTreeDist  ModelDist;
-typedef triply::VirtualVertexBufferData  VMLoader;
-typedef triply::VirtualVertexBufferDataPtr  VMLoaderPtr;
+typedef triply::ModelTreeRoot  Model;
+typedef triply::ModelTreeDist  ModelDist;
+typedef triply::PagedTreeData  VMLoader;
+typedef triply::PagedTreeDataPtr  VMLoaderPtr;
 typedef std::map< eq::uint128_t, VMLoaderPtr > VMLoadersMap;
 
 typedef std::vector< Model* > Models;

@@ -27,7 +27,7 @@
  */
 
 
-#include "virtualVertexBufferData.h"
+#include "pagedTreeData.h"
 
 #include <algorithm>
 #include <fstream>
@@ -42,10 +42,10 @@
 
 namespace triply {    
 
-const std::size_t VirtualVertexBufferData::_sizeOfType[TOTAL_PAGE_TYPES] =
+const std::size_t PagedTreeData::_sizeOfType[TOTAL_PAGE_TYPES] =
     { sizeof(Vertex), sizeof(Color), sizeof(Normal), sizeof(ShortIndex) };
 
-VirtualVertexBufferData::VirtualVertexBufferData()
+PagedTreeData::PagedTreeData()
     : _pageSize(0), _maxPages(0),
       _mmapAddr(static_cast<char*>(MAP_FAILED)),
       _mmapSize(0),
@@ -62,12 +62,12 @@ VirtualVertexBufferData::VirtualVertexBufferData()
     }
 }
 
-VirtualVertexBufferData::~VirtualVertexBufferData()
+PagedTreeData::~PagedTreeData()
 {
     clear();
 }
 
-void VirtualVertexBufferData::init(const std::string& fName,
+void PagedTreeData::init(const std::string& fName,
                                    std::size_t pageSize, std::size_t maxPages)
 {
     _fName = fName;
@@ -75,7 +75,7 @@ void VirtualVertexBufferData::init(const std::string& fName,
     _maxPages = maxPages;
 }
 
-void VirtualVertexBufferData::clear()
+void PagedTreeData::clear()
 {
     for (int t=POSITION_PAGE_TYPE; t < TOTAL_PAGE_TYPES; ++t)
     {
@@ -99,7 +99,7 @@ void VirtualVertexBufferData::clear()
     }
 }
 
-void VirtualVertexBufferData::discard(PageKey key, PageType pType)
+void PagedTreeData::discard(PageKey key, PageType pType)
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
 
@@ -111,7 +111,7 @@ void VirtualVertexBufferData::discard(PageKey key, PageType pType)
     _lock[pType].unset();
 }
 
-bool VirtualVertexBufferData::verify(PageKey key, PageType pType)
+bool PagedTreeData::verify(PageKey key, PageType pType)
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
 
@@ -121,29 +121,29 @@ bool VirtualVertexBufferData::verify(PageKey key, PageType pType)
     return result;
 }
 
-bool VirtualVertexBufferData::getVertices(std::size_t start, std::size_t count,
-                                          VirtualBuffer< Vertex >& verticesVB)
+bool PagedTreeData::getVertices(std::size_t start, std::size_t count,
+                                          PagedBuffer< Vertex >& verticesVB)
 {
     return getElems< Vertex >(start, count, POSITION_PAGE_TYPE, verticesVB);
 }
 
-bool VirtualVertexBufferData::getColors(std::size_t start, std::size_t count,
-                                        VirtualBuffer< Color >& colorsVB)
+bool PagedTreeData::getColors(std::size_t start, std::size_t count,
+                                        PagedBuffer< Color >& colorsVB)
 {
     return getElems< Color >(start, count, COLOR_PAGE_TYPE, colorsVB);
 }
 
-bool VirtualVertexBufferData::getNormals(std::size_t start, std::size_t count,
-                                         VirtualBuffer< Normal >& normalsVB)
+bool PagedTreeData::getNormals(std::size_t start, std::size_t count,
+                                         PagedBuffer< Normal >& normalsVB)
 {
     return getElems< Normal >(start, count, NORMAL_PAGE_TYPE, normalsVB);
 }
 
-bool VirtualVertexBufferData::getVertexData(std::size_t start, std::size_t count,
+bool PagedTreeData::getVertexData(std::size_t start, std::size_t count,
                                             bool useColors,
-                                            VirtualBuffer< Vertex >& verticesVB,
-                                            VirtualBuffer< Color >& colorsVB,
-                                            VirtualBuffer< Normal >& normalsVB)
+                                            PagedBuffer< Vertex >& verticesVB,
+                                            PagedBuffer< Color >& colorsVB,
+                                            PagedBuffer< Normal >& normalsVB)
 {
     if (!getVertices(start, count, verticesVB) || !getNormals(start, count, normalsVB))
         return false;
@@ -153,14 +153,14 @@ bool VirtualVertexBufferData::getVertexData(std::size_t start, std::size_t count
         return true;
 }
 
-bool VirtualVertexBufferData::getIndices(std::size_t start, std::size_t count,
-                                         VirtualBuffer< ShortIndex >& indicesVB)
+bool PagedTreeData::getIndices(std::size_t start, std::size_t count,
+                                         PagedBuffer< ShortIndex >& indicesVB)
 {
     return getElems< ShortIndex >(start, count, SHORTINDEX_PAGE_TYPE, indicesVB);
 }
 
 
-inline bool VirtualVertexBufferData::mapHasKey(PageKey key, PageType pType)
+inline bool PagedTreeData::mapHasKey(PageKey key, PageType pType)
 {
     switch (pType)
     {
@@ -183,7 +183,7 @@ inline bool VirtualVertexBufferData::mapHasKey(PageKey key, PageType pType)
     return false;
 }
 
-inline void VirtualVertexBufferData::mapEraseKey(PageKey key, PageType pType)
+inline void PagedTreeData::mapEraseKey(PageKey key, PageType pType)
 {
     switch (pType)
     {
@@ -205,7 +205,7 @@ inline void VirtualVertexBufferData::mapEraseKey(PageKey key, PageType pType)
     }
 }
 
-inline std::size_t VirtualVertexBufferData::mapSize(PageType pType)
+inline std::size_t PagedTreeData::mapSize(PageType pType)
 {
     switch (pType)
     {
@@ -228,14 +228,14 @@ inline std::size_t VirtualVertexBufferData::mapSize(PageType pType)
     return 0;
 }
 
-inline char* VirtualVertexBufferData::getPageAddress(PageKey key, PageType pType)
+inline char* PagedTreeData::getPageAddress(PageKey key, PageType pType)
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
     PLYLIBASSERT( key * _pageSize < _totalElems[pType] );
     return _dataAddr[pType] + key * _pageSize * _sizeOfType[pType];
 }
 
-inline std::size_t VirtualVertexBufferData::getPageByteSize(PageKey key, PageType pType)
+inline std::size_t PagedTreeData::getPageByteSize(PageKey key, PageType pType)
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
     PLYLIBASSERT( key * _pageSize < _totalElems[pType] );
@@ -243,8 +243,8 @@ inline std::size_t VirtualVertexBufferData::getPageByteSize(PageKey key, PageTyp
 }
 
 template < typename T >
-VirtualVertexBufferData::PageData< T >&
-VirtualVertexBufferData::getPage(PageKey key, PageType pType)
+PagedTreeData::PageData< T >&
+PagedTreeData::getPage(PageKey key, PageType pType)
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
 
@@ -297,7 +297,7 @@ VirtualVertexBufferData::getPage(PageKey key, PageType pType)
     return *pageData;
 }
 
-void VirtualVertexBufferData::freePage(PageKey key, PageType pType)
+void PagedTreeData::freePage(PageKey key, PageType pType)
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
     if (!mapHasKey(key, pType))
@@ -308,7 +308,7 @@ void VirtualVertexBufferData::freePage(PageKey key, PageType pType)
     mapEraseKey(key, pType);
 }
 
-bool VirtualVertexBufferData::openMMap()
+bool PagedTreeData::openMMap()
 {
     bool result = false;
 
@@ -387,7 +387,7 @@ bool VirtualVertexBufferData::openMMap()
     return result;
 }
 
-bool VirtualVertexBufferData::closeMMap()
+bool PagedTreeData::closeMMap()
 {
     bool result = false;
 

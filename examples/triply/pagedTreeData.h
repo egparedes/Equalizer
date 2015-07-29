@@ -27,8 +27,8 @@
  */
 
 
-#ifndef PLYLIB_VIRTUALVERTEXBUFFERDATA_H
-#define PLYLIB_VIRTUALVERTEXBUFFERDATA_H
+#ifndef PLYLIB_PAGEDTREEDATA_H
+#define PLYLIB_PAGEDTREEDATA_H
 
 #include "typedefs.h"
 
@@ -45,20 +45,20 @@
 namespace triply {
 
 template <typename T >
-class VirtualBuffer
+class PagedBuffer
 {
 public:
     typedef T DataType;
     typedef std::size_t iterator;
 
-    inline VirtualBuffer() : _offset(0), _pageSize(0), _size(0), _bufferData(0),
+    inline PagedBuffer() : _offset(0), _pageSize(0), _size(0), _virtualTreeData(0),
                              _pType(INVALID_PAGE_TYPE), _valid(false) { }
 
-    inline VirtualBuffer(std::size_t offset, std::size_t pageSize,
-                         std::size_t totalSize, VirtualVertexBufferData* bufferData,
+    inline PagedBuffer(std::size_t offset, std::size_t pageSize,
+                         std::size_t totalSize, PagedTreeData* bufferData,
                          PageType pType)
         : _offset(offset), _pageSize(pageSize), _size(totalSize),
-          _bufferData(bufferData), _pType(pType), _valid(false) { }
+          _virtualTreeData(bufferData), _pType(pType), _valid(false) { }
 
     inline bool isValid() const { return _valid; }
     inline std::size_t size() const { return _size; }
@@ -73,7 +73,7 @@ public:
     inline void getMemBlock(const std::size_t i, T*& address,
                             std::size_t& blockSize) const
     {
-        if (i < numBlocks())
+        if( i < numBlocks())
         {
             address = _keyPairs[i].second;
             blockSize = _pageSize;
@@ -102,9 +102,9 @@ public:
         return *(ptr(i));
     }
 
-    void discard(); // Defined after VirtualVertexBufferData declaration
+    void discard(); // Defined after VirtualModelTreeData declaration
 
-    friend class VirtualVertexBufferData;
+    friend class PagedTreeData;
 
 private:
     typedef std::pair<PageKey, T*> KeyPair;
@@ -113,14 +113,14 @@ private:
     std::size_t _pageSize;
     std::size_t _size;
     std::vector< KeyPair > _keyPairs;
-    VirtualVertexBufferData* _bufferData;
+    PagedTreeData* _virtualTreeData;
     PageType _pType;
     bool _valid;
 };
 
 
-/** Holds the final kd-tree data, sorted and reindexed.  */
-class VirtualVertexBufferData : public lunchbox::Referenced
+/** Holds the final tree data, sorted and reindexed.  */
+class PagedTreeData : public lunchbox::Referenced
 {
 public:
     static const std::size_t DefaultPageSize = 131072; // 65536
@@ -129,42 +129,42 @@ public:
     template <typename T>
     struct PageData
     {
-        PageData(std::size_t size=0) : data(size) {}
+        PageData( std::size_t size=0 ) : data(size) {}
         inline T* ptr() { return &(data[0]); }
         std::vector< T > data;
     };
 
-    VirtualVertexBufferData();
+    PagedTreeData();
 
-    ~VirtualVertexBufferData();
+    ~PagedTreeData();
 
-    void init(const std::string& fName,
-              std::size_t pageSize=DefaultPageSize,
-              std::size_t maxPages=DefaultMaxPages);
+    void init( const std::string& fName,
+               std::size_t pageSize=DefaultPageSize,
+               std::size_t maxPages=DefaultMaxPages );
     void clear();
 
-    void discard(PageKey key, PageType pType);
-    bool verify(PageKey key, PageType pType);
+    void discard( PageKey key, PageType pType );
+    bool verify( PageKey key, PageType pType );
 
     std::size_t getPageSize() const { return _pageSize; }
     std::size_t getMaxPages() const { return _maxPages; }
 
-    bool getVertices(std::size_t start, std::size_t count,
-                     VirtualBuffer< Vertex >& verticesVB);
+    bool getVertices( std::size_t start, std::size_t count,
+                      PagedBuffer< Vertex >& verticesVB );
 
-    bool getColors(std::size_t start, std::size_t count,
-                   VirtualBuffer< Color >& colorsVB);
+    bool getColors( std::size_t start, std::size_t count,
+                    PagedBuffer< Color >& colorsVB );
 
-    bool getNormals(std::size_t start, std::size_t count,
-                    VirtualBuffer< Normal >& normalsVB);
+    bool getNormals( std::size_t start, std::size_t count,
+                     PagedBuffer< Normal >& normalsVB );
 
-    bool getVertexData(std::size_t start, std::size_t count, bool useColors,
-                       VirtualBuffer< Vertex >& verticesVB,
-                       VirtualBuffer< Color >& colorsVB,
-                       VirtualBuffer< Normal >& normalsVB);
+    bool getVertexData( std::size_t start, std::size_t count, bool useColors,
+                        PagedBuffer< Vertex >& verticesVB,
+                        PagedBuffer< Color >& colorsVB,
+                        PagedBuffer< Normal >& normalsVB );
 
-    bool getIndices(std::size_t start, std::size_t count,
-                    VirtualBuffer< ShortIndex >& indicesVB);
+    bool getIndices( std::size_t start, std::size_t count,
+                     PagedBuffer< ShortIndex >& indicesVB );
 
 
 private:
@@ -183,7 +183,7 @@ private:
     //  Helper function to get real elements from the data pages
     template < typename T >
     bool getElems(std::size_t start, std::size_t count,
-                  PageType pType, VirtualBuffer< T >& vBuffer);
+                  PageType pType, PagedBuffer< T >& vBuffer);
 
     bool openMMap();
     bool closeMMap();
@@ -222,12 +222,12 @@ private:
 };
 
 template < typename T >
-inline bool VirtualVertexBufferData::getElems(std::size_t start, std::size_t count,
-                                              PageType pType, VirtualBuffer< T >& vBuffer)
+inline bool PagedTreeData::getElems( std::size_t start, std::size_t count,
+                                       PageType pType, PagedBuffer< T >& vBuffer )
 {
-    if (!_mmaped)
+    if( !_mmaped )
         openMMap();
-    if (start + count > _totalElems[pType])
+    if( start + count > _totalElems[pType] )
         return false;
 
     PageKey key = start / _pageSize;
@@ -240,19 +240,19 @@ inline bool VirtualVertexBufferData::getElems(std::size_t start, std::size_t cou
     vBuffer._size = count;
     vBuffer._pType = pType;
     vBuffer._keyPairs.resize(pages);
-    for (std::size_t i=0; i < pages; ++i, ++key)
+    for( std::size_t i=0; i < pages; ++i, ++key )
     {
         vBuffer._keyPairs[i].first = key;
         vBuffer._keyPairs[i].second = getPage< T >(key, pType).ptr();
     }
-    vBuffer._bufferData = this;
+    vBuffer._virtualTreeData = this;
     vBuffer._valid = true;
 
     return true;
 }
 
 template< typename T >
-inline void VirtualVertexBufferData::readData( char* addr, std::vector< T >& v, size_t length )
+inline void PagedTreeData::readData( char* addr, std::vector< T >& v, size_t length )
 {
     if( length > 0 )
     {
@@ -261,35 +261,35 @@ inline void VirtualVertexBufferData::readData( char* addr, std::vector< T >& v, 
     }
 }
 
-typedef VirtualVertexBufferData* VirtualVertexBufferDataPtr;
-typedef lunchbox::RefPtr< VirtualVertexBufferData > SharedVirtualVertexBufferDataPtr;
+typedef PagedTreeData* PagedTreeDataPtr;
+typedef lunchbox::RefPtr< PagedTreeData > SharedPagedTreeDataPtr;
 
 
 // Remainingt VirtualBuffer functions
 template< class T >
-inline void VirtualBuffer<T>::discard()
+inline void PagedBuffer<T>::discard( )
 {
-    if (_valid)
+    if( _valid )
     {
-        PLYLIBASSERT( _bufferData );
+        PLYLIBASSERT( _virtualTreeData );
         _valid = false;
-        for (std::size_t i=0; i < _keyPairs.size(); ++i)
+        for( std::size_t i=0; i < _keyPairs.size(); ++i )
         {
-            _bufferData->discard(_keyPairs[i].first, _pType);
+            _virtualTreeData->discard(_keyPairs[i].first, _pType);
         }
     }
 }
 
-typedef VirtualBuffer< Vertex >         VertexVB;
-typedef VirtualBuffer< Color >          ColorVB;
-typedef VirtualBuffer< Normal >         NormalVB;
-typedef VirtualBuffer< ShortIndex >     ShortIndexVB;
+typedef PagedBuffer< Vertex >         PagedVertexBuffer;
+typedef PagedBuffer< Color >          PagedColorBuffer;
+typedef PagedBuffer< Normal >         PagedNormalBuffer;
+typedef PagedBuffer< ShortIndex >     PagedShortIndexBuffer;
 
-typedef VertexVB*        VertexVBPtr;
-typedef ColorVB*         ColorVBPtr;
-typedef NormalVB*        NormalVBPtr;
-typedef ShortIndexVB*    ShortIndexVBPtr;
+typedef PagedVertexBuffer*        PagedVertexBufferPtr;
+typedef PagedColorBuffer*         PagedColorBufferPtr;
+typedef PagedNormalBuffer*        PagedNormalBufferPtr;
+typedef PagedShortIndexBuffer*    PagedShortIndexBufferPtr;
 
 } // namespace triply
 
-#endif // PLYLIB_VIRTUALVERTEXBUFFERDATA_H
+#endif // PLYLIB_PAGEDTREEDATA_H

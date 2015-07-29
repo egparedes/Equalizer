@@ -28,47 +28,58 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef PLYLIB_VERTEXBUFFERLEAF_H
-#define PLYLIB_VERTEXBUFFERLEAF_H
+#ifndef PLYLIB_MODELTREELEAF_H
+#define PLYLIB_MODELTREELEAF_H
 
-#include "vertexBufferBase.h"
-#include "virtualVertexBufferData.h"
+#include "modelTreeBase.h"
+#include "pagedTreeData.h"
 
 namespace triply
 {
 /*  The class for kd-tree leaf nodes.  */
-class VertexBufferLeaf : public VertexBufferBase
+class ModelTreeLeaf : public ModelTreeBase
 {
 public:
-    VertexBufferLeaf( VertexBufferData& data );
-    virtual ~VertexBufferLeaf();
+    ModelTreeLeaf( ModelTreeData& treeData );
+    virtual ~ModelTreeLeaf();
 
-    virtual void draw( VertexBufferState& state ) const;
+    virtual void draw( TreeRenderState& state ) const;
     virtual Index getNumberOfVertices() const { return _indexLength; }
 
 protected:
-    virtual void toStream( std::ostream& os );
-    virtual void fromMemory( char** addr, VertexBufferData& globalData );
+    virtual void toStream( std::ostream& os ) override;
+    virtual void fromMemory( char** addr, ModelTreeData& treeData ) override;
 
-    virtual void setupTree( VertexData& data, const Index start,
-                            const Index length, const Axis axis,
-                            const size_t depth,
-                            VertexBufferData& globalData );
-    virtual const BoundingSphere& updateBoundingSphere();
-    virtual void updateRange();
+    virtual void setupKDTree( VertexData& modelData,
+                              const Index start,
+                              const Index length,
+                              const Axis axis,
+                              const size_t depth,
+                              ModelTreeData& treeData ) override;
+
+    virtual void setupZOctree( VertexData& modelData,
+                               const std::vector< ZKeyIndexPair >& zKeys,
+                               const ZKey beginKey,
+                               const ZKey endKey,
+                               const Vertex center,
+                               const size_t depth,
+                               ModelTreeData& treeData ) override;
+
+    virtual const BoundingSphere& updateBoundingSphere() override;
+    virtual void updateRange() override;
 
 private:
-    void setupRendering( VertexBufferState& state, GLuint* data ) const;
-    void renderImmediate( VertexBufferState& state ) const;
-    void renderDisplayList( VertexBufferState& state ) const;
-    void renderBufferObject( VertexBufferState& state ) const;
+    void setupRendering( TreeRenderState& state, GLuint* data ) const;
+    void renderImmediate( TreeRenderState& state ) const;
+    void renderDisplayList( TreeRenderState& state ) const;
+    void renderBufferObject( TreeRenderState& state ) const;
 
-    void loadVirtualData(VirtualVertexBufferDataPtr virtualVBD, bool useColors) const;
+    void loadVirtualData(PagedTreeDataPtr virtualVBD, bool useColors) const;
     void freeVirtualData() const;
 
-    friend class VertexBufferDist;
+    friend class ModelTreeDist;
 
-    VertexBufferData&   _globalData;
+    ModelTreeData&      _treeData;
     BoundingBox         _boundingBox;
     Index               _vertexStart;
     Index               _indexStart;
@@ -76,13 +87,13 @@ private:
     ShortIndex          _vertexLength;
 
     // For out-of-core rendering
-    mutable VertexVB         _verticesVB;
-    mutable ColorVB          _colorsVB;
-    mutable NormalVB         _normalsVB;
-    mutable ShortIndexVB     _indicesVB;
-    mutable bool            _vDataLoaded;
+    mutable PagedVertexBuffer         _verticesVB;
+    mutable PagedColorBuffer          _colorsVB;
+    mutable PagedNormalBuffer         _normalsVB;
+    mutable PagedShortIndexBuffer     _indicesVB;
+    mutable bool                      _vDataLoaded;
 };
 
 } // namespace
 
-#endif // PLYLIB_VERTEXBUFFERLEAF_H
+#endif // PLYLIB_MODELTREELEAF_H

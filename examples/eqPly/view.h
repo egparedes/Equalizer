@@ -32,7 +32,7 @@
 
 #include <eq/eq.h>
 
-#include "vertexBufferState.h"
+#include "treeRenderState.h"
 
 #include <string>
 

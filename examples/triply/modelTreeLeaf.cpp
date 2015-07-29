@@ -29,39 +29,37 @@
  */
 
 
-#include "vertexBufferLeaf.h"
-#include "vertexBufferData.h"
-#include "vertexBufferState.h"
+#include "modelTreeLeaf.h"
+#include "modelTreeData.h"
+#include "treeRenderState.h"
 #include "vertexData.h"
 #include <map>
 
 namespace triply
 {
 
-VertexBufferLeaf::VertexBufferLeaf(VertexBufferData &data)
-    : _globalData( data ),
+ModelTreeLeaf::ModelTreeLeaf( ModelTreeData &treeData )
+    : _treeData( treeData ),
       _vertexStart( 0 ), _indexStart( 0 ), _indexLength( 0 ), _vertexLength( 0 ),
       _vDataLoaded( false )
 {
 }
 
-VertexBufferLeaf::~VertexBufferLeaf()
+ModelTreeLeaf::~ModelTreeLeaf()
 {
 }
 
-/*  Finish partial setup - sort, reindex and merge into global data.  */
-void VertexBufferLeaf::setupTree( VertexData& data, const Index start,
-                                  const Index length, const Axis axis,
-                                  const size_t /*depth*/,
-                                  VertexBufferData& globalData )
+/*  Finish partial kd-tree setup - sort, reindex and merge into global data.  */
+void ModelTreeLeaf::setupKDTree( VertexData& modelData,
+                                  const Index start, const Index length,
+                                  const Axis axis, const size_t /*depth*/,
+                                  ModelTreeData& treeData )
 {
-    data.sort( start, length, axis );
-    _vertexStart = globalData.vertices.size();
+    modelData.sort( start, length, axis );
+    _vertexStart = treeData.vertices.size();
     _vertexLength = 0;
-    _indexStart = globalData.indices.size();
+    _indexStart = treeData.indices.size();
     _indexLength = 0;
-
-    const bool hasColors = !data.colors.empty();
 
     // stores the new indices (relative to _start)
     std::map< Index, ShortIndex > newIndex;
@@ -70,50 +68,32 @@ void VertexBufferLeaf::setupTree( VertexData& data, const Index start,
     {
         for( Index v = 0; v < 3; ++v )
         {
-            Index i = data.triangles[start + t][v];
+            Index i = modelData.triangles[start + t][v];
             if( newIndex.find( i ) == newIndex.end() )
             {
                 newIndex[i] = _vertexLength++;
                 // assert number of vertices does not exceed SmallIndex range
                 PLYLIBASSERT( _vertexLength );
-                globalData.vertices.push_back( data.vertices[i] );
-                if( hasColors )
-                    globalData.colors.push_back( data.colors[i] );
-                globalData.normals.push_back( data.normals[i] );
+                treeData.vertices.push_back( modelData.vertices[i] );
+                if( treeData.hasColors )
+                    treeData.colors.push_back( modelData.colors[i] );
+                treeData.normals.push_back( modelData.normals[i] );
             }
-            globalData.indices.push_back( newIndex[i] );
+            treeData.indices.push_back( newIndex[i] );
             ++_indexLength;
         }
     }
 
-#ifndef NDEBUG
-    PLYLIBINFO << "setupTree" << "( " << _indexStart << ", " << _indexLength
-             << "; start " << _vertexStart << ", " << _vertexLength
-             << " vertices)." << std::endl;
-#endif
-}
-
-
-/*  Compute the bounding sphere of the leaf's indexed vertices.  */
-const BoundingSphere& VertexBufferLeaf::updateBoundingSphere()
-{
-    // We determine a bounding sphere by:
-    // 1) Using the inner sphere of the dominant axis of the bounding box as an
-    //    estimate
-    // 2) Test all points to be in that sphere
-    // 3) Expand the sphere to contain all points outside.
-
-
-    // 1a) initialize and compute a bounding box
-    _boundingBox[0] = _globalData.vertices[ _vertexStart +
-                                            _globalData.indices[_indexStart] ];
-    _boundingBox[1] = _globalData.vertices[ _vertexStart +
-                                            _globalData.indices[_indexStart] ];
+    // Initialize leaf bounding box using the vertices inside the leaf node
+    _boundingBox[0] = treeData.vertices[ _vertexStart +
+                                         treeData.indices[_indexStart] ];
+    _boundingBox[1] = treeData.vertices[ _vertexStart +
+                                         treeData.indices[_indexStart] ];
 
     for( Index i = 1 + _indexStart; i < _indexStart + _indexLength; ++i )
     {
-        const Vertex& vertex = _globalData.vertices[ _vertexStart +
-                                                     _globalData.indices[ i ] ];
+        const Vertex& vertex = treeData.vertices[ _vertexStart +
+                                                  treeData.indices[ i ] ];
         _boundingBox[0][0] = std::min( _boundingBox[0][0], vertex[0] );
         _boundingBox[1][0] = std::max( _boundingBox[1][0], vertex[0] );
         _boundingBox[0][1] = std::min( _boundingBox[0][1], vertex[1] );
@@ -122,7 +102,78 @@ const BoundingSphere& VertexBufferLeaf::updateBoundingSphere()
         _boundingBox[1][2] = std::max( _boundingBox[1][2], vertex[2] );
     }
 
-    // 1b) get inner sphere of bounding box as an initial estimate
+#ifndef NDEBUG
+    PLYLIBINFO << "setupKDTree" << "( " << _indexStart << ", " << _indexLength
+             << "; start " << _vertexStart << ", " << _vertexLength
+             << " vertices)." << std::endl;
+#endif
+}
+
+/*  Finish partial octree setup - sort, reindex and merge into global data.  */
+void ModelTreeLeaf::setupZOctree( VertexData& modelData,
+                                   const std::vector< ZKeyIndexPair >& zKeys,
+                                   const ZKey beginKey, const ZKey endKey,
+                                   const Vertex center, const size_t depth,
+                                   ModelTreeData& treeData )
+{
+    BoundingBox bbox = modelData.getBoundingBox();
+    Vertex halfCellSize = (bbox[1] - bbox[0]) / (2 << depth);
+    _vertexStart = treeData.vertices.size();
+    _vertexLength = 0;
+    _indexStart = treeData.indices.size();
+    _indexLength = 0;
+
+    std::vector< ZKeyIndexPair >::const_iterator beginIt =
+            std::lower_bound( zKeys.begin(), zKeys.end(), beginKey,
+                              ZKeyIndexPairLessCmpFunctor());
+    std::vector< ZKeyIndexPair >::const_iterator endIt =
+            std::lower_bound( zKeys.begin(), zKeys.end(), endKey,
+                              ZKeyIndexPairLessCmpFunctor());
+    Index startIdx = std::distance( zKeys.begin(), beginIt );
+    Index length = std::distance( zKeys.begin(), endIt ) - startIdx;
+
+    std::map< Index, ShortIndex > newIndex; // stores the new indices (relative to _start)
+
+    for( Index t = 0; t < length; ++t )
+    {
+        for( Index v = 0; v < 3; ++v )
+        {
+            Index i = modelData.triangles[ zKeys[ startIdx + t].second ][v];
+            if( newIndex.find( i ) == newIndex.end() )
+            {
+                newIndex[i] = _vertexLength++;
+                // assert number of vertices does not exceed SmallIndex range
+                PLYLIBASSERT( _vertexLength );
+                treeData.vertices.push_back( modelData.vertices[i] );
+                if( _treeData.hasColors )
+                    treeData.colors.push_back( modelData.colors[i] );
+                treeData.normals.push_back( modelData.normals[i] );
+            }
+            treeData.indices.push_back( newIndex[i] );
+            ++_indexLength;
+        }
+    }
+
+    // Initialize and compute leaf bounding box
+    _boundingBox[0] = center - halfCellSize;
+    _boundingBox[1] = center + halfCellSize;
+
+#ifndef NDEBUG
+    PLYLIBINFO << "setupZOctree" << "( " << _indexStart << ", " << _indexLength
+             << " / start " << _vertexStart << ", " << _vertexLength
+             << " vertices)." << std::endl;
+#endif
+}
+
+/*  Compute the bounding sphere of the leaf's indexed vertices.  */
+const BoundingSphere& ModelTreeLeaf::updateBoundingSphere()
+{
+    // We determine a bounding sphere by:
+    // 1) Using the inner sphere of the leaf cell bounding box as an estimate
+    // 2) Test all points to be in that sphere
+    // 3) Expand the sphere to contain all points outside.
+
+    // 1) get inner sphere of bounding box as an initial estimate
     _boundingSphere.x() = ( _boundingBox[0].x() + _boundingBox[1].x() ) * 0.5f;
     _boundingSphere.y() = ( _boundingBox[0].y() + _boundingBox[1].y() ) * 0.5f;
     _boundingSphere.z() = ( _boundingBox[0].z() + _boundingBox[1].z() ) * 0.5f;
@@ -131,7 +182,7 @@ const BoundingSphere& VertexBufferLeaf::updateBoundingSphere()
                                    _boundingBox[1].y() - _boundingBox[0].y() );
     _boundingSphere.w()  = LB_MAX( _boundingBox[1].z() - _boundingBox[0].z(),
                                    _boundingSphere.w() );
-    _boundingSphere.w() *= .5f;
+    _boundingSphere.w() *= 0.5f;
 
     float  radius        = _boundingSphere.w();
     float  radiusSquared =  radius * radius;
@@ -141,8 +192,8 @@ const BoundingSphere& VertexBufferLeaf::updateBoundingSphere()
     for( Index offset = 0; offset < _indexLength; ++offset )
     {
         const Vertex& vertex =
-            _globalData.vertices[ _vertexStart +
-                                  _globalData.indices[_indexStart + offset] ];
+            _treeData.vertices[ _vertexStart +
+                                _treeData.indices[_indexStart + offset] ];
 
         const Vertex centerToPoint   = vertex - center;
         const float  distanceSquared = centerToPoint.squared_length();
@@ -155,9 +206,8 @@ const BoundingSphere& VertexBufferLeaf::updateBoundingSphere()
 
         radius        = ( radius + distance ) * .5f;
         radiusSquared = radius * radius;
-        const Vertex normdelta = normalize( centerToPoint ) * ( 0.5f * delta );
-
-        center       += normdelta;
+        const Vertex normDelta = normalize( centerToPoint ) * ( 0.5f * delta );
+        center       += normDelta;
 
         LBASSERTINFO( Vertex( vertex-center ).squared_length() <=
                 ( radiusSquared + 2.f * std::numeric_limits<float>::epsilon( )),
@@ -170,8 +220,8 @@ const BoundingSphere& VertexBufferLeaf::updateBoundingSphere()
     for( Index offset = 0; offset < _indexLength; ++offset )
     {
         const Vertex& vertex =
-            _globalData.vertices[ _vertexStart +
-                                  _globalData.indices[_indexStart + offset] ];
+            _treeData.vertices[ _vertexStart +
+                                  _treeData.indices[_indexStart + offset] ];
 
         const Vertex centerToPoint   = vertex - center;
         const float  distanceSquared = centerToPoint.squared_length();
@@ -198,10 +248,10 @@ const BoundingSphere& VertexBufferLeaf::updateBoundingSphere()
 
 
 /*  Compute the range of this child.  */
-void VertexBufferLeaf::updateRange()
+void ModelTreeLeaf::updateRange()
 {
-    _range[0] = 1.0f * _indexStart / _globalData.indices.size();
-    _range[1] = _range[0] + 1.0f * _indexLength / _globalData.indices.size();
+    _range[0] = 1.0f * _indexStart / _treeData.indices.size();
+    _range[1] = _range[0] + 1.0f * _indexLength / _treeData.indices.size();
 
 #ifndef NDEBUG
     PLYLIBINFO << "updateRange" << "( " << _range[0] << ", " << _range[1]
@@ -212,7 +262,7 @@ void VertexBufferLeaf::updateRange()
 #define glewGetContext state.glewGetContext
 
 /*  Set up rendering of the leaf nodes.  */
-void VertexBufferLeaf::setupRendering( VertexBufferState& state,
+void ModelTreeLeaf::setupRendering( TreeRenderState& state,
                                        GLuint* data ) const
 {
     switch( state.getRenderMode() )
@@ -226,13 +276,13 @@ void VertexBufferLeaf::setupRendering( VertexBufferState& state,
 
         // If out-of-core rendering, the real data will be uploaded later
         Vertex* verticesPtr =
-                ( state.useOutOfCore() ) ? NULL : &_globalData.vertices[_vertexStart];
+                ( state.useOutOfCore() ) ? NULL : &_treeData.vertices[_vertexStart];
         Color* colorsPtr =
-                ( state.useOutOfCore() ) ? NULL : &_globalData.colors[_vertexStart];
+                ( state.useOutOfCore() ) ? NULL : &_treeData.colors[_vertexStart];
         Normal* normalsPtr =
-                ( state.useOutOfCore() ) ? NULL : &_globalData.normals[_vertexStart];
+                ( state.useOutOfCore() ) ? NULL : &_treeData.normals[_vertexStart];
         ShortIndex* indicesPtr =
-                ( state.useOutOfCore() ) ? NULL : &_globalData.indices[_indexStart];
+                ( state.useOutOfCore() ) ? NULL : &_treeData.indices[_indexStart];
 
         if( data[VERTEX_OBJECT] == state.INVALID )
             data[VERTEX_OBJECT] = state.newBufferObject( charThis + 0 );
@@ -329,7 +379,7 @@ void VertexBufferLeaf::setupRendering( VertexBufferState& state,
 }
 
 /*  Draw the leaf.  */
-void VertexBufferLeaf::draw( VertexBufferState& state ) const
+void ModelTreeLeaf::draw( TreeRenderState& state ) const
 {
     if( state.stopRendering( ) )
         return;
@@ -355,7 +405,7 @@ void VertexBufferLeaf::draw( VertexBufferState& state ) const
 }
 
 /*  Render the leaf with buffer objects.  */
-void VertexBufferLeaf::renderBufferObject( VertexBufferState& state ) const
+void ModelTreeLeaf::renderBufferObject( TreeRenderState& state ) const
 {
     GLuint buffers[4];
     for( int i = 0; i < 4; ++i )
@@ -389,7 +439,7 @@ void VertexBufferLeaf::renderBufferObject( VertexBufferState& state ) const
 
 /*  Render the leaf with a display list.  */
 inline
-void VertexBufferLeaf::renderDisplayList( VertexBufferState& state ) const
+void ModelTreeLeaf::renderDisplayList( TreeRenderState& state ) const
 {
     char* key = (char*)( this );
     if( state.useColors( ))
@@ -406,7 +456,7 @@ void VertexBufferLeaf::renderDisplayList( VertexBufferState& state ) const
 
 /*  Render the leaf with immediate mode primitives or vertex arrays.  */
 inline
-void VertexBufferLeaf::renderImmediate( VertexBufferState& state ) const
+void ModelTreeLeaf::renderImmediate( TreeRenderState& state ) const
 {
     glBegin( GL_TRIANGLES );
     if( state.useOutOfCore() )
@@ -424,11 +474,11 @@ void VertexBufferLeaf::renderImmediate( VertexBufferState& state ) const
     {
         for( Index offset = 0; offset < _indexLength; ++offset )
         {
-            const Index i =_vertexStart + _globalData.indices[_indexStart + offset];
+            const Index i =_vertexStart + _treeData.indices[_indexStart + offset];
             if( state.useColors() )
-                glColor3ubv( &_globalData.colors[i][0] );
-            glNormal3fv( &_globalData.normals[i][0] );
-            glVertex3fv( &_globalData.vertices[i][0] );
+                glColor3ubv( &_treeData.colors[i][0] );
+            glNormal3fv( &_treeData.normals[i][0] );
+            glVertex3fv( &_treeData.vertices[i][0] );
         }
     }
     glEnd();
@@ -436,14 +486,14 @@ void VertexBufferLeaf::renderImmediate( VertexBufferState& state ) const
 
 
 /*  Read leaf node from memory.  */
-void VertexBufferLeaf::fromMemory( char** addr, VertexBufferData& globalData )
+void ModelTreeLeaf::fromMemory( char** addr, ModelTreeData& treeData )
 {
     size_t nodeType;
     memRead( reinterpret_cast< char* >( &nodeType ), addr, sizeof( size_t ) );
     if( nodeType != LEAF_TYPE )
         throw MeshException( "Error reading binary file. Expected a leaf "
                              "node, but found something else instead." );
-    VertexBufferBase::fromMemory( addr, globalData );
+    ModelTreeBase::fromMemory( addr, treeData );
     memRead( reinterpret_cast< char* >( &_boundingBox ), addr,
              sizeof( BoundingBox ) );
     memRead( reinterpret_cast< char* >( &_vertexStart ), addr,
@@ -458,11 +508,11 @@ void VertexBufferLeaf::fromMemory( char** addr, VertexBufferData& globalData )
 
 
 /*  Write leaf node to output stream.  */
-void VertexBufferLeaf::toStream( std::ostream& os )
+void ModelTreeLeaf::toStream( std::ostream& os )
 {
     size_t nodeType = LEAF_TYPE;
     os.write( reinterpret_cast< char* >( &nodeType ), sizeof( size_t ));
-    VertexBufferBase::toStream( os );
+    ModelTreeBase::toStream( os );
     os.write( reinterpret_cast< char* >( &_boundingBox ), sizeof( BoundingBox));
     os.write( reinterpret_cast< char* >( &_vertexStart ), sizeof( Index ));
     os.write( reinterpret_cast< char* >( &_vertexLength ),sizeof( ShortIndex ));
@@ -470,7 +520,7 @@ void VertexBufferLeaf::toStream( std::ostream& os )
     os.write( reinterpret_cast< char* >( &_indexLength ), sizeof( Index ));
 }
 
-void VertexBufferLeaf::loadVirtualData(VirtualVertexBufferDataPtr virtualVBD, bool useColors) const
+void ModelTreeLeaf::loadVirtualData(PagedTreeDataPtr virtualVBD, bool useColors) const
 {
     if( _vDataLoaded )
         return;
@@ -492,7 +542,7 @@ void VertexBufferLeaf::loadVirtualData(VirtualVertexBufferDataPtr virtualVBD, bo
     PLYLIBASSERT( _vDataLoaded );
 }
 
-void VertexBufferLeaf::freeVirtualData() const
+void ModelTreeLeaf::freeVirtualData() const
 {
     if( !_vDataLoaded )
         return;

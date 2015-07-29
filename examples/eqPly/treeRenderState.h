@@ -27,27 +27,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef EQPLY_VERTEXBUFFERSTATE_H
-#define EQPLY_VERTEXBUFFERSTATE_H
+#ifndef EQPLY_TREERENDERSTATE_H
+#define EQPLY_TREERENDERSTATE_H
 
 #include "channel.h"
 
-#include <triply/vertexBufferState.h>
+#include <triply/treeRenderState.h>
 #include <eq/eq.h>
 
 namespace eqPly
 {
 /*  State for Equalizer usage, uses Eq's Object Manager.  */
-class VertexBufferState : public triply::VertexBufferState
+class TreeRenderState : public triply::TreeRenderState
 {
 public:
-    VertexBufferState( eq::util::ObjectManager& objectManager )
-        : triply::VertexBufferState( objectManager.glewGetContext( ))
+    TreeRenderState( eq::util::ObjectManager& objectManager )
+        : triply::TreeRenderState( objectManager.glewGetContext( ))
         , _objectManager( objectManager )
         , _channel( 0 )
     {}
 
-    virtual ~VertexBufferState() {}
+    virtual ~TreeRenderState() {}
 
     GLuint getDisplayList( const void* key ) override
         { return _objectManager.getList( key ); }
@@ -94,4 +94,4 @@ private:
 };
 } // namespace eqPly
 
-#endif // EQ_MESH_VERTEXBUFFERSTATE_H
+#endif // EQ_MESH_TREERENDERSTATE_H

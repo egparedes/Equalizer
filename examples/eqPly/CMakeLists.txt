@@ -22,7 +22,7 @@ eq_add_example(eqPly
     node.h
     node.h
     pipe.h
-    vertexBufferState.h
+    treeRenderState.h
     view.h
     window.h
   SOURCES

@@ -28,8 +28,8 @@
  */
 
 
-#ifndef PLYLIB_VERTEXBUFFERDATA_H
-#define PLYLIB_VERTEXBUFFERDATA_H
+#ifndef PLYLIB_MODELTREEDATA_H
+#define PLYLIB_MODELTREEDATA_H
 
 
 #include "typedefs.h"
@@ -40,10 +40,10 @@
 namespace triply 
 {    
     /** Holds the final kd-tree data, sorted and reindexed.  */
-    class VertexBufferData
+    class ModelTreeData
     {
     public:
-        VertexBufferData() : hasColors(false) {}
+        ModelTreeData() : hasColors(false) {}
 
         void clear()
         {
@@ -169,4 +169,4 @@ namespace triply
 }
 
 
-#endif // PLYLIB_VERTEXBUFFERDATA_H
+#endif // PLYLIB_MODELTREEDATA_H

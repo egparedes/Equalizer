@@ -29,61 +29,72 @@
  */
 
 
-#ifndef PLYLIB_VERTEXBUFFERROOT_H
-#define PLYLIB_VERTEXBUFFERROOT_H
+#ifndef PLYLIB_MODELTREEROOT_H
+#define PLYLIB_MODELTREEROOT_H
 
 #include "api.h"
-#include "vertexBufferData.h"
-#include "vertexBufferNode.h"
-#include "virtualVertexBufferData.h"
+#include "modelTreeData.h"
+#include "modelTreeNode.h"
+#include "pagedTreeData.h"
 
 
 namespace triply
 {
-/*  The class for kd-tree root nodes.  */
-class VertexBufferRoot : public VertexBufferNode
+/*  The class for tree root nodes.  */
+class ModelTreeRoot : public ModelTreeNode
 {
 public:
-    PLYLIB_API VertexBufferRoot()
-        : VertexBufferNode(), _invertFaces(false), _hasVertexData(false)
-    {}
+    PLYLIB_API ModelTreeRoot( )
+        : ModelTreeNode(), _partition( KDTREE_PARTITION ),
+          _invertFaces(false), _inCoreData(false)
+    { }
 
-    PLYLIB_API virtual void cullDraw( VertexBufferState& state ) const;
-    PLYLIB_API virtual void draw( VertexBufferState& state ) const;
+    PLYLIB_API ModelTreeRoot( unsigned arity )
+        : ModelTreeNode( arity ), _partition( KDTREE_PARTITION ),
+          _invertFaces(false), _inCoreData(false)
+    { }
 
-    PLYLIB_API void setupTree( VertexData& data );
-    PLYLIB_API bool writeToFile( const std::string& filename );
+    static PLYLIB_API TreePartitionRule makeTreePartitionRule(const char* partitionTag);
+
+    PLYLIB_API virtual void cullDraw( TreeRenderState& state ) const;
+    PLYLIB_API virtual void draw( TreeRenderState& state ) const;
+
+    PLYLIB_API bool setupTree( VertexData& modelData, TreePartitionRule partition );
+
+    PLYLIB_API bool writeToFile( const std::string& filename);
     PLYLIB_API bool readFromFile( const std::string& filename,
-                                  bool loadVertexData=true);
-    bool hasColors() const { return _data.hasColors; }
-    BoundingBox getBoundingBox() const { return _data.getBoundingBox(); }
+                                  TreePartitionRule partition,
+                                  bool inCoreData);
+    PLYLIB_API bool hasColors() const { return _treeData.hasColors; }
+    PLYLIB_API BoundingBox getBoundingBox() const { return _treeData.getBoundingBox(); }
 
-    void useInvertedFaces() { _invertFaces = true; }
+    PLYLIB_API void useInvertedFaces() { _invertFaces = true; }
 
-    const std::string& getName() const { return _name; }
-    std::string getBinaryName() const;
+    PLYLIB_API const std::string& getName() const { return _name; }
+    PLYLIB_API std::string getBinaryName() const;
 
 protected:
-    PLYLIB_API virtual void toStream( std::ostream& os );
-    PLYLIB_API virtual void fromMemory( char* start);
+    virtual void toStream( std::ostream& os );
+    virtual void fromMemory( char* start );
 
 private:
     bool _constructFromPly( const std::string& filename );
     bool _readBinary( std::string filename );
 
-    void _beginRendering( VertexBufferState& state ) const;
-    void _endRendering( VertexBufferState& state ) const;
+    void _beginRendering( TreeRenderState& state ) const;
+    void _endRendering( TreeRenderState& state ) const;
 
-    friend class VertexBufferDist;
-    VertexBufferData _data;
-    bool             _invertFaces;
-    std::string      _name;
+    friend class ModelTreeDist;
 
-    // For out-of-core rendering
-    bool                _hasVertexData;
+    ModelTreeData      _treeData;
+    TreePartitionRule  _partition;
+    bool               _invertFaces;
+    bool               _inCoreData;  // For out-of-core rendering
+    std::string        _name;
+
 };
 
 }  // namespace
 
 
-#endif // PLYLIB_VERTEXBUFFERROOT_H
+#endif // PLYLIB_MODELTREEROOT_H
