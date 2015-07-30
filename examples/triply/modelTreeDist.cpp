@@ -49,7 +49,7 @@ ModelTreeDist::ModelTreeDist( ModelTreeRoot* treeRoot )
     , _children( 0 )
     , _isRoot( true )
 {
-    allocateChildren();
+    allocateChildArray();
     for( unsigned i=0; i < treeRoot->getArity(); ++i )
     {
         if( treeRoot->getChild( i ))
@@ -68,7 +68,7 @@ ModelTreeDist::ModelTreeDist( ModelTreeRoot* treeRoot, ModelTreeBase* treeNode )
     if( !treeNode || treeNode->getNumberOfChildren() == 0)
         return;
 
-    allocateChildren();
+    allocateChildArray();
     for( unsigned i=0; i < treeRoot->getArity(); ++i )
     {
         if( treeNode->getChild( i ) )
@@ -80,7 +80,7 @@ ModelTreeDist::ModelTreeDist( ModelTreeRoot* treeRoot, ModelTreeBase* treeNode )
 
 ModelTreeDist::~ModelTreeDist()
 {
-    deallocateChildren();
+    deallocateChildArray();
 }
 
 void ModelTreeDist::registerTree(co::LocalNodePtr localNode )
@@ -139,6 +139,8 @@ ModelTreeRoot* ModelTreeDist::loadModel( co::NodePtr masterNode,
 
 unsigned ModelTreeDist::getNumberOfChildren() const
 {
+    if ( _children == 0 )
+        return 0;
     LBASSERT( _treeRoot );
     unsigned result = 0;
     for( unsigned i=0; i < _treeRoot->getArity(); ++i )
@@ -153,7 +155,7 @@ void ModelTreeDist::getInstanceData( co::DataOStream& os )
 {
     LBASSERT( _treeRoot && _treeNode );
     unsigned arity = _treeRoot->getArity();
-    unsigned numChildren = getNumberOfChildren();
+    unsigned numChildren = _treeNode->getNumberOfChildren();
     os << _isRoot << arity << numChildren;
 
     if( numChildren > 0 )
@@ -205,14 +207,14 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
     unsigned arity, numChildren;
     is >> _isRoot >> arity >> numChildren ;
 
-    eq::uint128_t* childIDs = new eq::uint128_t[arity];
-    for( unsigned i=0; i < arity; ++i)
-    {
-        childIDs[i] = 0;
-    }
-
     if( numChildren > 0 )
     {
+        eq::uint128_t* childIDs = new eq::uint128_t[arity];
+        for( unsigned i=0; i < arity; ++i)
+        {
+            childIDs[i] = 0;
+        }
+
         for( unsigned i=0; i < numChildren; ++i)
         {
             unsigned childNumber;
@@ -249,20 +251,21 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
         base   = node;
 
         if ( _children == 0 )
-            allocateChildren();
-        co::NodePtr from = is.getRemoteNode();
-        co::LocalNodePtr to = is.getLocalNode();
-        for( unsigned i=0; i < numChildren; ++i)
+            allocateChildArray();
+        co::NodePtr remoteNode = is.getRemoteNode();
+        co::LocalNodePtr localNode = is.getLocalNode();
+        for( unsigned i=0; i < arity; ++i)
         {
             if( childIDs[i] != 0 )
             {
                 _children[i] = new ModelTreeDist( _treeRoot, 0 );
-                co::f_bool_t childSync = to->syncObject( _children[i], from, childIDs[i] );
+                co::f_bool_t childSync =
+                    localNode->syncObject( _children[i], remoteNode, childIDs[i] );
                 LBCHECK( childSync.wait( ) );
             }
         }
 
-        for( unsigned i=0; i < numChildren; ++i)
+        for( unsigned i=0; i < arity; ++i)
         {
             if( _children[i] != 0 )
                 node->_children[i] = _children[i]->_treeNode;
@@ -289,7 +292,7 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
     _treeNode = base;
 }
 
-void ModelTreeDist::allocateChildren()
+void ModelTreeDist::allocateChildArray()
 {
     LBASSERT( _treeRoot );
     LBASSERT( !_children );
@@ -300,7 +303,7 @@ void ModelTreeDist::allocateChildren()
     }
 }
 
-void ModelTreeDist::deallocateChildren()
+void ModelTreeDist::deallocateChildArray()
 {
     LBASSERT( _treeRoot );
     if( _children != 0 )

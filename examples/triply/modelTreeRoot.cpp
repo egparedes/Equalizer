@@ -178,7 +178,7 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
     PLYLIBASSERT( detail::isValidPartition( partition ));
 
     ModelTreeNode::_arity = detail::PartitionArities[partition];
-    allocateChildren();
+    allocateChildArray();
 
     const BoundingBox& bbox = modelData.getBoundingBox();
     _treeData.clear();
@@ -351,7 +351,7 @@ void ModelTreeRoot::fromMemory( char* start )
     else
         _treeData.skipFromMemory( addr );
 
-    allocateChildren();
+    allocateChildArray();
     ModelTreeNode::fromMemory( addr, _treeData );
 }
 

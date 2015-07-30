@@ -47,13 +47,13 @@ inline static bool _subdivide( const Index length, const size_t depth )
 ModelTreeNode::ModelTreeNode( unsigned arity )
     : _arity( arity ), _children( 0 )
 {
-    allocateChildren();
+    allocateChildArray();
 }
 
 /*  Destructor, clears up children as well.  */
 ModelTreeNode::~ModelTreeNode()
 {
-    deallocateChildren();
+    deallocateChildArray();
 }
 
 /*  Draw the node by rendering the children.  */
@@ -333,7 +333,7 @@ void ModelTreeNode::updateRange()
 #endif
 }
 
-void ModelTreeNode::allocateChildren()
+void ModelTreeNode::allocateChildArray()
 {
     LBASSERT( _arity > 0 );
     LBASSERT( !_children );
@@ -345,7 +345,7 @@ void ModelTreeNode::allocateChildren()
     }
 }
 
-void ModelTreeNode::deallocateChildren()
+void ModelTreeNode::deallocateChildArray()
 {
     if( _children != 0 )
     {

@@ -89,8 +89,8 @@ private:
     friend class ModelTreeDist;
     friend class ModelTreeRoot;
 
-    void allocateChildren();
-    void deallocateChildren();
+    void allocateChildArray();
+    void deallocateChildArray();
 
     unsigned _arity;
     ModelTreeBase** _children;

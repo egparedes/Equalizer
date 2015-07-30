@@ -63,8 +63,8 @@ protected:
     PLYLIB_API virtual void applyInstanceData( co::DataIStream& is );
 
 private:
-    void allocateChildren();
-    void deallocateChildren();
+    void allocateChildArray();
+    void deallocateChildArray();
 
     ModelTreeRoot*  _treeRoot;
     ModelTreeBase*  _treeNode;
