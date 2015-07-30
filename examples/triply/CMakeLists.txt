@@ -5,6 +5,7 @@
 set(TRIPLY_PUBLIC_HEADERS
   api.h
   ply.h
+  mmap.h
   typedefs.h
   modelTreeBase.h
   modelTreeData.h
@@ -18,6 +19,7 @@ set(TRIPLY_PUBLIC_HEADERS
 
 set(TRIPLY_SOURCES
   plyfile.cpp
+  mmap.cpp
   modelTreeBase.cpp
   modelTreeDist.cpp
   modelTreeLeaf.cpp

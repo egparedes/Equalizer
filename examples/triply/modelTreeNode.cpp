@@ -277,7 +277,7 @@ const BoundingSphere& ModelTreeNode::updateBoundingSphere()
                 {
                     // One sphere is fully included in the other
                     //
-                    // From "Real-Time Detection Collision" book
+                    // From "Real-Time Collision Detection" book
                     // (section "6.5.2: Merging Two Spheres"
                     if( sphere1.w() > sphere0.w() )
                         _boundingSphere = sphere1;

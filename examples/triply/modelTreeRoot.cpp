@@ -32,15 +32,10 @@
 #include "modelTreeRoot.h"
 #include "treeRenderState.h"
 #include "vertexData.h"
+#include "mmap.h"
 #include <string>
 #include <sstream>
 #include <cstring>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#ifndef _WIN32
-#   include <sys/mman.h>
-#endif
 
 namespace triply
 {
@@ -292,18 +287,14 @@ bool ModelTreeRoot::readFromFile( const std::string& filename,
     _partition = partition;
     _inCoreData = inCoreData;
     _name = filename;
-    PLYLIBWARN << "-- ModelTreeRoot::readFromFile()" << std::endl;
-    PLYLIBWARN << "_inCoreData = " << _inCoreData << std::endl;
 
     if( _readBinary( getBinaryName( ) ) || _constructFromPly( filename ) )
     {
-        PLYLIBWARN << "-- ModelTreeRoot::readFromFile() ---- END" << std::endl;
         return true;
     }
 
     _name = "";
 
-    PLYLIBWARN << "-- ModelTreeRoot::readFromFile() ---- FALSE END" << std::endl;
     return false;
 }
 
@@ -335,7 +326,6 @@ void ModelTreeRoot::toStream( std:: ostream& os )
 /*  Read root node from memory and continue with other nodes.  */
 void ModelTreeRoot::fromMemory( char* start )
 {
-    PLYLIBWARN << "-- ModelTreeRoot::fromMemory()" << std::endl;
     char** addr = &start;
     size_t version;
     memRead( reinterpret_cast< char* >( &version ), addr, sizeof( size_t ) );
@@ -363,7 +353,6 @@ void ModelTreeRoot::fromMemory( char* start )
 
     allocateChildren();
     ModelTreeNode::fromMemory( addr, _treeData );
-    PLYLIBWARN << "-- ModelTreeRoot::fromMemory() ---- END" << std::endl;
 }
 
 /*  Functions extracted out of readFromFile to enhance readability.  */
@@ -401,76 +390,11 @@ bool ModelTreeRoot::_constructFromPly( const std::string& filename )
 
 bool ModelTreeRoot::_readBinary(std::string filename)
 {
-#ifdef WIN32
-
-    // replace dir delimiters since '\' is often used as escape char
-    for( size_t i=0; i<filename.length(); ++i )
-        if( filename[i] == '\\' )
-            filename[i] = '/';
-
-    // try to open binary file
-    HANDLE file = CreateFile( filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
-                              0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 );
-    if( file == INVALID_HANDLE_VALUE )
-        return false;
-
-    PLYLIBINFO << "Reading cached binary representation." << std::endl;
-
-    // create a file mapping
-    HANDLE map = CreateFileMapping( file, 0, PAGE_READONLY, 0, 0,
-                                    filename.c_str( ));
-    CloseHandle( file );
-    if( !map )
-    {
-        PLYLIBERROR << "Unable to read binary file, file mapping failed."
-                  << std::endl;
-        return false;
-    }
-
-    // get a view of the mapping
-    char* addr   = static_cast< char* >( MapViewOfFile( map, FILE_MAP_READ, 0,
-                                                        0, 0 ) );
-    bool  result = false;
-
-    if( addr )
-    {
-        try
-        {
-            fromMemory( addr  );
-            result = true;
-        }
-        catch( const std::exception& e )
-        {
-            PLYLIBERROR << "Unable to read binary file, an exception occured:  "
-                      << e.what() << std::endl;
-        }
-        UnmapViewOfFile( addr );
-    }
-    else
-    {
-        PLYLIBERROR << "Unable to read binary file, memory mapping failed."
-                  << std::endl;
-        return false;
-    }
-
-    CloseHandle( map );
-    return result;
-
-#else
-    // try to open binary file
-    int fd = open( filename.c_str(), O_RDONLY );
-    if( fd < 0 )
-        return false;
-
-    // retrieving file information
-    struct stat status;
-    fstat( fd, &status );
-
     // create memory mapped file
-    char* addr   = static_cast< char* >( mmap( 0, status.st_size, PROT_READ,
-                                               MAP_SHARED, fd, 0 ) );
+    char* addr;
     bool  result = false;
-    if( addr != MAP_FAILED )
+
+    if( openMMap( filename, &addr ))
     {
         try
         {
@@ -482,7 +406,6 @@ bool ModelTreeRoot::_readBinary(std::string filename)
             PLYLIBERROR << "Unable to read binary file, an exception occured:  "
                       << e.what() << std::endl;
         }
-        munmap( addr, status.st_size );
     }
     else
     {
@@ -490,10 +413,11 @@ bool ModelTreeRoot::_readBinary(std::string filename)
                   << std::endl;
     }
 
-    close( fd );
+    closeMMap( &addr );
+
     return result;
-#endif
 }
+
 /*  Set up the common OpenGL state for rendering of all nodes.  */
 void ModelTreeRoot::_beginRendering( TreeRenderState& state ) const
 {

@@ -33,27 +33,20 @@
 #include <fstream>
 #include <vector>
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#ifndef _WIN32
-#   include <sys/mman.h>
-#endif
-
 namespace triply {    
 
 const std::size_t PagedTreeData::_sizeOfType[TOTAL_PAGE_TYPES] =
     { sizeof(Vertex), sizeof(Color), sizeof(Normal), sizeof(ShortIndex) };
 
 PagedTreeData::PagedTreeData()
-    : _pageSize(0), _maxPages(0),
-      _mmapAddr(static_cast<char*>(MAP_FAILED)),
-      _mmapSize(0),
-      _fd(-1), _mmaped(false), _fName("")
+    : _pageSize( 0),
+      _maxPages( 0 ),
+      _mmapAddr( const_cast< char* >( MMAP_BAD_ADDRESS )),
+      _fName( "" )
 {
     _boundingBox[0] = Vertex( 0.0 );
     _boundingBox[1] = Vertex( 0.0 );
-    for (int t=POSITION_PAGE_TYPE; t < TOTAL_PAGE_TYPES; ++t)
+    for( int t=POSITION_PAGE_TYPE; t < TOTAL_PAGE_TYPES; ++t)
     {
         _lock[t].set();
         _totalElems[t] = 0;
@@ -77,20 +70,17 @@ void PagedTreeData::init(const std::string& fName,
 
 void PagedTreeData::clear()
 {
-    for (int t=POSITION_PAGE_TYPE; t < TOTAL_PAGE_TYPES; ++t)
+    for( int t=POSITION_PAGE_TYPE; t < TOTAL_PAGE_TYPES; ++t)
     {
-        _lock[t].set();
-        _lock[t].set();
-        _lock[t].set();
         _lock[t].set();
     }
 
-    closeMMap();
+    closeBinary();
     _vPages.clear();
     _cPages.clear();
     _nPages.clear();
     _idxPages.clear();
-    for (int t=POSITION_PAGE_TYPE; t < TOTAL_PAGE_TYPES; ++t)
+    for( int t=POSITION_PAGE_TYPE; t < TOTAL_PAGE_TYPES; ++t)
     {
         _activePages[t].clear();
         _disposablePages[t].clear();
@@ -106,7 +96,7 @@ void PagedTreeData::discard(PageKey key, PageType pType)
     _lock[pType].set();
      PLYLIBASSERT( _activePages[pType][key] > 0 );
     _activePages[pType][key]--;
-    if (_activePages[pType][key] <= 0)
+    if( _activePages[pType][key] == 0)
         _disposablePages[pType].push_back(key);
     _lock[pType].unset();
 }
@@ -145,9 +135,9 @@ bool PagedTreeData::getVertexData(std::size_t start, std::size_t count,
                                             PagedBuffer< Color >& colorsVB,
                                             PagedBuffer< Normal >& normalsVB)
 {
-    if (!getVertices(start, count, verticesVB) || !getNormals(start, count, normalsVB))
+    if( !getVertices(start, count, verticesVB) || !getNormals(start, count, normalsVB))
         return false;
-    else if (useColors)
+    else if( useColors)
         return  getColors(start, count, colorsVB);
     else
         return true;
@@ -162,7 +152,7 @@ bool PagedTreeData::getIndices(std::size_t start, std::size_t count,
 
 inline bool PagedTreeData::mapHasKey(PageKey key, PageType pType)
 {
-    switch (pType)
+    switch( pType)
     {
     case POSITION_PAGE_TYPE:
         return (_vPages.count(key) > 0);
@@ -185,7 +175,7 @@ inline bool PagedTreeData::mapHasKey(PageKey key, PageType pType)
 
 inline void PagedTreeData::mapEraseKey(PageKey key, PageType pType)
 {
-    switch (pType)
+    switch( pType)
     {
     case POSITION_PAGE_TYPE:
         _vPages.erase(key);
@@ -207,7 +197,7 @@ inline void PagedTreeData::mapEraseKey(PageKey key, PageType pType)
 
 inline std::size_t PagedTreeData::mapSize(PageType pType)
 {
-    switch (pType)
+    switch( pType)
     {
     case POSITION_PAGE_TYPE:
         return _vPages.size();
@@ -249,12 +239,12 @@ PagedTreeData::getPage(PageKey key, PageType pType)
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
 
     _lock[pType].set();
-    if (!_mmaped)
-        openMMap();
+    if( _mmapAddr == MMAP_BAD_ADDRESS )
+        openBinary();
     bool loadFromDisk = !mapHasKey(key, pType);
 
     PageData< T >* pageData = NULL;
-    switch (pType)
+    switch( pType )
     {
     case POSITION_PAGE_TYPE:
         pageData = reinterpret_cast< PageData< T >* >( &(_vPages[key]) );
@@ -276,7 +266,7 @@ PagedTreeData::getPage(PageKey key, PageType pType)
     _activePages[pType][key]++;
 
     // Load page from mmap when needed
-    if (loadFromDisk)
+    if( loadFromDisk)
     {
         // Remove some disposable pages from the map when needed
         while (mapSize(pType) >= _maxPages)
@@ -285,11 +275,11 @@ PagedTreeData::getPage(PageKey key, PageType pType)
             while (_activePages[pType][*it] > 0 && it != _disposablePages[pType].end())
                 ++it;
             PLYLIBASSERT( it != _disposablePages[pType].end() );
-            if (it != _disposablePages[pType].end())
+            if( it != _disposablePages[pType].end())
                 freePage(*it, pType);
         }
 
-        PLYLIBASSERT( _mmaped );
+        PLYLIBASSERT( _mmapAddr != MMAP_BAD_ADDRESS );
         readData( getPageAddress(key, pType), pageData->data, getPageByteSize(key, pType) );
     }
     _lock[pType].unset();
@@ -297,41 +287,22 @@ PagedTreeData::getPage(PageKey key, PageType pType)
     return *pageData;
 }
 
-void PagedTreeData::freePage(PageKey key, PageType pType)
+void PagedTreeData::freePage( PageKey key, PageType pType )
 {
     PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
-    if (!mapHasKey(key, pType))
-        return;
-
+    PLYLIBASSERT( !mapHasKey(key, pType) );
     PLYLIBASSERT( _activePages[pType][key] <= 0 );
-    _disposablePages[pType].remove(key);
-    mapEraseKey(key, pType);
+
+    _disposablePages[pType].remove( key );
+    mapEraseKey( key, pType );
 }
 
-bool PagedTreeData::openMMap()
+bool PagedTreeData::openBinary()
 {
-    bool result = false;
-
-#ifdef WIN32
-#else
-    // try to open binary file
-    if( _fd < 0 )
-    {
-        _fd = open( _fName.c_str(), O_RDONLY );
-        if( _fd < 0 )
-            return false;
-    }
-
-    // retrieving file information
-    struct stat status;
-    fstat( _fd, &status );
-    _mmapSize = status.st_size;
-
     // create memory mapped file
-    _mmapAddr  = static_cast< char* >( mmap( 0, _mmapSize, PROT_READ,
-                                       MAP_SHARED, _fd, 0 ) );
+    bool result = openMMap( _fName, &_mmapAddr );
 
-    if( _mmapAddr != MAP_FAILED )
+    if( result )
     {
         try
         {
@@ -341,6 +312,12 @@ bool PagedTreeData::openMMap()
             if( version != FILE_VERSION )
                 throw MeshException( "Error reading binary file. Version in file "
                                      "does not match the expected version." );
+
+            size_t partition;
+            memRead( reinterpret_cast< char* >( &partition ), &dataAddr, sizeof( size_t ) );
+            size_t treeArity;
+            memRead( reinterpret_cast< char* >( &treeArity ), &dataAddr, sizeof( size_t ) );
+
             size_t nodeType;
             memRead( reinterpret_cast< char* >( &nodeType ), &dataAddr, sizeof( size_t ) );
             if( nodeType != ROOT_TYPE )
@@ -373,7 +350,7 @@ bool PagedTreeData::openMMap()
         catch( const std::exception& e )
         {
             PLYLIBERROR << "Unable to read binary file, an exception occured:  "
-                        << e.what() << std::endl;
+                      << e.what() << std::endl;
         }
     }
     else
@@ -381,40 +358,17 @@ bool PagedTreeData::openMMap()
         PLYLIBERROR << "Unable to read binary file, memory mapping failed."
                   << std::endl;
     }
-#endif
 
-    _mmaped = result;
     return result;
 }
 
-bool PagedTreeData::closeMMap()
+void PagedTreeData::closeBinary()
 {
-    bool result = false;
-
-#ifdef WIN32
-#else
-    if( _mmapAddr != MAP_FAILED )
-    {
-        if (_mmaped)
-            munmap( _mmapAddr, _mmapSize );
-        _mmapAddr = static_cast<char*>(MAP_FAILED);
-        result = true;
-    }
-    if( _fd >= 0 )
-    {
-        close( _fd );
-        _fd = -1;
-        result = true;
-    }
-#endif
-
-    _mmaped = false;
-    _dataAddr[POSITION_PAGE_TYPE] = reinterpret_cast<char*>(-1);
-    _dataAddr[COLOR_PAGE_TYPE] = reinterpret_cast<char*>(-1);
-    _dataAddr[NORMAL_PAGE_TYPE] = reinterpret_cast<char*>(-1);
-    _dataAddr[SHORTINDEX_PAGE_TYPE] = reinterpret_cast<char*>(-1);
-
-    return result;
+    closeMMap( &_mmapAddr );
+    _dataAddr[POSITION_PAGE_TYPE] = reinterpret_cast< char* >( -1 );
+    _dataAddr[COLOR_PAGE_TYPE] = reinterpret_cast< char* >( -1 );
+    _dataAddr[NORMAL_PAGE_TYPE] = reinterpret_cast< char* >( -1 );
+    _dataAddr[SHORTINDEX_PAGE_TYPE] = reinterpret_cast< char* >( -1 );
 }
 
 } // namespace triply

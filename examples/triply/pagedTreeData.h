@@ -31,6 +31,7 @@
 #define PLYLIB_PAGEDTREEDATA_H
 
 #include "typedefs.h"
+#include "mmap.h"
 
 #include <lunchbox/lock.h>
 #include <lunchbox/referenced.h>
@@ -185,8 +186,8 @@ private:
     bool getElems(std::size_t start, std::size_t count,
                   PageType pType, PagedBuffer< T >& vBuffer);
 
-    bool openMMap();
-    bool closeMMap();
+    bool openBinary();
+    void closeBinary();
 
     //  Helper function to read data from the MMF address
     template< typename T >
@@ -212,9 +213,6 @@ private:
     // Memory map
     char* _dataAddr[TOTAL_PAGE_TYPES];
     char* _mmapAddr;
-    std::size_t _mmapSize;
-    int _fd;
-    bool _mmaped;
     std::string _fName;
 
     // Multithreading and locking
@@ -225,8 +223,8 @@ template < typename T >
 inline bool PagedTreeData::getElems( std::size_t start, std::size_t count,
                                        PageType pType, PagedBuffer< T >& vBuffer )
 {
-    if( !_mmaped )
-        openMMap();
+    if( _mmapAddr == MMAP_BAD_ADDRESS )
+        openBinary();
     if( start + count > _totalElems[pType] )
         return false;
 
