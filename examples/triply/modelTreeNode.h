@@ -76,6 +76,11 @@ protected:
                               const Axis axis, const size_t depth,
                               ModelTreeData& treeData ) override;
 
+    virtual void setupMKDTree( VertexData& modelData,
+                              const Index start, const Index length,
+                              const Axis axis, const size_t depth,
+                              ModelTreeData& treeData ) override;
+
     virtual void setupZOctree( VertexData& modelData,
                                const std::vector< ZKeyIndexPair >& zKeys,
                                const ZKey beginKey, const ZKey endKey,

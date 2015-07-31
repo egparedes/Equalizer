@@ -111,40 +111,38 @@ bool PagedTreeData::verify(PageKey key, PageType pType)
     return result;
 }
 
-bool PagedTreeData::getVertices(std::size_t start, std::size_t count,
-                                          PagedBuffer< Vertex >& verticesVB)
+void PagedTreeData::getVertices( std::size_t start, std::size_t count,
+                                 PagedBuffer< Vertex >& verticesVB)
 {
-    return getElems< Vertex >(start, count, POSITION_PAGE_TYPE, verticesVB);
+    getElems< Vertex >( start, count, POSITION_PAGE_TYPE, verticesVB);
 }
 
-bool PagedTreeData::getColors(std::size_t start, std::size_t count,
-                                        PagedBuffer< Color >& colorsVB)
+void PagedTreeData::getColors( std::size_t start, std::size_t count,
+                               PagedBuffer< Color >& colorsVB)
 {
-    return getElems< Color >(start, count, COLOR_PAGE_TYPE, colorsVB);
+    getElems< Color >( start, count, COLOR_PAGE_TYPE, colorsVB);
 }
 
-bool PagedTreeData::getNormals(std::size_t start, std::size_t count,
-                                         PagedBuffer< Normal >& normalsVB)
+void PagedTreeData::getNormals( std::size_t start, std::size_t count,
+                                PagedBuffer< Normal >& normalsVB)
 {
-    return getElems< Normal >(start, count, NORMAL_PAGE_TYPE, normalsVB);
+    getElems< Normal >( start, count, NORMAL_PAGE_TYPE, normalsVB);
 }
 
-bool PagedTreeData::getVertexData(std::size_t start, std::size_t count,
-                                            bool useColors,
-                                            PagedBuffer< Vertex >& verticesVB,
-                                            PagedBuffer< Color >& colorsVB,
-                                            PagedBuffer< Normal >& normalsVB)
+void PagedTreeData::getVertexData( std::size_t start, std::size_t count,
+                                   bool useColors,
+                                   PagedBuffer< Vertex >& verticesVB,
+                                   PagedBuffer< Color >& colorsVB,
+                                   PagedBuffer< Normal >& normalsVB)
 {
-    if( !getVertices(start, count, verticesVB) || !getNormals(start, count, normalsVB))
-        return false;
-    else if( useColors)
-        return  getColors(start, count, colorsVB);
-    else
-        return true;
+    getElems< Vertex >( start, count, POSITION_PAGE_TYPE, verticesVB);
+    if( useColors)
+        getElems< Color >( start, count, COLOR_PAGE_TYPE, colorsVB);
+    getElems< Normal >( start, count, NORMAL_PAGE_TYPE, normalsVB);
 }
 
-bool PagedTreeData::getIndices(std::size_t start, std::size_t count,
-                                         PagedBuffer< ShortIndex >& indicesVB)
+void PagedTreeData::getIndices( std::size_t start, std::size_t count,
+                                PagedBuffer< ShortIndex >& indicesVB )
 {
     return getElems< ShortIndex >(start, count, SHORTINDEX_PAGE_TYPE, indicesVB);
 }
@@ -262,8 +260,6 @@ PagedTreeData::getPage(PageKey key, PageType pType)
         PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
         break;
     }
-    _disposablePages[pType].remove(key);
-    _activePages[pType][key]++;
 
     // Load page from mmap when needed
     if( loadFromDisk)
@@ -272,16 +268,28 @@ PagedTreeData::getPage(PageKey key, PageType pType)
         while (mapSize(pType) >= _maxPages)
         {
             std::list< PageKey >::iterator it = _disposablePages[pType].begin();
+#if 0
             while (_activePages[pType][*it] > 0 && it != _disposablePages[pType].end())
                 ++it;
             PLYLIBASSERT( it != _disposablePages[pType].end() );
             if( it != _disposablePages[pType].end())
+            {
                 freePage(*it, pType);
+                _disposablePages[pType].erase(it);
+            }
+#else
+            PLYLIBASSERT( !_disposablePages[pType].empty() );
+            PLYLIBASSERT( _activePages[pType][ _disposablePages[pType].front() ] == 0 );
+            freePage( _disposablePages[pType].front(), pType );
+            _disposablePages[pType].pop_front();
+#endif
         }
 
         PLYLIBASSERT( _mmapAddr != MMAP_BAD_ADDRESS );
         readData( getPageAddress(key, pType), pageData->data, getPageByteSize(key, pType) );
     }
+    _disposablePages[pType].remove(key);
+    _activePages[pType][key]++;
     _lock[pType].unset();
 
     return *pageData;

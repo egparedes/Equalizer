@@ -57,6 +57,13 @@ protected:
                               const size_t depth,
                               ModelTreeData& treeData ) override;
 
+    virtual void setupMKDTree( VertexData& modelData,
+                              const Index start,
+                              const Index length,
+                              const Axis axis,
+                              const size_t depth,
+                              ModelTreeData& treeData ) override;
+
     virtual void setupZOctree( VertexData& modelData,
                                const std::vector< ZKeyIndexPair >& zKeys,
                                const ZKey beginKey,
@@ -74,7 +81,8 @@ private:
     void renderDisplayList( TreeRenderState& state ) const;
     void renderBufferObject( TreeRenderState& state ) const;
 
-    void loadVirtualData(PagedTreeDataPtr virtualVBD, bool useColors) const;
+    bool isDataLoaded( ) const;
+    void loadVirtualData(PagedTreeDataPtr pagedVBD, bool useColors) const;
     void freeVirtualData() const;
 
     friend class ModelTreeDist;
@@ -91,7 +99,6 @@ private:
     mutable PagedColorBuffer          _colorsVB;
     mutable PagedNormalBuffer         _normalsVB;
     mutable PagedShortIndexBuffer     _indicesVB;
-    mutable bool                      _vDataLoaded;
 };
 
 } // namespace

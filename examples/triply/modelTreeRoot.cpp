@@ -43,7 +43,7 @@ namespace triply
 namespace detail
 {
 static const char* PartitionTags[] = { "kd", "z" };
-static unsigned PartitionArities[] = { 2, 8 };
+static unsigned PartitionArities[] = { 2, 8 }; //{ 2, 8 };
 
 bool isValidPartition( TreePartitionRule partition)
 {
@@ -186,6 +186,7 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
     _treeData.boundingBox = bbox; // _treeData.calculateBoundingBox();
 
     {
+        PLYLIBINFO << "Generating tree... " << std::endl;
         // For kd-tree
         const Axis axis = modelData.getLongestAxis( 0, modelData.triangles.size() );
 
@@ -206,7 +207,7 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
             modelData.sortZKeys( zKeys );
 
             ModelTreeNode::setupZOctree( modelData, zKeys,
-                                         ModelTreeBase::MinZKey, ModelTreeBase::MaxZKey,
+                                         ModelTreeBase::MinZKey, ModelTreeBase::MaxZKey + 1,
                                          (bbox[0] + bbox[1]) / 2.0, 0,
                                          _treeData );
             break;
@@ -216,15 +217,17 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
             return false;
         }
     }
-
+    
+    PLYLIBINFO << "Updating culling data... " << std::endl;
     ModelTreeNode::updateBoundingSphere();
     ModelTreeNode::updateRange();
 
+
+#if 0
     PLYLIBINFO << _treeData.boundingBox[0] << std::endl;
     PLYLIBINFO << _treeData.boundingBox[1] << std::endl;
     PLYLIBINFO << ModelTreeBase::_boundingSphere << std::endl;
-
-#if 0
+    
     // re-test all points to be in the bounding sphere
     Vertex center( _boundingSphere.array );
     float  radius        = _boundingSphere.w();
@@ -369,9 +372,6 @@ bool ModelTreeRoot::_constructFromPly( const std::string& filename )
         return false;
     }
 
-    PLYLIBWARN << "BBox[0] + " << data.getBoundingBox()[0] << std::endl;
-    PLYLIBWARN << "BBox[0] + " << data.getBoundingBox()[0] << std::endl;
-
     data.calculateNormals();
     data.scale( 2.0f );
 
@@ -409,7 +409,7 @@ bool ModelTreeRoot::_readBinary(std::string filename)
     }
     else
     {
-        PLYLIBERROR << "Unable to read binary file, memory mapping failed."
+        PLYLIBWARN << "Unable to read binary file, memory mapping failed."
                   << std::endl;
     }
 

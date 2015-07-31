@@ -133,10 +133,15 @@ typedef std::pair< ZKey, Index >    ZKeyIndexPair;
 
 struct ZKeyIndexPairLessCmpFunctor
 {
-   inline bool operator()( const ZKeyIndexPair& lhs, const ZKey& rhs ) const
-   {
+    inline bool operator()( const ZKeyIndexPair& lhs, const ZKeyIndexPair& rhs ) const
+    {
+        return lhs.first < rhs.first;
+    }
+
+    inline bool operator()( const ZKeyIndexPair& lhs, const ZKey& rhs ) const
+    {
        return lhs.first < rhs;
-   }
+    }
 };
 
 // Tree description

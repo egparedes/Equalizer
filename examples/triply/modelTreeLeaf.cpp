@@ -40,8 +40,7 @@ namespace triply
 
 ModelTreeLeaf::ModelTreeLeaf( ModelTreeData &treeData )
     : _treeData( treeData ),
-      _vertexStart( 0 ), _indexStart( 0 ), _indexLength( 0 ), _vertexLength( 0 ),
-      _vDataLoaded( false )
+      _vertexStart( 0 ), _indexStart( 0 ), _indexLength( 0 ), _vertexLength( 0 )
 {
 }
 
@@ -109,6 +108,22 @@ void ModelTreeLeaf::setupKDTree( VertexData& modelData,
 #endif
 }
 
+/*  Finish partial kd-tree setup - sort, reindex and merge into global data.  */
+void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
+                                  const Index start, const Index length,
+                                  const Axis axis, const size_t depth,
+                                  ModelTreeData& treeData )
+{
+    setupKDTree(modelData, start, length, axis, depth, treeData);
+
+//#ifndef NDEBUG
+//    PLYLIBINFO << "setupMKDTree" << "( " << _indexStart << ", " << _indexLength
+//             << "; start " << _vertexStart << ", " << _vertexLength
+//             << " vertices)." << std::endl;
+//#endif
+}
+
+
 /*  Finish partial octree setup - sort, reindex and merge into global data.  */
 void ModelTreeLeaf::setupZOctree( VertexData& modelData,
                                    const std::vector< ZKeyIndexPair >& zKeys,
@@ -127,18 +142,19 @@ void ModelTreeLeaf::setupZOctree( VertexData& modelData,
             std::lower_bound( zKeys.begin(), zKeys.end(), beginKey,
                               ZKeyIndexPairLessCmpFunctor());
     std::vector< ZKeyIndexPair >::const_iterator endIt =
-            std::lower_bound( zKeys.begin(), zKeys.end(), endKey,
+            std::lower_bound( beginIt, zKeys.end(), endKey,
                               ZKeyIndexPairLessCmpFunctor());
-    Index startIdx = std::distance( zKeys.begin(), beginIt );
-    Index length = std::distance( zKeys.begin(), endIt ) - startIdx;
+    Index start = std::distance( zKeys.begin(), beginIt );
+    Index length = std::distance( beginIt, endIt );
 
-    std::map< Index, ShortIndex > newIndex; // stores the new indices (relative to _start)
+    // stores the new indices (relative to start)
+    std::map< Index, ShortIndex > newIndex;
 
     for( Index t = 0; t < length; ++t )
     {
         for( Index v = 0; v < 3; ++v )
         {
-            Index i = modelData.triangles[ zKeys[ startIdx + t].second ][v];
+            Index i = modelData.triangles[ zKeys[start + t].second ][v];
             if( newIndex.find( i ) == newIndex.end() )
             {
                 newIndex[i] = _vertexLength++;
@@ -384,7 +400,7 @@ void ModelTreeLeaf::draw( TreeRenderState& state ) const
     if( state.stopRendering( ) )
         return;
 
-    if( state.useOutOfCore() && !_vDataLoaded )
+    if( state.useOutOfCore() && !isDataLoaded() )
         loadVirtualData( state.getVirtualVBD(), state.useColors() );
     state.updateRegion( _boundingBox );
     switch( state.getRenderMode() )
@@ -520,39 +536,36 @@ void ModelTreeLeaf::toStream( std::ostream& os )
     os.write( reinterpret_cast< char* >( &_indexLength ), sizeof( Index ));
 }
 
-void ModelTreeLeaf::loadVirtualData(PagedTreeDataPtr virtualVBD, bool useColors) const
+bool ModelTreeLeaf::isDataLoaded( ) const
 {
-    if( _vDataLoaded )
-        return;
-    PLYLIBASSERT( virtualVBD != 0 );
+    return _verticesVB.isValid() && _colorsVB.isValid() && _normalsVB.isValid();
+}
 
-//    _vDataLoaded = virtualVBD->getVertexData(_vertexStart, _vertexLength, useColors,
-//                                             _verticesVB, _colorsVB, _normalsVB);
+void ModelTreeLeaf::loadVirtualData(PagedTreeDataPtr pagedVBD, bool useColors) const
+{
+    if( isDataLoaded() )
+        return;
+    PLYLIBASSERT( pagedVBD != 0 );
+
+//    pagedVBD->getVertexData( _vertexStart, _vertexLength, useColors,
+//                             _verticesVB, _colorsVB, _normalsVB );
+    
     if (!_verticesVB.isValid())
-        _vDataLoaded = virtualVBD->getVertices(_vertexStart, _vertexLength, _verticesVB);
-    PLYLIBASSERT( _vDataLoaded );
+        pagedVBD->getVertices(_vertexStart, _vertexLength, _verticesVB );
     if (useColors && !_colorsVB.isValid())
-        _vDataLoaded = virtualVBD->getColors(_vertexStart, _vertexLength, _colorsVB);
-    PLYLIBASSERT( _vDataLoaded );
+        pagedVBD->getColors(_vertexStart, _vertexLength, _colorsVB );
     if (!_normalsVB.isValid())
-        _vDataLoaded = virtualVBD->getNormals(_vertexStart, _vertexLength, _normalsVB);
-    PLYLIBASSERT( _vDataLoaded );
+        pagedVBD->getNormals(_vertexStart, _vertexLength, _normalsVB );
     if (!_indicesVB.isValid())
-        _vDataLoaded = virtualVBD->getIndices(_indexStart, _indexLength, _indicesVB);
-    PLYLIBASSERT( _vDataLoaded );
+        pagedVBD->getIndices(_indexStart, _indexLength, _indicesVB );
 }
 
 void ModelTreeLeaf::freeVirtualData() const
 {
-    if( !_vDataLoaded )
-        return;
-
     _verticesVB.discard();
     _colorsVB.discard();
     _normalsVB.discard();
     _indicesVB.discard();
-
-    _vDataLoaded = false;
 }
 
 }

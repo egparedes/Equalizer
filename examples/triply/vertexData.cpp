@@ -40,7 +40,8 @@ using __gnu_parallel::sort;
 using std::sort;
 #endif
 
-using namespace triply;
+namespace triply
+{
 
 namespace detail
 {
@@ -85,82 +86,6 @@ namespace detail
 
         return key;
     }
-
-    inline static void insertionSort(ZKeyIndexPair *pairs, std::size_t size)
-    {
-        unsigned i, j;
-        ZKeyIndexPair k;
-        for( i=0; i != size; i++, pairs[j]=k)
-        {
-            for( j=i, k=pairs[j]; j && k.first < pairs[j-1].first; j--)
-            {
-                pairs[j] = pairs[j-1];
-            }
-        }
-    }
-
-    template <std::size_t RadixMinSize=32>
-    static void inplaceRadixSort(ZKeyIndexPair* pairs, std::size_t size, unsigned char byte)
-    {
-        using std::swap;
-
-        if( size < RadixMinSize )
-        {
-            insertionSort(pairs, size);
-        }
-        else
-        {
-            unsigned i, k, end;
-            ZKeyIndexPair j;
-
-            unsigned count[256] = {};
-            for( i=0; i < size; ++i )
-            {
-                count[getByte(pairs[i].first, byte)]++;
-            }
-
-            unsigned bucket[256];
-            bucket[0] = 0;
-            for( i=1; i < 256; i++ )
-            {
-                bucket[i] = bucket[i-1] + count[i-1];
-            }
-
-            for( i=0; i < 256; i++ )
-            {
-                end = (i>0?bucket[i-1]:0) + count[i];
-                for( ; bucket[i] < end; bucket[i]++ )
-                {
-                    j = pairs[bucket[i]];
-                    while( (k=getByte(j.first, byte))!=i )
-                    {
-                        unsigned xx = bucket[k];
-                        bucket[k]++;
-                        swap(j, pairs[xx]);
-                    }
-                    pairs[bucket[i]] = j;
-                }
-            }
-
-            if( byte-- > 0 )
-            {
-                for( i=0; i<256; i++ )
-                {
-                    if( count[i]>0 )
-                    {
-                        inplaceRadixSort(pairs + bucket[i]-count[i], count[i], byte);
-                    }
-                }
-            }
-        }
-    }
-
-    template <std::size_t RadixMinSize=32>
-    inline static void sortZKeyIndexPairs( std::vector< ZKeyIndexPair >& pairs )
-    {
-        inplaceRadixSort( pairs.data(), pairs.size(), ZKEY_BIT_SIZE );
-    }
-
 } // namespace detail
 
 /*  Contructor.  */
@@ -571,5 +496,7 @@ void VertexData::genZKeys( std::vector< ZKeyIndexPair >& zKeys, unsigned maxLeve
 
 void VertexData::sortZKeys( std::vector< ZKeyIndexPair >& zKeys )
 {
-    detail::sortZKeyIndexPairs( zKeys );
+    ::sort( zKeys.begin(), zKeys.end(), ZKeyIndexPairLessCmpFunctor() );
 }
+
+} // namespace triply

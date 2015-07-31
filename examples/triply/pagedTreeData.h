@@ -150,21 +150,21 @@ public:
     std::size_t getPageSize() const { return _pageSize; }
     std::size_t getMaxPages() const { return _maxPages; }
 
-    bool getVertices( std::size_t start, std::size_t count,
+    void getVertices( std::size_t start, std::size_t count,
                       PagedBuffer< Vertex >& verticesVB );
 
-    bool getColors( std::size_t start, std::size_t count,
+    void getColors( std::size_t start, std::size_t count,
                     PagedBuffer< Color >& colorsVB );
 
-    bool getNormals( std::size_t start, std::size_t count,
+    void getNormals( std::size_t start, std::size_t count,
                      PagedBuffer< Normal >& normalsVB );
 
-    bool getVertexData( std::size_t start, std::size_t count, bool useColors,
+    void getVertexData( std::size_t start, std::size_t count, bool useColors,
                         PagedBuffer< Vertex >& verticesVB,
                         PagedBuffer< Color >& colorsVB,
                         PagedBuffer< Normal >& normalsVB );
 
-    bool getIndices( std::size_t start, std::size_t count,
+    void getIndices( std::size_t start, std::size_t count,
                      PagedBuffer< ShortIndex >& indicesVB );
 
 
@@ -183,7 +183,7 @@ private:
 
     //  Helper function to get real elements from the data pages
     template < typename T >
-    bool getElems(std::size_t start, std::size_t count,
+    void getElems(std::size_t start, std::size_t count,
                   PageType pType, PagedBuffer< T >& vBuffer);
 
     bool openBinary();
@@ -220,13 +220,16 @@ private:
 };
 
 template < typename T >
-inline bool PagedTreeData::getElems( std::size_t start, std::size_t count,
-                                       PageType pType, PagedBuffer< T >& vBuffer )
+inline void PagedTreeData::getElems( std::size_t start, std::size_t count,
+                                     PageType pType, PagedBuffer< T >& vBuffer )
 {
     if( _mmapAddr == MMAP_BAD_ADDRESS )
         openBinary();
-    if( start + count > _totalElems[pType] )
-        return false;
+    PLYLIBASSERT( start + count <= _totalElems[pType] );
+//    PLYLIBERROR << "start = " << start << std::endl;
+//    PLYLIBERROR << "count = " << count << std::endl;
+//    PLYLIBERROR << "_totalElems[pType] = " << _totalElems[pType] << std::endl;
+//    PLYLIBERROR << "pType = " << int(pType) << std::endl;
 
     PageKey key = start / _pageSize;
     std::size_t offset = start % _pageSize;
@@ -245,8 +248,6 @@ inline bool PagedTreeData::getElems( std::size_t start, std::size_t count,
     }
     vBuffer._virtualTreeData = this;
     vBuffer._valid = true;
-
-    return true;
 }
 
 template< typename T >

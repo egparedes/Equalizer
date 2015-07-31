@@ -160,7 +160,7 @@ void ModelTreeNode::setupKDTree( VertexData& modelData,
 #endif
 
     modelData.sort( start, length, axis );
-    const Index median = start + ( length / 2 );
+    const Index median = start + ( length / 2 );    
 
     // left child will include elements smaller than the median
     const Index leftLength    = length / 2;
@@ -193,7 +193,45 @@ void ModelTreeNode::setupKDTree( VertexData& modelData,
     static_cast< ModelTreeNode* >
         ( _children[ ModelTreeBase::RightChildId ] )->setupKDTree( modelData, median, rightLength, newAxisRight, depth+1,
                                treeData );
+}
 
+/*  Continue kd-tree setup, create intermediary or leaf nodes as required.  */
+void ModelTreeNode::setupMKDTree( VertexData& modelData,
+                                  const Index start, const Index length,
+                                  const Axis axis, const size_t depth,
+                                  ModelTreeData& treeData )
+{
+#ifndef NDEBUG
+    PLYLIBINFO << "setupMKDTree - " << _arity << " "
+             << "( " << start << ", " << length << ", " << axis << ", "
+             << depth << " )." << std::endl;
+#endif
+
+    modelData.sort( start, length, axis );
+    const Index childStep = length / _arity;
+
+    for( unsigned i=0; i < _arity; ++i )
+    {
+        const Index childStart = start + ( i * childStep );
+        const Index childLength = (i + 1 < _arity) ? childStep : length - ( i * childStep );
+        const bool  subdivideChild = _subdivide( childLength, depth );
+
+        Axis newAxisChild = AXIS_X;
+        if( subdivideChild )
+        {
+            _children[ i ] =  new ModelTreeNode( _arity );
+            // move to next axis and continue contruction in the child nodes
+            newAxisChild = modelData.getLongestAxis( childStart, childLength );
+        }
+        else
+        {
+            _children[ i ] =  new ModelTreeLeaf( treeData );
+        }
+
+        static_cast< ModelTreeNode* >
+            ( _children[ i ] )->setupMKDTree( modelData, childStart, childLength,
+                                              newAxisChild, depth+1, treeData );
+    }
 }
 
 /*  Continue z-octree setup, create intermediary or leaf nodes as required.  */
@@ -247,7 +285,8 @@ void ModelTreeNode::setupZOctree( VertexData& modelData,
         childBeginIt = childEndIt;
     }
 
-    PLYLIBASSERT( beginKey == beginKey );
+    PLYLIBASSERT( currentKey == endKey);
+    currentKey = endKey; // Compilation trick
 }
 
 /*  Compute the bounding sphere from the children's bounding spheres.  */

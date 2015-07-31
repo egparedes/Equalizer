@@ -98,6 +98,13 @@ protected:
                               const size_t depth,
                               ModelTreeData& treeData ) = 0;
 
+    virtual void setupMKDTree( VertexData& modelData,
+                              const Index start,
+                              const Index length,
+                              const Axis axis,
+                              const size_t depth,
+                              ModelTreeData& treeData ) = 0;
+
     virtual void setupZOctree( VertexData& modelData,
                                const std::vector< ZKeyIndexPair >& zKeys,
                                const ZKey beginKey,
