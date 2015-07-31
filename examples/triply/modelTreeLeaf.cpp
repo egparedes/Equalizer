@@ -51,6 +51,15 @@ ModelTreeLeaf::~ModelTreeLeaf()
 /*  Finish partial kd-tree setup - sort, reindex and merge into global data.  */
 void ModelTreeLeaf::setupKDTree( VertexData& modelData,
                                   const Index start, const Index length,
+                                  const Axis axis, const size_t depth,
+                                  ModelTreeData& treeData )
+{
+    setupMKDTree(modelData, start, length, axis, depth, treeData);
+}
+
+/*  Finish partial multiway kd-tree setup - sort, reindex and merge into global data.  */
+void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
+                                  const Index start, const Index length,
                                   const Axis axis, const size_t /*depth*/,
                                   ModelTreeData& treeData )
 {
@@ -83,46 +92,12 @@ void ModelTreeLeaf::setupKDTree( VertexData& modelData,
         }
     }
 
-    // Initialize leaf bounding box using the vertices inside the leaf node
-    _boundingBox[0] = treeData.vertices[ _vertexStart +
-                                         treeData.indices[_indexStart] ];
-    _boundingBox[1] = treeData.vertices[ _vertexStart +
-                                         treeData.indices[_indexStart] ];
-
-    for( Index i = 1 + _indexStart; i < _indexStart + _indexLength; ++i )
-    {
-        const Vertex& vertex = treeData.vertices[ _vertexStart +
-                                                  treeData.indices[ i ] ];
-        _boundingBox[0][0] = std::min( _boundingBox[0][0], vertex[0] );
-        _boundingBox[1][0] = std::max( _boundingBox[1][0], vertex[0] );
-        _boundingBox[0][1] = std::min( _boundingBox[0][1], vertex[1] );
-        _boundingBox[1][1] = std::max( _boundingBox[1][1], vertex[1] );
-        _boundingBox[0][2] = std::min( _boundingBox[0][2], vertex[2] );
-        _boundingBox[1][2] = std::max( _boundingBox[1][2], vertex[2] );
-    }
-
 #ifndef NDEBUG
     PLYLIBINFO << "setupKDTree" << "( " << _indexStart << ", " << _indexLength
              << "; start " << _vertexStart << ", " << _vertexLength
              << " vertices)." << std::endl;
 #endif
 }
-
-/*  Finish partial kd-tree setup - sort, reindex and merge into global data.  */
-void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
-                                  const Index start, const Index length,
-                                  const Axis axis, const size_t depth,
-                                  ModelTreeData& treeData )
-{
-    setupKDTree(modelData, start, length, axis, depth, treeData);
-
-//#ifndef NDEBUG
-//    PLYLIBINFO << "setupMKDTree" << "( " << _indexStart << ", " << _indexLength
-//             << "; start " << _vertexStart << ", " << _vertexLength
-//             << " vertices)." << std::endl;
-//#endif
-}
-
 
 /*  Finish partial octree setup - sort, reindex and merge into global data.  */
 void ModelTreeLeaf::setupZOctree( VertexData& modelData,
@@ -170,10 +145,10 @@ void ModelTreeLeaf::setupZOctree( VertexData& modelData,
         }
     }
 
-    // Initialize and compute leaf bounding box
-    _boundingBox[0] = center - halfCellSize;
-    _boundingBox[1] = center + halfCellSize;
-
+     // Initialize and compute leaf bounding box
+     _boundingBox[0] = center - halfCellSize;
+     _boundingBox[1] = center + halfCellSize;
+     
 #ifndef NDEBUG
     PLYLIBINFO << "setupZOctree" << "( " << _indexStart << ", " << _indexLength
              << " / start " << _vertexStart << ", " << _vertexLength
@@ -184,12 +159,27 @@ void ModelTreeLeaf::setupZOctree( VertexData& modelData,
 /*  Compute the bounding sphere of the leaf's indexed vertices.  */
 const BoundingSphere& ModelTreeLeaf::updateBoundingSphere()
 {
+    // Initialize leaf bounding box using the vertices inside the leaf node
+    _boundingBox[0] = _treeData.vertices[ _vertexStart ];
+    _boundingBox[1] = _treeData.vertices[ _vertexStart ];
+
+    for( Index i = 1; i < _vertexLength; ++i )
+    {
+        const Vertex& vertex = _treeData.vertices[ _vertexStart + i ];
+        _boundingBox[0][0] = LB_MIN( _boundingBox[0][0], vertex[0] );
+        _boundingBox[1][0] = LB_MAX( _boundingBox[1][0], vertex[0] );
+        _boundingBox[0][1] = LB_MIN( _boundingBox[0][1], vertex[1] );
+        _boundingBox[1][1] = LB_MAX( _boundingBox[1][1], vertex[1] );
+        _boundingBox[0][2] = LB_MIN( _boundingBox[0][2], vertex[2] );
+        _boundingBox[1][2] = LB_MAX( _boundingBox[1][2], vertex[2] );
+    }
+
     // We determine a bounding sphere by:
     // 1) Using the inner sphere of the leaf cell bounding box as an estimate
     // 2) Test all points to be in that sphere
     // 3) Expand the sphere to contain all points outside.
 
-    // 1) get inner sphere of bounding box as an initial estimate
+    // 1) get inner sphere of bounding box as an initial estimate      
     _boundingSphere.x() = ( _boundingBox[0].x() + _boundingBox[1].x() ) * 0.5f;
     _boundingSphere.y() = ( _boundingBox[0].y() + _boundingBox[1].y() ) * 0.5f;
     _boundingSphere.z() = ( _boundingBox[0].z() + _boundingBox[1].z() ) * 0.5f;
@@ -199,45 +189,41 @@ const BoundingSphere& ModelTreeLeaf::updateBoundingSphere()
     _boundingSphere.w()  = LB_MAX( _boundingBox[1].z() - _boundingBox[0].z(),
                                    _boundingSphere.w() );
     _boundingSphere.w() *= 0.5f;
-
+    
     float  radius        = _boundingSphere.w();
     float  radiusSquared =  radius * radius;
     Vertex center( _boundingSphere.array );
 
     // 2) test all points to be in the estimated bounding sphere
-    for( Index offset = 0; offset < _indexLength; ++offset )
+    for( Index offset = 0; offset < _vertexLength; ++offset )
     {
-        const Vertex& vertex =
-            _treeData.vertices[ _vertexStart +
-                                _treeData.indices[_indexStart + offset] ];
-
+        const Vertex& vertex = _treeData.vertices[ _vertexStart + offset ];
         const Vertex centerToPoint   = vertex - center;
         const float  distanceSquared = centerToPoint.squared_length();
-        if( distanceSquared <= radiusSquared ) // point is inside existing BS
-            continue;
 
-        // 3) expand sphere to contain 'outside' points
-        const float distance = sqrtf( distanceSquared );
-        const float delta    = distance - radius;
+        if( distanceSquared > radiusSquared ) 
+        {
+            // 3) expand sphere to contain 'outside' points
+            const float distance = sqrtf( distanceSquared );
+            const float delta    = distance - radius;
 
-        radius        = ( radius + distance ) * .5f;
-        radiusSquared = radius * radius;
-        const Vertex normDelta = normalize( centerToPoint ) * ( 0.5f * delta );
-        center       += normDelta;
+            radius        = ( radius + distance ) * .5f;
+            radiusSquared = radius * radius;
+            const Vertex normDelta = normalize( centerToPoint ) * ( 0.5f * delta );
+            center       += normDelta;
 
-        LBASSERTINFO( Vertex( vertex-center ).squared_length() <=
-                ( radiusSquared + 2.f * std::numeric_limits<float>::epsilon( )),
-                      vertex << " c " << center << " r " << radius << " ("
-                             << Vertex( vertex-center ).length() << ")" );
+            LBASSERTINFO( Vertex( vertex-center ).squared_length() <=
+                    ( radiusSquared + 2.f * std::numeric_limits<float>::epsilon( )),
+                        vertex << " c " << center << " r " << radius << " ("
+                                << Vertex( vertex-center ).length() << ")" );
+        }
     }
 
 #ifndef NDEBUG
     // 2a) re-test all points to be in the estimated bounding sphere
-    for( Index offset = 0; offset < _indexLength; ++offset )
+    for( Index offset = 0; offset < _vertexLength; ++offset )
     {
-        const Vertex& vertex =
-            _treeData.vertices[ _vertexStart +
-                                  _treeData.indices[_indexStart + offset] ];
+        const Vertex& vertex = _treeData.vertices[ _vertexStart + offset];
 
         const Vertex centerToPoint   = vertex - center;
         const float  distanceSquared = centerToPoint.squared_length();

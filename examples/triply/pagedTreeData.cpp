@@ -97,7 +97,7 @@ void PagedTreeData::discard(PageKey key, PageType pType)
      PLYLIBASSERT( _activePages[pType][key] > 0 );
     _activePages[pType][key]--;
     if( _activePages[pType][key] == 0)
-        _disposablePages[pType].push_back(key);
+        _disposablePages[pType].insert(key);
     _lock[pType].unset();
 }
 
@@ -267,8 +267,8 @@ PagedTreeData::getPage(PageKey key, PageType pType)
         // Remove some disposable pages from the map when needed
         while (mapSize(pType) >= _maxPages)
         {
-            std::list< PageKey >::iterator it = _disposablePages[pType].begin();
 #if 0
+            std::list< PageKey >::iterator it = _disposablePages[pType].begin();
             while (_activePages[pType][*it] > 0 && it != _disposablePages[pType].end())
                 ++it;
             PLYLIBASSERT( it != _disposablePages[pType].end() );
@@ -279,16 +279,16 @@ PagedTreeData::getPage(PageKey key, PageType pType)
             }
 #else
             PLYLIBASSERT( !_disposablePages[pType].empty() );
-            PLYLIBASSERT( _activePages[pType][ _disposablePages[pType].front() ] == 0 );
-            freePage( _disposablePages[pType].front(), pType );
-            _disposablePages[pType].pop_front();
+            PLYLIBASSERT( _activePages[pType][ *(_disposablePages[pType].begin()) ] == 0 );
+            freePage( *(_disposablePages[pType].begin()), pType );
+            _disposablePages[pType].erase( _disposablePages[pType].begin() );
 #endif
         }
 
         PLYLIBASSERT( _mmapAddr != MMAP_BAD_ADDRESS );
         readData( getPageAddress(key, pType), pageData->data, getPageByteSize(key, pType) );
     }
-    _disposablePages[pType].remove(key);
+    _disposablePages[pType].erase( key );
     _activePages[pType][key]++;
     _lock[pType].unset();
 
@@ -301,7 +301,7 @@ void PagedTreeData::freePage( PageKey key, PageType pType )
     PLYLIBASSERT( !mapHasKey(key, pType) );
     PLYLIBASSERT( _activePages[pType][key] <= 0 );
 
-    _disposablePages[pType].remove( key );
+    _disposablePages[pType].erase( key );
     mapEraseKey( key, pType );
 }
 

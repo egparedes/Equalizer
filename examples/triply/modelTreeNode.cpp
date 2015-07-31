@@ -307,12 +307,14 @@ const BoundingSphere& ModelTreeNode::updateBoundingSphere()
             {
                 const BoundingSphere& sphere0 = _boundingSphere;
                 const BoundingSphere& sphere1 = _children[i]->updateBoundingSphere();
+
                 Vertex center0( sphere0.array );
                 Vertex center1( sphere1.array );
                 Vertex diff = center1 - center0;
 
-                float diffLength = diff.length();
-                if( std::fabs((sphere1.w() - sphere0.w()) >= diffLength ) )
+                float diffLength = diff.length();    
+                float radiusDiff = std::fabs(sphere1.w() - sphere0.w());
+                if( radiusDiff >= diffLength )
                 {
                     // One sphere is fully included in the other
                     //
@@ -339,7 +341,6 @@ const BoundingSphere& ModelTreeNode::updateBoundingSphere()
             }
         }
     }
-
 
 #ifndef NDEBUG
     PLYLIBINFO << "updateBoundingSphere" << "( " << _boundingSphere << " )."

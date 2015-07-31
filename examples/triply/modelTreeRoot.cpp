@@ -197,7 +197,7 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
         {
         case KDTREE_PARTITION:
             //  Begin kd-tree setup, go through full range starting with x axis.
-            ModelTreeNode::setupKDTree( modelData, 0, modelData.triangles.size(),
+            ModelTreeNode::setupMKDTree( modelData, 0, modelData.triangles.size(),
                                         axis, 0, _treeData );
             break;
 

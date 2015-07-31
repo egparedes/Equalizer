@@ -208,7 +208,7 @@ private:
     std::map< PageKey, PageData< Normal > > _nPages;
     std::map< PageKey, PageData< ShortIndex > > _idxPages;
     std::map< PageKey, std::size_t > _activePages[TOTAL_PAGE_TYPES];
-    std::list< PageKey > _disposablePages[TOTAL_PAGE_TYPES];
+    std::set< PageKey > _disposablePages[TOTAL_PAGE_TYPES];
 
     // Memory map
     char* _dataAddr[TOTAL_PAGE_TYPES];
@@ -225,11 +225,8 @@ inline void PagedTreeData::getElems( std::size_t start, std::size_t count,
 {
     if( _mmapAddr == MMAP_BAD_ADDRESS )
         openBinary();
+
     PLYLIBASSERT( start + count <= _totalElems[pType] );
-//    PLYLIBERROR << "start = " << start << std::endl;
-//    PLYLIBERROR << "count = " << count << std::endl;
-//    PLYLIBERROR << "_totalElems[pType] = " << _totalElems[pType] << std::endl;
-//    PLYLIBERROR << "pType = " << int(pType) << std::endl;
 
     PageKey key = start / _pageSize;
     std::size_t offset = start % _pageSize;
