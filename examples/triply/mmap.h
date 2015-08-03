@@ -1,6 +1,6 @@
 
 /* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
- *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+ *               2009-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,45 +28,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PLYLIB_VERTEXBUFFERNODE_H
-#define PLYLIB_VERTEXBUFFERNODE_H
 
-#include "api.h"
-#include "vertexBufferBase.h"
+#ifndef PLYLIB_MMAP_H
+#define PLYLIB_MMAP_H
+
+#include <string>
 
 namespace triply
 {
-/* The class for regular (non-leaf) kd-tree nodes.  */
-class VertexBufferNode : public VertexBufferBase
-{
-public:
-    VertexBufferNode() : _left( 0 ), _right( 0 ) {}
-    PLYLIB_API virtual ~VertexBufferNode();
+#ifdef WIN32
+    static const char* MMAP_BAD_ADDRESS = 0;
+#else
+#   include <sys/mman.h>
+    static const char* MMAP_BAD_ADDRESS = static_cast< char* >( MAP_FAILED );
+#endif
 
-    PLYLIB_API void draw( VertexBufferState& state ) const override;
-    Index getNumberOfVertices() const override
-        { return _left->getNumberOfVertices()+_right->getNumberOfVertices(); }
+    bool openMMap( std::string filename, char** mmapAddrPtr );
 
-    const VertexBufferBase* getLeft() const override { return _left; }
-    const VertexBufferBase* getRight() const override { return _right; }
-    VertexBufferBase* getLeft() override { return _left; }
-    VertexBufferBase* getRight() override { return _right; }
+    void closeMMap( char** mmapAddrPtr );
 
-protected:
-    PLYLIB_API void toStream( std::ostream& os ) override;
-    PLYLIB_API void fromMemory( char** addr, VertexBufferData& globalData ) override;
+} //namespace triply
 
-    PLYLIB_API void setupTree( VertexData& data, const Index start,
-                               const Index length, const Axis axis,
-                               const size_t depth,
-                               VertexBufferData& globalData ) override;
-    PLYLIB_API const BoundingSphere& updateBoundingSphere() override;
-    PLYLIB_API void updateRange() override;
+#endif // PLYLIB_MMAP_H
 
-private:
-    friend class VertexBufferDist;
-    VertexBufferBase*   _left;
-    VertexBufferBase*   _right;
-};
-}
-#endif // PLYLIB_VERTEXBUFFERNODE_H

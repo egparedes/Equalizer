@@ -33,7 +33,7 @@
 
 namespace eqPly
 {
-    class VertexBufferState;
+    class TreeRenderState;
 
     /**
      * A window represent an OpenGL drawable and context
@@ -49,7 +49,7 @@ namespace eqPly
                 : eq::Window( parent ), _state( 0 ), _logoTexture( 0 ) {}
 
         const eq::util::Texture* getLogoTexture() const { return _logoTexture; }
-        VertexBufferState& getState() { return *_state; }
+        TreeRenderState& getState() { return *_state; }
         
     protected:
         virtual ~Window() {}
@@ -60,7 +60,7 @@ namespace eqPly
                                  const uint32_t frameNumber );
 
     private:
-        VertexBufferState* _state;
+        TreeRenderState* _state;
         eq::util::Texture* _logoTexture;
 
         void _loadLogo();

@@ -63,6 +63,9 @@
 #  define PLYLIBINFO    std::cout
 #endif
 
+#define NUM_ELEMS( a ) (sizeof( a ) / sizeof( a[ 0 ] ))
+
+#include <cstdint>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -70,15 +73,13 @@
 namespace triply
 {
 // class forward declarations
-class VertexBufferBase;
-class VertexBufferData;
-class VertexBufferNode;
-class VertexBufferRoot;
-class VertexBufferState;
+class ModelTreeBase;
+class ModelTreeData;
+class ModelTreeNode;
+class ModelTreeRoot;
+class TreeRenderState;
 class VertexData;
-class VirtualVertexBufferData;
-
-typedef VirtualVertexBufferData* VirtualVertexBufferDataPtr;
+class PagedTreeData;
 
 // basic type definitions
 typedef vmml::vector< 3, float >      Vertex;
@@ -89,6 +90,7 @@ typedef vmml::vector< 4, float >      Vector4f;
 typedef size_t                        Index;
 typedef GLushort                      ShortIndex;
 typedef std::size_t                   PageKey;
+typedef std::uint64_t                 ZKey;
 
 // mesh exception
 struct MeshException : public std::exception
@@ -127,6 +129,30 @@ typedef vmml::vector< 3, Index >    Triangle;
 typedef ArrayWrapper< Vertex, 2 >   BoundingBox;
 typedef vmml::vector< 4, float >    BoundingSphere;
 typedef ArrayWrapper< float, 2 >    Range;
+typedef std::pair< ZKey, Index >    ZKeyIndexPair;
+
+struct ZKeyIndexPairLessCmpFunctor
+{
+    inline bool operator()( const ZKeyIndexPair& lhs, const ZKeyIndexPair& rhs ) const
+    {
+        return lhs.first < rhs.first;
+    }
+
+    inline bool operator()( const ZKeyIndexPair& lhs, const ZKey& rhs ) const
+    {
+       return lhs.first < rhs;
+    }
+};
+
+// Tree description
+enum TreePartitionRule
+{
+    KDTREE_PARTITION = 0,
+    OCTREE_PARTITION = 1,
+};
+
+
+const unsigned short    ZKEY_BIT_SIZE( 3 * ( 8*sizeof( ZKey ) / 3 ) );
 
 // maximum triangle count per leaf node (keep in mind that the number of
 // different vertices per leaf must stay below ShortIndex range; usually
@@ -134,8 +160,7 @@ typedef ArrayWrapper< float, 2 >    Range;
 const Index             LEAF_SIZE( 21845 );
 
 // binary mesh file version, increment if changing the file format
-//const unsigned short    FILE_VERSION( 0x0118 );
-const unsigned short    FILE_VERSION( 0x0119 );
+const unsigned short    FILE_VERSION( 0x011A );
 
 // enumeration for the sort axis
 enum Axis
@@ -202,7 +227,42 @@ inline void memRead( char* destination, char** source, size_t length )
     memcpy( destination, *source, length );
     *source += length;
 }
+
+template <typename IntT>
+inline unsigned int getByte(IntT word, unsigned char byte)
+{
+    return ((word >> (byte * 8)) & 0xFF);
 }
+
+/*  Determine whether the current architecture is little endian or not.  */
+inline bool isArchitectureLittleEndian()
+{
+    unsigned char test[2] = { 1, 0 };
+    short* x = reinterpret_cast< short* >( test );
+    return ( *x == 1 );
+}
+
+/*  Determine number of bits used by the current architecture.  */
+inline size_t getArchitectureBits()
+{
+    return ( sizeof( void* ) * 8 );
+}
+
+/*  Construct architecture dependent file name.  */
+inline std::string getArchitectureFilename( const std::string& filename,
+                                            const std::string& tag )
+{
+    std::ostringstream oss;
+    oss << filename;
+    if( tag.size() > 0 )
+        oss << "." << tag;
+    oss << ( isArchitectureLittleEndian() ? ".le" : ".be" ) << getArchitectureBits();
+    oss << ".bin";
+    return oss.str();
+}
+
+}
+
 
 #ifdef EQUALIZER
 namespace lunchbox

@@ -27,7 +27,7 @@
  */
 
 #include <eq/eq.h>
-#include <triply/vertexBufferRoot.h>
+#include <triply/modelTreeRoot.h>
 
 namespace
 {
@@ -48,8 +48,11 @@ static bool _isPlyfile( const std::string& filename )
 
 int main( const int argc, char** argv )
 {
+    triply::TreePartitionRule partition =
+            triply::ModelTreeRoot::makeTreePartitionRule( argv[1] );
+
     eq::Strings filenames;
-    for( int i=1; i < argc; ++i )
+    for( int i=2; i < argc; ++i )
         filenames.push_back( argv[i] );
 
     while( !filenames.empty( ))
@@ -59,10 +62,10 @@ int main( const int argc, char** argv )
 
         if( _isPlyfile( filename ))
         {
-            triply::VertexBufferRoot* model = new triply::VertexBufferRoot;
-            if( !model->readFromFile( filename.c_str( )))
-                LBWARN << "Can't load model: " << filename << std::endl;
-
+            triply::ModelTreeRoot* model = new triply::ModelTreeRoot;
+            if( !model->readFromFile( filename.c_str( ), partition, true ) )
+                LBWARN << "Can't generate model: " << filename << std::endl;
+            
             delete model;
         }
         else

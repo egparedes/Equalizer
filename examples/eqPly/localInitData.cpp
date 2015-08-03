@@ -51,6 +51,7 @@ LocalInitData::LocalInitData()
     , _maxFrames( 0xffffffffu )
     , _color( true )
     , _isResident( false )
+    , _treePartition("")
     , _createLongShowcase( false )
     , _showcaseDollyArgs( .0, .0, .0 )
     , _showcaseRadiusArgs( .0, .0, .0 )
@@ -69,6 +70,7 @@ LocalInitData& LocalInitData::operator = ( const LocalInitData& from )
     _filenames         = from._filenames;
     _pathInFilename    = from._pathInFilename;
     _pathOutFilename   = from._pathOutFilename;
+    _treePartition     = from._treePartition;
     _createLongShowcase   = from._createLongShowcase;
     _showcaseDollyArgs    = from._showcaseDollyArgs;
     _showcaseRadiusArgs   = from._showcaseRadiusArgs;
@@ -158,6 +160,9 @@ void LocalInitData::parseArguments( const int argc, char** argv )
         ( "disableROI,d",
           po::bool_switch(&userDefinedDisableROI)->default_value( false ),
           "Disable region of interest (ROI)" )
+        ( "treePartition,p",
+          po::value<std::string>(&_treePartition)->default_value( "kd" ),
+          "Tree partition strategy (kd|z)")
         ( "longShowcase,l", po::value<std::string>( &showcaseArgs )
                                 ->implicit_value("-0.1:0.0005:1.1/0.55:0.0001:0.7/0.0:0.0005:1.0"),
           "Create path in the model longest axis with the parameters dolly/radius/angle "

@@ -40,7 +40,53 @@ using __gnu_parallel::sort;
 using std::sort;
 #endif
 
-using namespace triply;
+namespace triply
+{
+
+namespace detail
+{
+    inline static ZKey genZCode( const Vertex& point, const BoundingBox& bbox,
+                                 unsigned maxLevel)
+    {
+        Vertex minPoint = bbox[0];
+        Vertex maxPoint = bbox[1];
+        ZKey key = 0;
+
+        for( int i=maxLevel; i >= 0; --i )
+        {
+          key <<= 3;
+          if( point[0] + point[0] > minPoint[0] + maxPoint[0] )
+          {
+            key |= 0x1;
+            minPoint[0] = (minPoint[0] + maxPoint[0]) * 0.5;
+          }
+          else
+          {
+            maxPoint[0] = (minPoint[0] + maxPoint[0]) * 0.5;
+          }
+          if( point[1] + point[1] > minPoint[1] + maxPoint[1] )
+          {
+            key |= 0x2;
+            minPoint[1] = (minPoint[1] + maxPoint[1]) * 0.5;
+          }
+          else
+          {
+            maxPoint[1] = (minPoint[1] + maxPoint[1]) * 0.5;
+          }
+          if( point[2] + point[2] > minPoint[2] + maxPoint[2] )
+          {
+            key |= 0x4;
+            minPoint[2] = (minPoint[2] + maxPoint[2]) * 0.5;
+          }
+          else
+          {
+            maxPoint[2] = (minPoint[2] + maxPoint[2]) * 0.5;
+          }
+        }
+
+        return key;
+    }
+} // namespace detail
 
 /*  Contructor.  */
 VertexData::VertexData()
@@ -424,3 +470,33 @@ void VertexData::sort( const Index start, const Index length, const Axis axis )
     ::sort( triangles.begin() + start, triangles.begin() + start + length,
             _TriangleSort( *this, axis ) );
 }
+
+
+void VertexData::genZKeys( std::vector< ZKeyIndexPair >& zKeys, unsigned maxLevel )
+{
+    // Compute Z-codes for triangles and sort them
+    if( _boundingBox[0].length() == 0.0f && _boundingBox[1].length() == 0.0f )
+        calculateBoundingBox();
+
+    PLYLIBASSERT(  _boundingBox[0] != _boundingBox[1] );
+
+    zKeys.resize( triangles.size() );
+
+#pragma omp parallel for
+    for( Index i=0; i < zKeys.size(); ++i )
+    {
+        // Compute Z-key of triangle centroid
+        zKeys[ i ].first = detail::genZCode( ( vertices[ triangles[i][0] ] +
+                                               vertices[ triangles[i][1] ] +
+                                               vertices[ triangles[i][2] ] ) / 3.0f,
+                                             _boundingBox, maxLevel );
+        zKeys[ i ].second = i;
+    }
+}
+
+void VertexData::sortZKeys( std::vector< ZKeyIndexPair >& zKeys )
+{
+    ::sort( zKeys.begin(), zKeys.end(), ZKeyIndexPairLessCmpFunctor() );
+}
+
+} // namespace triply

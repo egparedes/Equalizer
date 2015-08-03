@@ -29,8 +29,8 @@
 */
 
 
-#ifndef PLYLIB_VERTEXBUFFERBASE_H
-#define PLYLIB_VERTEXBUFFERBASE_H
+#ifndef PLYLIB_MODELTREEBASE_H
+#define PLYLIB_MODELTREEBASE_H
 
 #include "api.h"
 #include "typedefs.h"
@@ -38,35 +38,39 @@
 
 namespace eqPly
 {
-class VertexBufferDist;
+class ModelTreeDist;
 }
 
 namespace triply
 {
-/*  The abstract base class for all kinds of kd-tree nodes.  */
-class VertexBufferBase
+/*  The abstract base class for all kinds of tree nodes.  */
+class ModelTreeBase
 {
 public:
-    virtual ~VertexBufferBase() {};
+    static const unsigned LeftChildId;
+    static const unsigned RightChildId;
+    static const unsigned MaxZLevel;
+    static const ZKey MinZKey;
+    static const ZKey MaxZKey;
 
-    PLYLIB_API virtual void draw( VertexBufferState& state ) const = 0;
-    PLYLIB_API void drawBoundingSphere( VertexBufferState& state ) const;
+    virtual ~ModelTreeBase() { }
+
+    PLYLIB_API virtual void draw( TreeRenderState& state ) const = 0;
+    PLYLIB_API void drawBoundingSphere(TreeRenderState &state ) const;
     PLYLIB_API virtual Index getNumberOfVertices() const = 0;
 
-    const BoundingSphere& getBoundingSphere() const
-    { return _boundingSphere; }
+    const BoundingSphere& getBoundingSphere() const { return _boundingSphere; }
 
     const float* getRange() const { return &_range[0]; }
 
-    virtual const VertexBufferBase* getLeft() const { return 0; }
-    virtual const VertexBufferBase* getRight() const { return 0; }
-    virtual VertexBufferBase* getLeft() { return 0; }
-    virtual VertexBufferBase* getRight() { return 0; }
+    virtual const ModelTreeBase* getChild( unsigned char /*childId*/ ) const { return 0; }
+    virtual ModelTreeBase* getChild( unsigned char /*childId*/ ) { return 0; }
 
-    PLYLIB_API virtual const BoundingSphere& updateBoundingSphere() = 0;
+    virtual unsigned getNumberOfChildren( ) const { return 0; }
+    bool isLeaf( ) const { return getNumberOfChildren() == 0; }
 
 protected:
-    VertexBufferBase() : _boundingSphere( 0.0f )
+    ModelTreeBase() : _boundingSphere( 0.0f )
     {
         _range[0] = 0.0f;
         _range[1] = 1.0f;
@@ -79,7 +83,7 @@ protected:
         os.write( reinterpret_cast< char* >( &_range ), sizeof( Range ) );
     }
 
-    virtual void fromMemory( char** addr, VertexBufferData& /*globalData*/ )
+    virtual void fromMemory( char** addr, ModelTreeData& /*globalData*/ )
     {
         memRead( reinterpret_cast< char* >( &_boundingSphere ), addr,
                  sizeof( BoundingSphere ) );
@@ -87,19 +91,38 @@ protected:
                  sizeof( Range ) );
     }
 
-    virtual void setupTree( VertexData& data, const Index start,
-                            const Index length, const Axis axis,
-                            const size_t depth,
-                            VertexBufferData& globalData ) = 0;
+    virtual void setupKDTree( VertexData& modelData,
+                              const Index start,
+                              const Index length,
+                              const Axis axis,
+                              const size_t depth,
+                              ModelTreeData& treeData ) = 0;
 
+    virtual void setupMKDTree( VertexData& modelData,
+                              const Index start,
+                              const Index length,
+                              const Axis axis,
+                              const size_t depth,
+                              ModelTreeData& treeData ) = 0;
+
+    virtual void setupZOctree( VertexData& modelData,
+                               const std::vector< ZKeyIndexPair >& zKeys,
+                               const ZKey beginKey,
+                               const ZKey endKey,
+                               const Vertex center,
+                               const size_t depth,
+                               ModelTreeData& treeData ) = 0;
+
+    virtual const BoundingSphere& updateBoundingSphere() = 0;
     virtual void updateRange() = 0;
 
-    friend class VertexBufferDist;
-    friend class VertexBufferNode;
+    friend class ModelTreeDist;
+    friend class ModelTreeNode;
+
     BoundingSphere  _boundingSphere;
     Range           _range;
 };
 
 } // namespace
 
-#endif // PLYLIB_VERTEXBUFFERBASE_H
+#endif // PLYLIB_MODELTREEBASE_H

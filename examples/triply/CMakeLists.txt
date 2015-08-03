@@ -5,27 +5,30 @@
 set(TRIPLY_PUBLIC_HEADERS
   api.h
   ply.h
+  mmap.h
   typedefs.h
-  vertexBufferBase.h
-  vertexBufferData.h
-  vertexBufferDist.h
-  vertexBufferLeaf.h
-  vertexBufferNode.h
-  vertexBufferRoot.h
-  vertexBufferState.h
+  modelTreeBase.h
+  modelTreeData.h
+  modelTreeDist.h
+  modelTreeLeaf.h
+  modelTreeNode.h
+  modelTreeRoot.h
+  treeRenderState.h
   vertexData.h
-  virtualVertexBufferData.h)
+  pagedTreeData.h)
 
 set(TRIPLY_SOURCES
   plyfile.cpp
-  vertexBufferBase.cpp
-  vertexBufferDist.cpp
-  vertexBufferLeaf.cpp
-  vertexBufferNode.cpp
-  vertexBufferRoot.cpp
-  vertexBufferState.cpp
+  mmap.cpp
+  modelTreeBase.cpp
+  modelTreeDist.cpp
+  modelTreeLeaf.cpp
+  modelTreeNode.cpp
+  modelTreeRoot.cpp
+  treeRenderState.cpp
   vertexData.cpp
-  virtualVertexBufferData.cpp)
+  pagedTreeData.cpp)
+
 
 set(TRIPLY_LINK_LIBRARIES
   ${COLLAGE_LIBRARIES} ${EQ_GL_LIBRARIES} ${GLEW_LIBRARY})

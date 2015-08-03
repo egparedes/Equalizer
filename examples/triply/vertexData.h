@@ -48,10 +48,16 @@ namespace triply
         PLYLIB_API VertexData();
 
         PLYLIB_API bool readPlyFile( const std::string& file );
-        PLYLIB_API void sort( const Index start, const Index length, const Axis axis );
-        PLYLIB_API void scale( const float baseSize = 2.0f );
         PLYLIB_API void calculateNormals();
         PLYLIB_API void calculateBoundingBox();
+        PLYLIB_API void scale( const float baseSize = 2.0f );
+
+        PLYLIB_API void sort( const Index start, const Index length, const Axis axis );
+
+        PLYLIB_API void genZKeys( std::vector< ZKeyIndexPair >& zKeys,
+                                  unsigned maxLevel );
+        PLYLIB_API void sortZKeys( std::vector< ZKeyIndexPair >& zKeys );
+
         const BoundingBox& getBoundingBox() const { return _boundingBox; }
         PLYLIB_API Axis getLongestAxis( const size_t start, const size_t elements ) const;
 

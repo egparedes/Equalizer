@@ -32,9 +32,9 @@
 #include <seq/sequel.h>
 
 #include <frameData.h>
-#include <triply/vertexBufferDist.h>
-#include <triply/vertexBufferRoot.h>
-#include <triply/vertexBufferState.h>
+#include <triply/modelTreeDist.h>
+#include <triply/modelTreeRoot.h>
+#include <triply/treeRenderState.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923
@@ -43,9 +43,9 @@
 /** The Sequel polygonal rendering example. */
 namespace seqPly
 {
-typedef triply::VertexBufferRoot      Model;
-typedef triply::VertexBufferDist      ModelDist;
-typedef triply::VertexBufferStateSimple State;
+typedef triply::ModelTreeRoot      Model;
+typedef triply::ModelTreeDist      ModelDist;
+typedef triply::SimpleTreeRenderState State;
 using eqPly::FrameData;
 
 class Application : public seq::Application

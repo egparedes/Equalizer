@@ -26,12 +26,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "vertexBufferBase.h"
-#include "vertexBufferState.h"
+#include "modelTreeBase.h"
+#include "treeRenderState.h"
 
 namespace triply
 {
-void VertexBufferBase::drawBoundingSphere(VertexBufferState& state ) const
+
+const unsigned ModelTreeBase::LeftChildId = 0;
+const unsigned ModelTreeBase::RightChildId = 1;
+const unsigned ModelTreeBase::MaxZLevel = ( ZKEY_BIT_SIZE / 3 ) - 1;
+const ZKey ModelTreeBase::MinZKey = 0;
+const ZKey ModelTreeBase::MaxZKey = ( ~0ull ) >> ( 8 * sizeof( ZKey ) - ZKEY_BIT_SIZE );
+
+void ModelTreeBase::drawBoundingSphere(TreeRenderState& state ) const
 {
     GLuint displayList = state.getDisplayList( &_boundingSphere );
 

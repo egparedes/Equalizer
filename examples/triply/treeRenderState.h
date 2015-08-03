@@ -29,17 +29,18 @@
  */
 
 
-#ifndef PLYLIB_VERTEXBUFFERSTATE_H
-#define PLYLIB_VERTEXBUFFERSTATE_H
+#ifndef PLYLIB_TREERENDERSTATE_H
+#define PLYLIB_TREERENDERSTATE_H
 
 #include "api.h"
 #include "typedefs.h"
+#include "pagedTreeData.h"
 #include <map>
 
 namespace triply
 {
-/*  The abstract base class for kd-tree rendering state.  */
-class VertexBufferState
+/*  The abstract base class for tree rendering state.  */
+class TreeRenderState
 {
 public:
     enum
@@ -84,14 +85,14 @@ public:
     PLYLIB_API const GLEWContext* glewGetContext() const
         { return _glewContext; }
 
-    PLYLIB_API void setVirtualVBD( VirtualVertexBufferDataPtr virtualVBD)
+    PLYLIB_API void setVirtualVBD( PagedTreeDataPtr virtualVBD)
         { _virtualVBD = virtualVBD; }
-    PLYLIB_API VirtualVertexBufferDataPtr getVirtualVBD() const
+    PLYLIB_API PagedTreeDataPtr getVirtualVBD() const
         { return _virtualVBD; }
 
 protected:
-    PLYLIB_API VertexBufferState( const GLEWContext* glewContext );
-    PLYLIB_API virtual ~VertexBufferState() {}
+    PLYLIB_API TreeRenderState( const GLEWContext* glewContext );
+    PLYLIB_API virtual ~TreeRenderState() {}
 
     Matrix4f      _pmvMatrix; //!< projection * modelView matrix
     Range         _range; //!< normalized [0,1] part of the model to draw
@@ -102,22 +103,22 @@ protected:
     bool          _useFrustumCulling;
     bool          _useBoundingSpheres;
     bool          _outOfCore;
-    VirtualVertexBufferDataPtr _virtualVBD;
+    PagedTreeDataPtr _virtualVBD;
 
 private:
 };
 
 
 /*  Simple state for stand-alone single-pipe usage.  */
-class VertexBufferStateSimple : public VertexBufferState
+class SimpleTreeRenderState : public TreeRenderState
 {
 private:
     typedef std::map< const void*, GLuint > GLMap;
     typedef GLMap::const_iterator GLMapCIter;
 
 public:
-    PLYLIB_API VertexBufferStateSimple( const GLEWContext* glewContext )
-        : VertexBufferState( glewContext ) {}
+    PLYLIB_API SimpleTreeRenderState( const GLEWContext* glewContext )
+        : TreeRenderState( glewContext ) {}
 
     PLYLIB_API virtual GLuint getDisplayList( const void* key );
     PLYLIB_API virtual GLuint newDisplayList( const void* key );
@@ -132,4 +133,4 @@ private:
 } // namespace triply
 
 
-#endif // PLYLIB_VERTEXBUFFERSTATE_H
+#endif // PLYLIB_TREERENDERSTATE_H
