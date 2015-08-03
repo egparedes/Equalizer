@@ -63,8 +63,8 @@ public:
 
     PLYLIB_API bool writeToFile( const std::string& filename);
     PLYLIB_API bool readFromFile( const std::string& filename,
-                                  TreePartitionRule partition,
-                                  bool inCoreData);
+                                  TreePartitionRule partition=KDTREE_PARTITION,
+                                  bool inCoreData=true);
     PLYLIB_API bool hasColors() const { return _treeData.hasColors; }
     PLYLIB_API BoundingBox getBoundingBox() const { return _treeData.getBoundingBox(); }
 

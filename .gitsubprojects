@@ -1,5 +1,5 @@
 # -*- mode: cmake -*-
-git_subproject(vmmlib https://github.com/VMML/vmmlib.git release_candidate)
+git_subproject(vmmlib https://github.com/VMML/vmmlib.git master)
 git_subproject(Lunchbox https://github.com/VMML/Lunchbox.git vmml)
 git_subproject(Pression https://github.com/Eyescale/Pression.git 5ddcaf3)
 git_subproject(hwsd https://github.com/Eyescale/hwsd.git f88e2ff)
