@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2007-2014, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2015, Stefan.Eilemann@epfl.ch
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -15,18 +15,27 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef EQSERVER_API_H
-#define EQSERVER_API_H
+#ifndef EQ_QT_WINDOWSYSTEMFACTORY_H
+#define EQ_QT_WINDOWSYSTEMFACTORY_H
 
-#include <eq/defines.h>
-#include <eq/fabric/api.h>
+#include <eq/types.h>
+#include <QObject>
 
-#if defined(EQUALIZERSERVER_STATIC)
-#  define EQSERVER_API
-#elif defined(EQUALIZERSERVER_SHARED)
-#  define EQSERVER_API LUNCHBOX_DLLEXPORT
-#else
-#  define EQSERVER_API LUNCHBOX_DLLIMPORT
+namespace eq
+{
+namespace qt
+{
+namespace detail { class Window; }
+
+class WindowFactory : public QObject
+{
+    Q_OBJECT
+
+public slots:
+    detail::Window* onCreateImpl( const WindowSettings&, QThread* );
+};
+
+}
+}
+
 #endif
-
-#endif // EQSERVER_API_H

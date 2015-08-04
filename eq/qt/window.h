@@ -1,7 +1,7 @@
 
-/* Copyright (c) 2014, Daniel Nachbaur <danielnachbaur@gmail.com>
- *               2014, Stefan.Eilemann@epfl.ch
- *               2015, Juan Hernando <jhernando@fi.upm.es>
+/* Copyright (c) 2014-2015, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                          Stefan.Eilemann@epfl.ch
+ *                          Juan Hernando <jhernando@fi.upm.es>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -22,8 +22,7 @@
 
 #include <eq/qt/types.h>
 #include <eq/glWindow.h> // base class
-
-#include <QtGlobal>
+#include <QObject> // base class
 
 namespace eq
 {
@@ -37,7 +36,7 @@ class WindowIF : public GLWindow
 public:
     WindowIF( NotifierInterface& parent,
               const WindowSettings& settings ) : GLWindow( parent, settings ) {}
-    ~WindowIF() override {}
+    virtual ~WindowIF() {}
 
 #  pragma clang diagnostic push
 #  pragma clang diagnostic ignored "-Woverloaded-virtual"
@@ -47,26 +46,28 @@ public:
 };
 
 /** Equalizer default implementation of a Qt window */
-class Window : public WindowIF
+class Window : public QObject, public WindowIF
 {
+    Q_OBJECT
+
 public:
     /**
      * Create a new window using Qt
      *
      * The actual window will be a QWindow or a QOffscreenSurface depending
-     * onthe window settings.
+     * on the window settings.
      * The window won't be realized until configInit is called.
      *
      * @param parent The eq::Window parent window interface that uses this
      *        system window.
      * @param settings The window settings. The GL context format will be
      *        derived from these.
-     * @param shareContext An optional OpenGL context to share with.
+     * @param impl The Qt implementation (created in the app thread).
      *
-     * @version 1.8.0
+     * @version 1.9
      */
     EQ_API Window( NotifierInterface& parent, const WindowSettings& settings,
-                   QOpenGLContext* shareContext = 0 );
+                   detail::Window* impl );
 
     /** Destruct this Qt window. @version 1.7.3 */
     EQ_API ~Window() final;
@@ -89,12 +90,12 @@ public:
 
     //@}
 
-    /** Return the the Open GL used by this window.
-
-        The context won't be ready to be used until configInit is called.
-
-        @version 1.8.0
-    */
+    /**
+     * The context won't be ready to be used until configInit is called.
+     *
+     * @return the Open GL context used by this window.
+     * @version 1.9
+     */
     EQ_API QOpenGLContext* getContext() const;
 
     /** @name Operations. */
@@ -116,20 +117,30 @@ public:
     EQ_API bool processEvent( const WindowEvent& event ) override;
     //@}
 
-    /** Return the object to which forward Qt events.
+    /**
+     * Use this object to make Qt events reach eq::Config when using this window
+     * for offscreen rendering with shared context mode (e.g. to embed Equalizer
+     * output into a Qt GUI).
+     *
+     * Don't send events directly to the object unless you know what you're
+     * doing, use QApplication::postEvent instead.
+     *
+     * @return the object to which forward Qt events.
+     * @version 1.9
+     */
+    EQ_API QObject* getEventProcessor();
 
-        Use this object to make Qt events reach eq::Config when using this
-        window for offscreen rendering with shared context mode (e.g. to
-        embed Equalizer output into a Qt GUI).
+public slots:
+    void onDestroyImpl( detail::Window* );
 
-        Don't send events directly to the object unless you know what you're
-        doing, use QApplication::postEvent instead.
-
-        @version 1.8.0 */
-    QObject* getEventProcessor();
+signals:
+    void destroyImpl( detail::Window* );
 
 private:
     detail::Window* const _impl;
+    static detail::Window* createImpl( const WindowSettings&, QOpenGLContext*,
+                                       QThread* );
+    friend class WindowFactory;
 };
 }
 }

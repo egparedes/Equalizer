@@ -28,12 +28,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PLYLIB_MODELTREENODE_H
-#define PLYLIB_MODELTREENODE_H
+#ifndef TRIPLY_MODELTREENODE_H
+#define TRIPLY_MODELTREENODE_H
 
-#include "api.h"
 #include "typedefs.h"
 #include "modelTreeBase.h"
+#include <triply/api.h>
 
 namespace triply
 {
@@ -47,10 +47,10 @@ public:
 
     ModelTreeNode( unsigned arity );
 
-    PLYLIB_API virtual ~ModelTreeNode();
+    TRIPLY_API virtual ~ModelTreeNode();
 
-    PLYLIB_API void draw( TreeRenderState& state ) const override;
-    PLYLIB_API Index getNumberOfVertices() const override;
+    TRIPLY_API void draw( RenderState& state ) const override;
+    TRIPLY_API Index getNumberOfVertices() const override;
 
     virtual const ModelTreeBase* getChild( unsigned char childId ) const override
     {
@@ -62,30 +62,27 @@ public:
         return ( _children[childId] != 0 )? _children[childId]: 0;
     }
 
-    PLYLIB_API virtual unsigned getNumberOfChildren() const override;
+    TRIPLY_API virtual unsigned getNumberOfChildren() const override;
 
-    PLYLIB_API unsigned getArity() const { return _arity; }
+    TRIPLY_API unsigned getArity() const { return _arity; }
 
 protected:
 
     virtual void toStream( std::ostream& os ) override;
     virtual void fromMemory( char** addr, ModelTreeData& treeData ) override;
 
-    virtual void setupKDTree( VertexData& modelData,
-                              const Index start, const Index length,
-                              const Axis axis, const size_t depth,
-                              ModelTreeData& treeData ) override;
-
     virtual void setupMKDTree( VertexData& modelData,
-                              const Index start, const Index length,
-                              const Axis axis, const size_t depth,
-                              ModelTreeData& treeData ) override;
+                               const Index start, const Index length,
+                               const Axis axis, const size_t depth,
+                               ModelTreeData& treeData,
+                               boost::progress_display& progress) override;
 
     virtual void setupZOctree( VertexData& modelData,
                                const std::vector< ZKeyIndexPair >& zKeys,
                                const ZKey beginKey, const ZKey endKey,
                                const Vertex center, const size_t depth,
-                               ModelTreeData& treeData ) override;
+                               ModelTreeData& treeData,
+                               boost::progress_display& progress ) override;
 
     virtual const BoundingSphere& updateBoundingSphere() override;
     virtual void updateRange() override;
@@ -102,4 +99,4 @@ private:
 };
 }
 
-#endif // PLYLIB_MODELTREENODE_H
+#endif // TRIPLY_MODELTREENODE_H

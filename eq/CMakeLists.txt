@@ -13,7 +13,6 @@ list(APPEND CPPCHECK_EXTRA_ARGS -DEQUALIZER_DSO_NAME=foo -DEQ_API=)
 add_definitions(-DEQ_PLUGIN_BUILD -DBOOST_PROGRAM_OPTIONS_DYN_LINK)
 
 set(EQUALIZER_PUBLIC_HEADERS
-  ${COMMON_INCLUDES}
   agl/eventHandler.h
   agl/messagePump.h
   agl/pipe.h
@@ -67,9 +66,10 @@ set(EQUALIZER_PUBLIC_HEADERS
   pixelData.h
   qt/eventHandler.h
   qt/messagePump.h
+  qt/pipe.h
+  qt/shareContextWindow.h
   qt/types.h
   qt/window.h
-  qt/shareContextWindow.h
   qt/windowEvent.h
   qt/windowSystem.h
   resultImageListener.h
@@ -80,6 +80,16 @@ set(EQUALIZER_PUBLIC_HEADERS
   systemPipe.h
   systemWindow.h
   types.h
+  util/accum.h
+  util/accumBufferObject.h
+  util/base.h
+  util/bitmapFont.h
+  util/frameBufferObject.h
+  util/objectManager.h
+  util/pixelBufferObject.h
+  util/shader.h
+  util/texture.h
+  util/types.h
   view.h
   visitorResult.h
   wgl/eventHandler.h
@@ -94,19 +104,6 @@ set(EQUALIZER_PUBLIC_HEADERS
   windowSystem.h
   x11/window.h
   zoomFilter.h
-  defines.h
-  eq.h
-  util/accum.h
-  util/accumBufferObject.h
-  util/base.h
-  util/bitmapFont.h
-  util/camcoder.h
-  util/frameBufferObject.h
-  util/objectManager.h
-  util/pixelBufferObject.h
-  util/shader.h
-  util/texture.h
-  util/types.h
   )
 
 set(EQUALIZER_HEADERS
@@ -119,7 +116,6 @@ set(EQUALIZER_HEADERS
   )
 
 set(EQUALIZER_SOURCES
-  ${COMMON_SOURCES}
   util/accum.cpp
   util/accumBufferObject.cpp
   util/bitmapFont.cpp
@@ -244,12 +240,17 @@ endif()
 
 if(EQ_QT_USED)
   qt5_wrap_cpp(QT_MOC_OUTFILES
-    qt/windowSystem.h)
+    qt/window.h
+    qt/windowFactory.h
+    qt/windowSystem.h
+    )
   list(APPEND EQUALIZER_SOURCES
     ${QT_MOC_OUTFILES}
     qt/eventHandler.cpp
     qt/messagePump.cpp
+    qt/pipe.cpp
     qt/window.cpp
+    qt/windowFactory.cpp
     qt/windowSystem.cpp
     )
   list(APPEND EQUALIZER_LINK_LIBRARIES
@@ -285,11 +286,9 @@ if(CUDA_FOUND)
   list(APPEND EQUALIZER_LINK_LIBRARIES ${CUDA_LIBRARIES})
 endif()
 
-set(EQUALIZER_OMIT_PROJECT_HEADER ON)
+set(EQUALIZER_OMIT_LIBRARY_HEADER ON)
 common_library(Equalizer)
-
-install(FILES ${OPTIONS_CMAKE} DESTINATION ${CMAKE_MODULE_INSTALL_PATH}
-  COMPONENT dev)
+target_compile_definitions(Equalizer PRIVATE EQUALIZERFABRIC_SHARED_INL)
 
 add_subdirectory(fabric)
 add_subdirectory(server)

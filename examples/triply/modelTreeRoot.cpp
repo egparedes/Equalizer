@@ -1,7 +1,7 @@
 
 /* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
  *          2009-2012, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+ *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,6 +37,8 @@
 #include <sstream>
 #include <cstring>
 
+#define NUM_ELEMS( a ) (sizeof( a ) / sizeof( a[ 0 ] ))
+
 namespace triply
 {
 
@@ -65,7 +67,7 @@ TreePartitionRule ModelTreeRoot::makeTreePartitionRule(const char* partitionTag)
 typedef vmml::frustum_culler< float >  FrustumCuller;
 
 //#define LOGCULL
-void ModelTreeRoot::cullDraw( TreeRenderState& state ) const
+void ModelTreeRoot::cullDraw( RenderState& state ) const
 {
     _beginRendering( state );
 
@@ -101,9 +103,6 @@ void ModelTreeRoot::cullDraw( TreeRenderState& state ) const
         const vmml::Visibility visibility = state.useFrustumCulling() ?
                             culler.test_sphere( treeNode->getBoundingSphere( )) :
                             vmml::VISIBILITY_FULL;
-
-        PLYLIBASSERT (state.useFrustumCulling());
-
         switch( visibility )
         {
             case vmml::VISIBILITY_FULL:
@@ -160,7 +159,7 @@ void ModelTreeRoot::cullDraw( TreeRenderState& state ) const
 
 #ifdef LOGCULL
     const size_t verticesTotal = _globalData.vertices.size(); //model->getNumberOfVertices();
-    PLYLIBINFO
+    TRIPLYINFO
         << getName() << " rendered " << verticesRendered * 100 / verticesTotal
         << "% of model, overlap <= " << verticesOverlap * 100 / verticesTotal
         << "%" << std::endl;
@@ -168,14 +167,15 @@ void ModelTreeRoot::cullDraw( TreeRenderState& state ) const
 }
 
 /*  Delegate rendering to node routine.  */
-void ModelTreeRoot::draw( TreeRenderState& state ) const
+void ModelTreeRoot::draw( RenderState& state ) const
 {
     ModelTreeNode::draw( state );
 }
 
-bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partition )
+bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partition,
+                               boost::progress_display& progress )
 {
-    PLYLIBASSERT( detail::isValidPartition( partition ));
+    TRIPLYASSERT( detail::isValidPartition( partition ));
 
     ModelTreeNode::_arity = detail::PartitionArities[partition];
     allocateChildArray();
@@ -186,7 +186,7 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
     _treeData.boundingBox = bbox; // _treeData.calculateBoundingBox();
 
     {
-        PLYLIBINFO << "Generating tree... " << std::endl;
+        TRIPLYINFO << "Generating tree... " << std::endl;
         // For kd-tree
         const Axis axis = modelData.getLongestAxis( 0, modelData.triangles.size() );
 
@@ -198,7 +198,7 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
         case KDTREE_PARTITION:
             //  Begin kd-tree setup, go through full range starting with x axis.
             ModelTreeNode::setupMKDTree( modelData, 0, modelData.triangles.size(),
-                                        axis, 0, _treeData );
+                                         axis, 0, _treeData, progress );
             break;
 
         case OCTREE_PARTITION:
@@ -209,24 +209,24 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
             ModelTreeNode::setupZOctree( modelData, zKeys,
                                          ModelTreeBase::MinZKey, ModelTreeBase::MaxZKey + 1,
                                          (bbox[0] + bbox[1]) / 2.0, 0,
-                                         _treeData );
+                                         _treeData, progress );
             break;
 
         default:
-            PLYLIBASSERT( 0 );
+            TRIPLYASSERT( 0 );
             return false;
         }
     }
     
-    PLYLIBINFO << "Updating culling data... " << std::endl;
+    TRIPLYINFO << "Updating culling data... " << std::endl;
     ModelTreeNode::updateBoundingSphere();
     ModelTreeNode::updateRange();
 
 
 #if 0
-    PLYLIBINFO << _treeData.boundingBox[0] << std::endl;
-    PLYLIBINFO << _treeData.boundingBox[1] << std::endl;
-    PLYLIBINFO << ModelTreeBase::_boundingSphere << std::endl;
+    TRIPLYINFO << _treeData.boundingBox[0] << std::endl;
+    TRIPLYINFO << _treeData.boundingBox[1] << std::endl;
+    TRIPLYINFO << ModelTreeBase::_boundingSphere << std::endl;
     
     // re-test all points to be in the bounding sphere
     Vertex center( _boundingSphere.array );
@@ -265,14 +265,14 @@ bool ModelTreeRoot::writeToFile( const std::string& filename )
         }
         catch( const std::exception& e )
         {
-            PLYLIBERROR << "Unable to write binary file, an exception "
+            TRIPLYERROR << "Unable to write binary file, an exception "
                       << "occured:  " << e.what() << std::endl;
         }
         output.close();
     }
     else
     {
-        PLYLIBERROR << "Unable to create binary file." << std::endl;
+        TRIPLYERROR << "Unable to create binary file." << std::endl;
     }
 
     return result;
@@ -361,30 +361,33 @@ void ModelTreeRoot::fromMemory( char* start )
 /*  Functions extracted out of readFromFile to enhance readability.  */
 bool ModelTreeRoot::_constructFromPly( const std::string& filename )
 {
-    PLYLIBINFO << "Constructing new from PLY file." << std::endl;
+    TRIPLYINFO << "Reading PLY file." << std::endl;
+    boost::progress_display progress( 12 );
 
     VertexData data;
     if( _invertFaces )
         data.useInvertedFaces();
     if( !data.readPlyFile( filename ) )
     {
-        PLYLIBERROR << "Unable to load PLY file." << std::endl;
+        TRIPLYERROR << "Unable to load PLY file." << std::endl;
         return false;
     }
+    ++progress;
 
     data.calculateNormals();
     data.scale( 2.0f );
+    ++progress;
 
-    if( !setupTree( data, _partition ))
-        return false;
-
+    setupTree( data, _partition, progress );
+    ++progress;
     if( !writeToFile( filename ))
     {
-        PLYLIBWARN << "Unable to write binary representation." << std::endl;
-        PLYLIBWARN << "Out-of-core will not work." << std::endl;
+        TRIPLYWARN << "Unable to write binary representation." << std::endl;
+        TRIPLYWARN << "Out-of-core will not work." << std::endl;
         _inCoreData = false;
     }
 
+    ++progress;
     return true;
 }
 
@@ -403,13 +406,13 @@ bool ModelTreeRoot::_readBinary(std::string filename)
         }
         catch( const std::exception& e )
         {
-            PLYLIBERROR << "Unable to read binary file, an exception occured:  "
+            TRIPLYERROR << "Unable to read binary file, an exception occured:  "
                       << e.what() << std::endl;
         }
     }
     else
     {
-        PLYLIBWARN << "Unable to read binary file, memory mapping failed."
+        TRIPLYWARN << "Unable to read binary file, memory mapping failed."
                   << std::endl;
     }
 
@@ -419,7 +422,7 @@ bool ModelTreeRoot::_readBinary(std::string filename)
 }
 
 /*  Set up the common OpenGL state for rendering of all nodes.  */
-void ModelTreeRoot::_beginRendering( TreeRenderState& state ) const
+void ModelTreeRoot::_beginRendering( RenderState& state ) const
 {
     state.resetRegion();
     switch( state.getRenderMode() )
@@ -440,7 +443,7 @@ void ModelTreeRoot::_beginRendering( TreeRenderState& state ) const
 }
 
 /*  Tear down the common OpenGL state for rendering of all nodes.  */
-void ModelTreeRoot::_endRendering( TreeRenderState& state ) const
+void ModelTreeRoot::_endRendering( RenderState& state ) const
 {
     switch( state.getRenderMode() )
     {

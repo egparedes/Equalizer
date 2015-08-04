@@ -28,8 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef PLYLIB_MODELTREELEAF_H
-#define PLYLIB_MODELTREELEAF_H
+#ifndef TRIPLY_MODELTREELEAF_H
+#define TRIPLY_MODELTREELEAF_H
 
 #include "modelTreeBase.h"
 #include "pagedTreeData.h"
@@ -43,26 +43,20 @@ public:
     ModelTreeLeaf( ModelTreeData& treeData );
     virtual ~ModelTreeLeaf();
 
-    virtual void draw( TreeRenderState& state ) const;
+    virtual void draw( RenderState& state ) const;
     virtual Index getNumberOfVertices() const { return _indexLength; }
 
 protected:
     virtual void toStream( std::ostream& os ) override;
     virtual void fromMemory( char** addr, ModelTreeData& treeData ) override;
 
-    virtual void setupKDTree( VertexData& modelData,
-                              const Index start,
-                              const Index length,
-                              const Axis axis,
-                              const size_t depth,
-                              ModelTreeData& treeData ) override;
-
     virtual void setupMKDTree( VertexData& modelData,
-                              const Index start,
-                              const Index length,
-                              const Axis axis,
-                              const size_t depth,
-                              ModelTreeData& treeData ) override;
+                               const Index start,
+                               const Index length,
+                               const Axis axis,
+                               const size_t depth,
+                               ModelTreeData& treeData,
+                               boost::progress_display& progress ) override;
 
     virtual void setupZOctree( VertexData& modelData,
                                const std::vector< ZKeyIndexPair >& zKeys,
@@ -70,16 +64,17 @@ protected:
                                const ZKey endKey,
                                const Vertex center,
                                const size_t depth,
-                               ModelTreeData& treeData ) override;
+                               ModelTreeData& treeData,
+                               boost::progress_display& progress ) override;
 
     virtual const BoundingSphere& updateBoundingSphere() override;
     virtual void updateRange() override;
 
 private:
-    void setupRendering( TreeRenderState& state, GLuint* data ) const;
-    void renderImmediate( TreeRenderState& state ) const;
-    void renderDisplayList( TreeRenderState& state ) const;
-    void renderBufferObject( TreeRenderState& state ) const;
+    void setupRendering( RenderState& state, GLuint* data ) const;
+    void renderImmediate( RenderState& state ) const;
+    void renderDisplayList( RenderState& state ) const;
+    void renderBufferObject( RenderState& state ) const;
 
     bool isDataLoaded( ) const;
     void loadVirtualData(PagedTreeDataPtr pagedVBD, bool useColors) const;
@@ -103,4 +98,4 @@ private:
 
 } // namespace
 
-#endif // PLYLIB_MODELTREELEAF_H
+#endif // TRIPLY_MODELTREELEAF_H

@@ -174,7 +174,7 @@ void VertexData::readTriangles( PlyFile* file, const int nFaces )
     for( int i = 0; i < nFaces; ++i )
     {
         ply_get_element( file, static_cast< void* >( &face ) );
-        PLYLIBASSERT( face.vertices != 0 );
+        TRIPLYASSERT( face.vertices != 0 );
         if( face.nVertices != 3 )
         {
             free( face.vertices );
@@ -205,16 +205,11 @@ bool VertexData::readPlyFile( const std::string& filename )
                                           &fileType, &version );
     if( !file )
     {
-        PLYLIBERROR << "Unable to open PLY file " << filename
+        TRIPLYERROR << "Unable to open PLY file " << filename
                   << " for reading." << std::endl;
         return result;
     }
-    PLYLIBASSERT( elemNames != 0 );
-
-    #ifndef NDEBUG
-    PLYLIBINFO << filename << ": " << nPlyElems << " elements, file type = "
-             << fileType << ", version = " << version << std::endl;
-    #endif
+    TRIPLYASSERT( elemNames != 0 );
 
     for( int i = 0; i < nPlyElems; ++i )
     {
@@ -223,18 +218,7 @@ bool VertexData::readPlyFile( const std::string& filename )
 
         PlyProperty** props = ply_get_element_description( file, elemNames[i],
                                                            &nElems, &nProps );
-        PLYLIBASSERT( props != 0 );
-
-        #ifndef NDEBUG
-        PLYLIBINFO << "element " << i << ": name = " << elemNames[i] << ", "
-                 << nProps << " properties, " << nElems << " elements"
-                 << std::endl;
-        for( int j = 0; j < nProps; ++j )
-        {
-            PLYLIBINFO << "element " << i << ", property " << j << ": "
-                     << "name = " << props[j]->name << std::endl;
-        }
-        #endif
+        TRIPLYASSERT( props != 0 );
 
         if( equal_strings( elemNames[i], "vertex" ) )
         {
@@ -245,22 +229,22 @@ bool VertexData::readPlyFile( const std::string& filename )
                     hasColors = true;
 
             readVertices( file, nElems, hasColors );
-            PLYLIBASSERT( vertices.size() == static_cast< size_t >( nElems ) );
+            TRIPLYASSERT( vertices.size() == static_cast< size_t >( nElems ) );
             if( hasColors )
             {
-                PLYLIBASSERT( colors.size() == static_cast< size_t >( nElems ));
+                TRIPLYASSERT( colors.size() == static_cast< size_t >( nElems ));
             }
         }
         else if( equal_strings( elemNames[i], "face" ) )
         try
         {
             readTriangles( file, nElems );
-            PLYLIBASSERT( triangles.size() == static_cast< size_t >( nElems ) );
+            TRIPLYASSERT( triangles.size() == static_cast< size_t >( nElems ) );
             result = true;
         }
         catch( const std::exception& e )
         {
-            PLYLIBERROR << "Unable to read PLY file, an exception occured:  "
+            TRIPLYERROR << "Unable to read PLY file, an exception occured:  "
                       << e.what() << std::endl;
             // stop for loop by setting the loop variable to break condition
             // this way resources still get released even on error cases
@@ -325,7 +309,7 @@ void VertexData::calculateNormals()
 
 #ifndef NDEBUG
     if( wrongNormals > 0 )
-        PLYLIBINFO << wrongNormals << " faces have no valid normal." << std::endl;
+        TRIPLYINFO << wrongNormals << " faces have no valid normal." << std::endl;
 #endif
 }
 
@@ -464,8 +448,8 @@ struct _TriangleSort
 /*  Sort the index data from start to start + length along the given axis.  */
 void VertexData::sort( const Index start, const Index length, const Axis axis )
 {
-    PLYLIBASSERT( length > 0 );
-    PLYLIBASSERT( start + length <= triangles.size() );
+    TRIPLYASSERT( length > 0 );
+    TRIPLYASSERT( start + length <= triangles.size() );
 
     ::sort( triangles.begin() + start, triangles.begin() + start + length,
             _TriangleSort( *this, axis ) );
@@ -478,7 +462,7 @@ void VertexData::genZKeys( std::vector< ZKeyIndexPair >& zKeys, unsigned maxLeve
     if( _boundingBox[0].length() == 0.0f && _boundingBox[1].length() == 0.0f )
         calculateBoundingBox();
 
-    PLYLIBASSERT(  _boundingBox[0] != _boundingBox[1] );
+    TRIPLYASSERT(  _boundingBox[0] != _boundingBox[1] );
 
     zKeys.resize( triangles.size() );
 

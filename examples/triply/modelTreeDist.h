@@ -28,11 +28,11 @@
  */
 
 
-#ifndef PLYLIB_MODELTREEDIST_H
-#define PLYLIB_MODELTREEDIST_H
+#ifndef TRIPLY_MODELTREEDIST_H
+#define TRIPLY_MODELTREEDIST_H
 
-#include "api.h"
 #include "typedefs.h"
+#include <triply/api.h>
 
 #include <co/co.h>
 
@@ -42,25 +42,25 @@ namespace triply
 class ModelTreeDist : public co::Object
 {
 public:
-    PLYLIB_API ModelTreeDist();
-    PLYLIB_API ModelTreeDist( triply::ModelTreeRoot* treeRoot );
-    PLYLIB_API virtual ~ModelTreeDist();
+    TRIPLY_API ModelTreeDist();
+    TRIPLY_API ModelTreeDist( triply::ModelTreeRoot* treeRoot );
+    TRIPLY_API virtual ~ModelTreeDist();
 
-    PLYLIB_API void registerTree( co::LocalNodePtr localNode );
-    PLYLIB_API void deregisterTree();
+    TRIPLY_API void registerTree( co::LocalNodePtr localNode );
+    TRIPLY_API void deregisterTree();
 
-    PLYLIB_API triply::ModelTreeRoot* loadModel( co::NodePtr masterNode,
+    TRIPLY_API triply::ModelTreeRoot* loadModel( co::NodePtr masterNode,
                                                  co::LocalNodePtr localNode,
                                                  const eq::uint128_t& modelID );
 
 protected:
-    PLYLIB_API ModelTreeDist( ModelTreeRoot* treeRoot,
+    TRIPLY_API ModelTreeDist( ModelTreeRoot* treeRoot,
                               ModelTreeBase* treeNode );
 
-    PLYLIB_API unsigned getNumberOfChildren( ) const;
+    TRIPLY_API unsigned getNumberOfChildren( ) const;
 
-    PLYLIB_API virtual void getInstanceData( co::DataOStream& os );
-    PLYLIB_API virtual void applyInstanceData( co::DataIStream& is );
+    TRIPLY_API virtual void getInstanceData( co::DataOStream& os );
+    TRIPLY_API virtual void applyInstanceData( co::DataIStream& is );
 
 private:
     void allocateChildArray();
@@ -74,4 +74,4 @@ private:
 }
 
 
-#endif // PLYLIB_MODELTREEDIST_H
+#endif // TRIPLY_MODELTREEDIST_H

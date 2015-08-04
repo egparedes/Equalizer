@@ -45,7 +45,7 @@ namespace seqPly
 {
 typedef triply::ModelTreeRoot      Model;
 typedef triply::ModelTreeDist      ModelDist;
-typedef triply::SimpleTreeRenderState State;
+typedef triply::SimpleRenderState State;
 using eqPly::FrameData;
 
 class Application : public seq::Application

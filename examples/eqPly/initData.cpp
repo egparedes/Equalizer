@@ -1,9 +1,9 @@
 
 /*
- * Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
- *               2015, David Steiner <steiner@ifi.uzh.ch> 
- *               2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
+ * Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, David Steiner <steiner@ifi.uzh.ch> 
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -50,6 +50,10 @@ InitData::InitData()
     , _windowSystem( "GLX" )
 #elif WGL
     , _windowSystem( "WGL" )
+#elif EQ_QT_USED
+    , _windowSystem( "Qt" )
+#else
+#  error Unknown window system
 #endif
     , _renderMode( triply::RENDER_MODE_BUFFER_OBJECT ) // triply::RENDER_MODE_DISPLAY_LIST
     , _useGLSL( false )

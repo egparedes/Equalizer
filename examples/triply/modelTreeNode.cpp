@@ -57,7 +57,7 @@ ModelTreeNode::~ModelTreeNode()
 }
 
 /*  Draw the node by rendering the children.  */
-void ModelTreeNode::draw(TreeRenderState &state ) const
+void ModelTreeNode::draw(RenderState &state ) const
 {
     if( state.stopRendering( ) )
         return;
@@ -147,62 +147,15 @@ void ModelTreeNode::fromMemory( char** addr, ModelTreeData& treeData )
     }
 }
 
-/*  Continue kd-tree setup, create intermediary or leaf nodes as required.  */
-void ModelTreeNode::setupKDTree( VertexData& modelData,
-                                 const Index start, const Index length,
-                                 const Axis axis, const size_t depth,
-                                 ModelTreeData& treeData )
-{
-#ifndef NDEBUG
-    PLYLIBINFO << "setupKDTree"
-             << "( " << start << ", " << length << ", " << axis << ", " 
-             << depth << " )." << std::endl;
-#endif
-
-    modelData.sort( start, length, axis );
-    const Index median = start + ( length / 2 );    
-
-    // left child will include elements smaller than the median
-    const Index leftLength    = length / 2;
-    const bool  subdivideLeft = _subdivide( leftLength, depth );
-
-    if( subdivideLeft )
-        _children[ ModelTreeBase::LeftChildId ] =  new ModelTreeNode( _arity );
-    else
-        _children[ ModelTreeBase::LeftChildId ] =  new ModelTreeLeaf( treeData );
-    
-    // right child will include elements equal to or greater than the median
-    const Index rightLength    = ( length + 1 ) / 2;
-    const bool  subdivideRight = _subdivide( rightLength, depth );
-
-    if( subdivideRight )
-        _children[ ModelTreeBase::RightChildId ] =  new ModelTreeNode( _arity );
-    else
-        _children[ ModelTreeBase::RightChildId ] =  new ModelTreeLeaf( treeData );
-    
-    // move to next axis and continue contruction in the child nodes
-    const Axis newAxisLeft  = subdivideLeft ? 
-                        modelData.getLongestAxis( start , leftLength ) : AXIS_X;
-
-    const Axis newAxisRight = subdivideRight ? 
-                        modelData.getLongestAxis( median, rightLength ) : AXIS_X;
-
-    static_cast< ModelTreeNode* >
-        ( _children[ ModelTreeBase::LeftChildId ] )->setupKDTree( modelData, start, leftLength, newAxisLeft, depth+1,
-                                  treeData );
-    static_cast< ModelTreeNode* >
-        ( _children[ ModelTreeBase::RightChildId ] )->setupKDTree( modelData, median, rightLength, newAxisRight, depth+1,
-                               treeData );
-}
-
-/*  Continue kd-tree setup, create intermediary or leaf nodes as required.  */
+/*  Continue mkd-tree setup, create intermediary or leaf nodes as required.  */
 void ModelTreeNode::setupMKDTree( VertexData& modelData,
                                   const Index start, const Index length,
                                   const Axis axis, const size_t depth,
-                                  ModelTreeData& treeData )
+                                  ModelTreeData& treeData,
+                                  boost::progress_display& progress)
 {
 #ifndef NDEBUG
-    PLYLIBINFO << "setupMKDTree - " << _arity << " "
+    TRIPLYINFO << "setupMKDTree - " << _arity << " "
              << "( " << start << ", " << length << ", " << axis << ", "
              << depth << " )." << std::endl;
 #endif
@@ -230,7 +183,11 @@ void ModelTreeNode::setupMKDTree( VertexData& modelData,
 
         static_cast< ModelTreeNode* >
             ( _children[ i ] )->setupMKDTree( modelData, childStart, childLength,
-                                              newAxisChild, depth+1, treeData );
+                                              newAxisChild, depth+1, treeData,
+                                              progress );
+
+        if( depth == 3 )
+            ++progress;
     }
 }
 
@@ -239,10 +196,11 @@ void ModelTreeNode::setupZOctree( VertexData& modelData,
                                   const std::vector< ZKeyIndexPair >& zKeys,
                                   const ZKey beginKey, const ZKey endKey,
                                   const Vertex center, const size_t depth,
-                                  ModelTreeData& treeData )
+                                  ModelTreeData& treeData,
+                                  boost::progress_display& progress )
 {
 #ifndef NDEBUG
-    PLYLIBINFO << "setupZOctree"
+    TRIPLYINFO << "setupZOctree"
              << "( " << beginKey << ", " << endKey << ", " << depth
              << " )." << std::endl;
 #endif
@@ -278,15 +236,18 @@ void ModelTreeNode::setupZOctree( VertexData& modelData,
                     ( _children[i] )->setupZOctree( modelData, zKeys,
                                                     currentKey, currentKey + keyStep,
                                                     center + offset, depth + 1,
-                                                    treeData );
+                                                    treeData, progress );
         }
 
         currentKey += keyStep;
         childBeginIt = childEndIt;
     }
 
-    PLYLIBASSERT( currentKey == endKey);
+    TRIPLYASSERT( currentKey == endKey);
     currentKey = endKey; // Compilation trick
+
+    if( depth == 3 )
+        ++progress;
 }
 
 /*  Compute the bounding sphere from the children's bounding spheres.  */
@@ -343,7 +304,7 @@ const BoundingSphere& ModelTreeNode::updateBoundingSphere()
     }
 
 #ifndef NDEBUG
-    PLYLIBINFO << "updateBoundingSphere" << "( " << _boundingSphere << " )."
+    TRIPLYINFO << "updateBoundingSphere" << "( " << _boundingSphere << " )."
              << std::endl;
 #endif
 
@@ -368,7 +329,7 @@ void ModelTreeNode::updateRange()
     }
 
 #ifndef NDEBUG
-    PLYLIBINFO << "updateRange" << "( " << _range[0] << ", " << _range[1]
+    TRIPLYINFO << "updateRange" << "( " << _range[0] << ", " << _range[1]
              << " )." << std::endl;
 #endif
 }

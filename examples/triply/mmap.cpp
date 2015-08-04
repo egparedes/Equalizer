@@ -1,7 +1,7 @@
 
-/* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
+/* Copyright (c)      2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+ *                    2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2009-2014, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -74,7 +74,7 @@ bool openMMap( std::string filename, char** mmapAddrPtr )
     if( file == INVALID_HANDLE_VALUE )
         return false;
 
-    PLYLIBINFO << "Reading cached binary representation." << std::endl;
+    TRIPLYINFO << "Reading cached binary representation." << std::endl;
 
     // create a file mapping
     info.handle = CreateFileMapping( file, 0, PAGE_READONLY, 0, 0,
@@ -82,7 +82,7 @@ bool openMMap( std::string filename, char** mmapAddrPtr )
     CloseHandle( file );
     if( !info.handle )
     {
-        PLYLIBERROR << "Unable to read binary file, file mapping failed."
+        TRIPLYERROR << "Unable to read binary file, file mapping failed."
                   << std::endl;
         return false;
     }

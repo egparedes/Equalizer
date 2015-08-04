@@ -83,7 +83,7 @@ bool Window::configInitGL( const eq::uint128_t& initID )
     glCullFace( GL_BACK );
 
     LBASSERT( !_state );
-    _state = new TreeRenderState( getObjectManager( ));
+    _state = new RenderState( getObjectManager( ));
 
     const Config*   config   = static_cast< const Config* >( getConfig( ));
     const InitData& initData = config->getInitData();
@@ -113,8 +113,8 @@ bool Window::configExitGL()
 namespace
 {
 static const std::string _logoTextureName =
-                              std::string( lunchbox::getExecutablePath() +
-                                          "/../share/Equalizer/data/logo.rgb" );
+                              std::string( lunchbox::getRootPath() +
+                                          "/share/Equalizer/data/logo.rgb" );
 }
 
 void Window::_loadLogo()
@@ -150,7 +150,7 @@ void Window::_loadLogo()
 
 void Window::_loadShaders()
 {
-    if( _state->getProgram( getPipe( )) != TreeRenderState::INVALID )
+    if( _state->getProgram( getPipe( )) != RenderState::INVALID )
         // already loaded
         return;
 

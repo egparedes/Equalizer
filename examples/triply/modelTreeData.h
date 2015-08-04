@@ -28,8 +28,8 @@
  */
 
 
-#ifndef PLYLIB_MODELTREEDATA_H
-#define PLYLIB_MODELTREEDATA_H
+#ifndef TRIPLY_MODELTREEDATA_H
+#define TRIPLY_MODELTREEDATA_H
 
 
 #include "typedefs.h"
@@ -169,4 +169,4 @@ namespace triply
 }
 
 
-#endif // PLYLIB_MODELTREEDATA_H
+#endif // TRIPLY_MODELTREEDATA_H

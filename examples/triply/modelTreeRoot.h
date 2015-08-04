@@ -29,14 +29,14 @@
  */
 
 
-#ifndef PLYLIB_MODELTREEROOT_H
-#define PLYLIB_MODELTREEROOT_H
+#ifndef TRIPLY_MODELTREEROOT_H
+#define TRIPLY_MODELTREEROOT_H
 
-#include "api.h"
+#include "typedefs.h"
 #include "modelTreeData.h"
 #include "modelTreeNode.h"
 #include "pagedTreeData.h"
-
+#include <triply/api.h>
 
 namespace triply
 {
@@ -44,34 +44,36 @@ namespace triply
 class ModelTreeRoot : public ModelTreeNode
 {
 public:
-    PLYLIB_API ModelTreeRoot( )
+    TRIPLY_API ModelTreeRoot( )
         : ModelTreeNode(), _partition( KDTREE_PARTITION ),
           _invertFaces(false), _inCoreData(false)
     { }
 
-    PLYLIB_API ModelTreeRoot( unsigned arity )
+    TRIPLY_API ModelTreeRoot( unsigned arity )
         : ModelTreeNode( arity ), _partition( KDTREE_PARTITION ),
           _invertFaces(false), _inCoreData(false)
     { }
 
-    static PLYLIB_API TreePartitionRule makeTreePartitionRule(const char* partitionTag);
+    TRIPLY_API static TreePartitionRule makeTreePartitionRule(const char* partitionTag);
 
-    PLYLIB_API virtual void cullDraw( TreeRenderState& state ) const;
-    PLYLIB_API virtual void draw( TreeRenderState& state ) const;
+    TRIPLY_API virtual void cullDraw( RenderState& state ) const;
+    TRIPLY_API virtual void draw( RenderState& state ) const;
 
-    PLYLIB_API bool setupTree( VertexData& modelData, TreePartitionRule partition );
+    TRIPLY_API bool setupTree( VertexData& modelData,
+                               TreePartitionRule partition,
+                               boost::progress_display& progress );
 
-    PLYLIB_API bool writeToFile( const std::string& filename);
-    PLYLIB_API bool readFromFile( const std::string& filename,
+    TRIPLY_API bool writeToFile( const std::string& filename);
+    TRIPLY_API bool readFromFile( const std::string& filename,
                                   TreePartitionRule partition=KDTREE_PARTITION,
                                   bool inCoreData=true);
-    PLYLIB_API bool hasColors() const { return _treeData.hasColors; }
-    PLYLIB_API BoundingBox getBoundingBox() const { return _treeData.getBoundingBox(); }
+    TRIPLY_API bool hasColors() const { return _treeData.hasColors; }
+    TRIPLY_API BoundingBox getBoundingBox() const { return _treeData.getBoundingBox(); }
 
-    PLYLIB_API void useInvertedFaces() { _invertFaces = true; }
+    TRIPLY_API void useInvertedFaces() { _invertFaces = true; }
 
-    PLYLIB_API const std::string& getName() const { return _name; }
-    PLYLIB_API std::string getBinaryName() const;
+    TRIPLY_API const std::string& getName() const { return _name; }
+    TRIPLY_API std::string getBinaryName() const;
 
 protected:
     virtual void toStream( std::ostream& os );
@@ -81,8 +83,8 @@ private:
     bool _constructFromPly( const std::string& filename );
     bool _readBinary( std::string filename );
 
-    void _beginRendering( TreeRenderState& state ) const;
-    void _endRendering( TreeRenderState& state ) const;
+    void _beginRendering( RenderState& state ) const;
+    void _endRendering( RenderState& state ) const;
 
     friend class ModelTreeDist;
 
@@ -97,4 +99,4 @@ private:
 }  // namespace
 
 
-#endif // PLYLIB_MODELTREEROOT_H
+#endif // TRIPLY_MODELTREEROOT_H

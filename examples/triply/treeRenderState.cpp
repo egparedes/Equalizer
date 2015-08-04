@@ -32,7 +32,7 @@
 
 namespace triply 
 {
-TreeRenderState::TreeRenderState( const GLEWContext* glewContext ) 
+RenderState::RenderState( const GLEWContext* glewContext )
         : _pmvMatrix( Matrix4f::IDENTITY )
         , _glewContext( glewContext )
         , _renderMode( RENDER_MODE_DISPLAY_LIST ) /* RENDER_MODE_BUFFER_OBJECT  */
@@ -44,10 +44,10 @@ TreeRenderState::TreeRenderState( const GLEWContext* glewContext )
     _range[0] = 0.f;
     _range[1] = 1.f;
     resetRegion();
-    PLYLIBASSERT( glewContext );
+    TRIPLYASSERT( glewContext );
 } 
 
-void TreeRenderState::setRenderMode( const RenderMode mode ) 
+void RenderState::setRenderMode( const RenderMode mode )
 { 
     if( _renderMode == mode )
         return;
@@ -57,12 +57,12 @@ void TreeRenderState::setRenderMode( const RenderMode mode )
     // Check if VBO funcs available, else fall back to display lists
     if( _renderMode == RENDER_MODE_BUFFER_OBJECT && !GLEW_VERSION_1_5 )
     {
-        PLYLIBINFO << "VBO not available, using display lists" << std::endl;
+        TRIPLYINFO << "VBO not available, using display lists" << std::endl;
         _renderMode = RENDER_MODE_DISPLAY_LIST;
     }
 }
 
-void TreeRenderState::resetRegion()
+void RenderState::resetRegion()
 {
     _region[0] = std::numeric_limits< float >::max();
     _region[1] = std::numeric_limits< float >::max();
@@ -70,7 +70,7 @@ void TreeRenderState::resetRegion()
     _region[3] = -std::numeric_limits< float >::max();
 }
 
-void TreeRenderState::updateRegion( const BoundingBox& box )
+void RenderState::updateRegion( const BoundingBox& box )
 {
     const Vertex corners[8] = { Vertex( box[0][0], box[0][1], box[0][2] ),
                                 Vertex( box[1][0], box[0][1], box[0][2] ),
@@ -108,7 +108,7 @@ void TreeRenderState::updateRegion( const BoundingBox& box )
     _region[3] = std::max( _region[3], normalized[3] );
 }
 
-Vector4f TreeRenderState::getRegion() const
+Vector4f RenderState::getRegion() const
 {
     if( _region[0] > _region[2] || _region[1] > _region[3] )
         return Vector4f::ZERO;
@@ -116,27 +116,27 @@ Vector4f TreeRenderState::getRegion() const
     return _region;
 }
 
-GLuint SimpleTreeRenderState::getDisplayList( const void* key )
+GLuint SimpleRenderState::getDisplayList( const void* key )
 {
     if( _displayLists.find( key ) == _displayLists.end() )
         return INVALID;
     return _displayLists[key];
 }
         
-GLuint SimpleTreeRenderState::newDisplayList( const void* key )
+GLuint SimpleRenderState::newDisplayList( const void* key )
 {
     _displayLists[key] = glGenLists( 1 );
     return _displayLists[key];
 }
         
-GLuint SimpleTreeRenderState::getBufferObject( const void* key )
+GLuint SimpleRenderState::getBufferObject( const void* key )
 {
     if( _bufferObjects.find( key ) == _bufferObjects.end() )
         return INVALID;
     return _bufferObjects[key];
 }
         
-GLuint SimpleTreeRenderState::newBufferObject( const void* key )
+GLuint SimpleRenderState::newBufferObject( const void* key )
 {
     if( !GLEW_VERSION_1_5 )
         return INVALID;
@@ -144,7 +144,7 @@ GLuint SimpleTreeRenderState::newBufferObject( const void* key )
     return _bufferObjects[key];
 }
         
-void SimpleTreeRenderState::deleteAll()
+void SimpleRenderState::deleteAll()
 {
     for( GLMapCIter i = _displayLists.begin(); i != _displayLists.end(); ++i )
         glDeleteLists( i->second, 1 );

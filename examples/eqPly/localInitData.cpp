@@ -57,8 +57,8 @@ LocalInitData::LocalInitData()
     , _showcaseRadiusArgs( .0, .0, .0 )
     , _showcaseAngleArgs( .0, .0, .0 )
 {
-    _filenames.push_back( lunchbox::getExecutablePath() +
-                          "/../share/Equalizer/data" );
+    _filenames.push_back( lunchbox::getRootPath() +
+                          "/share/Equalizer/data" );
 }
 
 LocalInitData& LocalInitData::operator = ( const LocalInitData& from )

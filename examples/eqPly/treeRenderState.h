@@ -38,16 +38,16 @@
 namespace eqPly
 {
 /*  State for Equalizer usage, uses Eq's Object Manager.  */
-class TreeRenderState : public triply::TreeRenderState
+class RenderState : public triply::RenderState
 {
 public:
-    TreeRenderState( eq::util::ObjectManager& objectManager )
-        : triply::TreeRenderState( objectManager.glewGetContext( ))
+    RenderState( eq::util::ObjectManager& objectManager )
+        : triply::RenderState( objectManager.glewGetContext( ))
         , _objectManager( objectManager )
         , _channel( 0 )
     {}
 
-    virtual ~TreeRenderState() {}
+    virtual ~RenderState() {}
 
     GLuint getDisplayList( const void* key ) override
         { return _objectManager.getList( key ); }

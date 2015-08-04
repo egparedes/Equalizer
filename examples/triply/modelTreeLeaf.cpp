@@ -48,20 +48,12 @@ ModelTreeLeaf::~ModelTreeLeaf()
 {
 }
 
-/*  Finish partial kd-tree setup - sort, reindex and merge into global data.  */
-void ModelTreeLeaf::setupKDTree( VertexData& modelData,
-                                  const Index start, const Index length,
-                                  const Axis axis, const size_t depth,
-                                  ModelTreeData& treeData )
-{
-    setupMKDTree(modelData, start, length, axis, depth, treeData);
-}
-
 /*  Finish partial multiway kd-tree setup - sort, reindex and merge into global data.  */
 void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
                                   const Index start, const Index length,
                                   const Axis axis, const size_t /*depth*/,
-                                  ModelTreeData& treeData )
+                                  ModelTreeData& treeData,
+                                  boost::progress_display& /*progress*/ )
 {
     modelData.sort( start, length, axis );
     _vertexStart = treeData.vertices.size();
@@ -81,7 +73,7 @@ void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
             {
                 newIndex[i] = _vertexLength++;
                 // assert number of vertices does not exceed SmallIndex range
-                PLYLIBASSERT( _vertexLength );
+                TRIPLYASSERT( _vertexLength );
                 treeData.vertices.push_back( modelData.vertices[i] );
                 if( treeData.hasColors )
                     treeData.colors.push_back( modelData.colors[i] );
@@ -93,7 +85,7 @@ void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
     }
 
 #ifndef NDEBUG
-    PLYLIBINFO << "setupKDTree" << "( " << _indexStart << ", " << _indexLength
+    TRIPLYINFO << "setupKDTree" << "( " << _indexStart << ", " << _indexLength
              << "; start " << _vertexStart << ", " << _vertexLength
              << " vertices)." << std::endl;
 #endif
@@ -101,10 +93,11 @@ void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
 
 /*  Finish partial octree setup - sort, reindex and merge into global data.  */
 void ModelTreeLeaf::setupZOctree( VertexData& modelData,
-                                   const std::vector< ZKeyIndexPair >& zKeys,
-                                   const ZKey beginKey, const ZKey endKey,
-                                   const Vertex center, const size_t depth,
-                                   ModelTreeData& treeData )
+                                  const std::vector< ZKeyIndexPair >& zKeys,
+                                  const ZKey beginKey, const ZKey endKey,
+                                  const Vertex center, const size_t depth,
+                                  ModelTreeData& treeData,
+                                  boost::progress_display& /*progress*/ )
 {
     BoundingBox bbox = modelData.getBoundingBox();
     Vertex halfCellSize = (bbox[1] - bbox[0]) / (2 << depth);
@@ -134,7 +127,7 @@ void ModelTreeLeaf::setupZOctree( VertexData& modelData,
             {
                 newIndex[i] = _vertexLength++;
                 // assert number of vertices does not exceed SmallIndex range
-                PLYLIBASSERT( _vertexLength );
+                TRIPLYASSERT( _vertexLength );
                 treeData.vertices.push_back( modelData.vertices[i] );
                 if( _treeData.hasColors )
                     treeData.colors.push_back( modelData.colors[i] );
@@ -150,7 +143,7 @@ void ModelTreeLeaf::setupZOctree( VertexData& modelData,
      _boundingBox[1] = center + halfCellSize;
      
 #ifndef NDEBUG
-    PLYLIBINFO << "setupZOctree" << "( " << _indexStart << ", " << _indexLength
+    TRIPLYINFO << "setupZOctree" << "( " << _indexStart << ", " << _indexLength
              << " / start " << _vertexStart << ", " << _vertexLength
              << " vertices)." << std::endl;
 #endif
@@ -241,7 +234,7 @@ const BoundingSphere& ModelTreeLeaf::updateBoundingSphere()
     _boundingSphere.w() = radius;
 
 #ifndef NDEBUG
-    PLYLIBINFO << "updateBoundingSphere" << "( " << _boundingSphere << " )."
+    TRIPLYINFO << "updateBoundingSphere" << "( " << _boundingSphere << " )."
              << std::endl;
 #endif
 
@@ -256,7 +249,7 @@ void ModelTreeLeaf::updateRange()
     _range[1] = _range[0] + 1.0f * _indexLength / _treeData.indices.size();
 
 #ifndef NDEBUG
-    PLYLIBINFO << "updateRange" << "( " << _range[0] << ", " << _range[1]
+    TRIPLYINFO << "updateRange" << "( " << _range[0] << ", " << _range[1]
              << " )." << std::endl;
 #endif
 }
@@ -264,7 +257,7 @@ void ModelTreeLeaf::updateRange()
 #define glewGetContext state.glewGetContext
 
 /*  Set up rendering of the leaf nodes.  */
-void ModelTreeLeaf::setupRendering( TreeRenderState& state,
+void ModelTreeLeaf::setupRendering( RenderState& state,
                                        GLuint* data ) const
 {
     switch( state.getRenderMode() )
@@ -321,8 +314,8 @@ void ModelTreeLeaf::setupRendering( TreeRenderState& state,
             std::size_t colorsOffset = 0;
             std::size_t normalsOffset = 0;
 
-            PLYLIBASSERT ( _verticesVB.numBlocks() == _normalsVB.numBlocks() );
-            PLYLIBASSERT ( !state.useColors() ||
+            TRIPLYASSERT ( _verticesVB.numBlocks() == _normalsVB.numBlocks() );
+            TRIPLYASSERT ( !state.useColors() ||
                            _verticesVB.numBlocks() == _colorsVB.numBlocks() );
 
             for( unsigned int i=0; i < _verticesVB.numBlocks(); ++i )
@@ -381,13 +374,13 @@ void ModelTreeLeaf::setupRendering( TreeRenderState& state,
 }
 
 /*  Draw the leaf.  */
-void ModelTreeLeaf::draw( TreeRenderState& state ) const
+void ModelTreeLeaf::draw( RenderState& state ) const
 {
     if( state.stopRendering( ) )
         return;
 
     if( state.useOutOfCore() && !isDataLoaded() )
-        loadVirtualData( state.getVirtualVBD(), state.useColors() );
+        loadVirtualData( state.getPagedData(), state.useColors() );
     state.updateRegion( _boundingBox );
     switch( state.getRenderMode() )
     {
@@ -407,7 +400,7 @@ void ModelTreeLeaf::draw( TreeRenderState& state ) const
 }
 
 /*  Render the leaf with buffer objects.  */
-void ModelTreeLeaf::renderBufferObject( TreeRenderState& state ) const
+void ModelTreeLeaf::renderBufferObject( RenderState& state ) const
 {
     GLuint buffers[4];
     for( int i = 0; i < 4; ++i )
@@ -441,7 +434,7 @@ void ModelTreeLeaf::renderBufferObject( TreeRenderState& state ) const
 
 /*  Render the leaf with a display list.  */
 inline
-void ModelTreeLeaf::renderDisplayList( TreeRenderState& state ) const
+void ModelTreeLeaf::renderDisplayList( RenderState& state ) const
 {
     char* key = (char*)( this );
     if( state.useColors( ))
@@ -458,7 +451,7 @@ void ModelTreeLeaf::renderDisplayList( TreeRenderState& state ) const
 
 /*  Render the leaf with immediate mode primitives or vertex arrays.  */
 inline
-void ModelTreeLeaf::renderImmediate( TreeRenderState& state ) const
+void ModelTreeLeaf::renderImmediate( RenderState& state ) const
 {
     glBegin( GL_TRIANGLES );
     if( state.useOutOfCore() )
@@ -531,7 +524,7 @@ void ModelTreeLeaf::loadVirtualData(PagedTreeDataPtr pagedVBD, bool useColors) c
 {
     if( isDataLoaded() )
         return;
-    PLYLIBASSERT( pagedVBD != 0 );
+    TRIPLYASSERT( pagedVBD != 0 );
 
 //    pagedVBD->getVertexData( _vertexStart, _vertexLength, useColors,
 //                             _verticesVB, _colorsVB, _normalsVB );

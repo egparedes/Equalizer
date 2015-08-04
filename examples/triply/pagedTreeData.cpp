@@ -91,10 +91,10 @@ void PagedTreeData::clear()
 
 void PagedTreeData::discard(PageKey key, PageType pType)
 {
-    PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+    TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
 
     _lock[pType].set();
-     PLYLIBASSERT( _activePages[pType][key] > 0 );
+     TRIPLYASSERT( _activePages[pType][key] > 0 );
     _activePages[pType][key]--;
     if( _activePages[pType][key] == 0)
         _disposablePages[pType].insert(key);
@@ -103,7 +103,7 @@ void PagedTreeData::discard(PageKey key, PageType pType)
 
 bool PagedTreeData::verify(PageKey key, PageType pType)
 {
-    PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+    TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
 
     _lock[pType].set();
     bool result = ( _activePages[pType][key] > 0 );
@@ -165,7 +165,7 @@ inline bool PagedTreeData::mapHasKey(PageKey key, PageType pType)
         return (_idxPages.count(key) > 0);
         break;
     default:
-        PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+        TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
         break;
     }
     return false;
@@ -188,7 +188,7 @@ inline void PagedTreeData::mapEraseKey(PageKey key, PageType pType)
         _idxPages.erase(key);
         break;
     default:
-        PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+        TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
         break;
     }
 }
@@ -210,7 +210,7 @@ inline std::size_t PagedTreeData::mapSize(PageType pType)
         return _idxPages.size();
         break;
     default:
-        PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+        TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
         break;
     }
     return 0;
@@ -218,15 +218,15 @@ inline std::size_t PagedTreeData::mapSize(PageType pType)
 
 inline char* PagedTreeData::getPageAddress(PageKey key, PageType pType)
 {
-    PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
-    PLYLIBASSERT( key * _pageSize < _totalElems[pType] );
+    TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+    TRIPLYASSERT( key * _pageSize < _totalElems[pType] );
     return _dataAddr[pType] + key * _pageSize * _sizeOfType[pType];
 }
 
 inline std::size_t PagedTreeData::getPageByteSize(PageKey key, PageType pType)
 {
-    PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
-    PLYLIBASSERT( key * _pageSize < _totalElems[pType] );
+    TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+    TRIPLYASSERT( key * _pageSize < _totalElems[pType] );
     return std::min(_pageSize, _totalElems[pType] - key * _pageSize);
 }
 
@@ -234,7 +234,7 @@ template < typename T >
 PagedTreeData::PageData< T >&
 PagedTreeData::getPage(PageKey key, PageType pType)
 {
-    PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+    TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
 
     _lock[pType].set();
     if( _mmapAddr == MMAP_BAD_ADDRESS )
@@ -257,7 +257,7 @@ PagedTreeData::getPage(PageKey key, PageType pType)
         pageData = reinterpret_cast< PageData< T >* >( &(_idxPages[key]) );
         break;
     default:
-        PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+        TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
         break;
     }
 
@@ -271,21 +271,21 @@ PagedTreeData::getPage(PageKey key, PageType pType)
             std::list< PageKey >::iterator it = _disposablePages[pType].begin();
             while (_activePages[pType][*it] > 0 && it != _disposablePages[pType].end())
                 ++it;
-            PLYLIBASSERT( it != _disposablePages[pType].end() );
+            TRIPLYASSERT( it != _disposablePages[pType].end() );
             if( it != _disposablePages[pType].end())
             {
                 freePage(*it, pType);
                 _disposablePages[pType].erase(it);
             }
 #else
-            PLYLIBASSERT( !_disposablePages[pType].empty() );
-            PLYLIBASSERT( _activePages[pType][ *(_disposablePages[pType].begin()) ] == 0 );
+            TRIPLYASSERT( !_disposablePages[pType].empty() );
+            TRIPLYASSERT( _activePages[pType][ *(_disposablePages[pType].begin()) ] == 0 );
             freePage( *(_disposablePages[pType].begin()), pType );
             _disposablePages[pType].erase( _disposablePages[pType].begin() );
 #endif
         }
 
-        PLYLIBASSERT( _mmapAddr != MMAP_BAD_ADDRESS );
+        TRIPLYASSERT( _mmapAddr != MMAP_BAD_ADDRESS );
         readData( getPageAddress(key, pType), pageData->data, getPageByteSize(key, pType) );
     }
     _disposablePages[pType].erase( key );
@@ -297,9 +297,9 @@ PagedTreeData::getPage(PageKey key, PageType pType)
 
 void PagedTreeData::freePage( PageKey key, PageType pType )
 {
-    PLYLIBASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
-    PLYLIBASSERT( !mapHasKey(key, pType) );
-    PLYLIBASSERT( _activePages[pType][key] <= 0 );
+    TRIPLYASSERT( pType >= POSITION_PAGE_TYPE && pType < TOTAL_PAGE_TYPES );
+    TRIPLYASSERT( !mapHasKey(key, pType) );
+    TRIPLYASSERT( _activePages[pType][key] <= 0 );
 
     _disposablePages[pType].erase( key );
     mapEraseKey( key, pType );
@@ -357,13 +357,13 @@ bool PagedTreeData::openBinary()
         }
         catch( const std::exception& e )
         {
-            PLYLIBERROR << "Unable to read binary file, an exception occured:  "
+            TRIPLYERROR << "Unable to read binary file, an exception occured:  "
                       << e.what() << std::endl;
         }
     }
     else
     {
-        PLYLIBERROR << "Unable to read binary file, memory mapping failed."
+        TRIPLYERROR << "Unable to read binary file, memory mapping failed."
                   << std::endl;
     }
 

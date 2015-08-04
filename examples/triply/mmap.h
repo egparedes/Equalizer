@@ -1,7 +1,7 @@
 
-/* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
+/* Copyright (c)      2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+ *                    2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2009-2014, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,8 +29,8 @@
  */
 
 
-#ifndef PLYLIB_MMAP_H
-#define PLYLIB_MMAP_H
+#ifndef TRIPLY_MMAP_H
+#define TRIPLY_MMAP_H
 
 #include <string>
 
@@ -49,5 +49,5 @@ namespace triply
 
 } //namespace triply
 
-#endif // PLYLIB_MMAP_H
+#endif // TRIPLY_MMAP_H
 

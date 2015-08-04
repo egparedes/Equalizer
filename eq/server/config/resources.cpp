@@ -1,7 +1,7 @@
 
-/* Copyright (c) 2011-2013, Stefan Eilemann <eile@eyescale.h>
- *               2012-2014, Daniel Nachbaur <danielnachbaur@gmail.com>
- *                    2013, Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
+/* Copyright (c) 2011-2015, Stefan Eilemann <eile@eyescale.h>
+ *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                          Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -58,7 +58,7 @@
 #ifdef _MSC_VER
 #  include <eq/os.h>
 #  define setenv( name, value, overwrite ) \
-    SetEnvironmentVariable( name, value )
+    _putenv_s( name, value )
 #endif
 
 #define USE_IPv4
@@ -426,7 +426,8 @@ public:
         Window* window = new Window( pipe );
         if( !pipe->getPixelViewport().isValid( ))
             window->setPixelViewport( _pvp );
-        window->setIAttribute( WindowSettings::IATTR_HINT_DRAWABLE, fabric::FBO );
+        window->setIAttribute( WindowSettings::IATTR_HINT_DRAWABLE,
+                               fabric::FBO );
         window->setName( pipe->getName() + " source window" );
 
         _channels.push_back( new Channel( window ));

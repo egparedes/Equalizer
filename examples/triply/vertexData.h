@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
  *               2009-2012, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,10 +29,10 @@
 */
 
 
-#ifndef PLYLIB_VERTEXDATA_H
-#define PLYLIB_VERTEXDATA_H
+#ifndef TRIPLY_VERTEXDATA_H
+#define TRIPLY_VERTEXDATA_H
 
-#include "api.h"
+#include <triply/api.h>
 #include "typedefs.h"
 #include <vector>
 
@@ -45,21 +46,21 @@ namespace triply
     class VertexData
     {
     public:
-        PLYLIB_API VertexData();
+        TRIPLY_API VertexData();
 
-        PLYLIB_API bool readPlyFile( const std::string& file );
-        PLYLIB_API void calculateNormals();
-        PLYLIB_API void calculateBoundingBox();
-        PLYLIB_API void scale( const float baseSize = 2.0f );
+        TRIPLY_API bool readPlyFile( const std::string& file );
+        TRIPLY_API void calculateNormals();
+        TRIPLY_API void calculateBoundingBox();
+        TRIPLY_API void scale( const float baseSize = 2.0f );
 
-        PLYLIB_API void sort( const Index start, const Index length, const Axis axis );
+        TRIPLY_API void sort( const Index start, const Index length, const Axis axis );
 
-        PLYLIB_API void genZKeys( std::vector< ZKeyIndexPair >& zKeys,
+        TRIPLY_API void genZKeys( std::vector< ZKeyIndexPair >& zKeys,
                                   unsigned maxLevel );
-        PLYLIB_API void sortZKeys( std::vector< ZKeyIndexPair >& zKeys );
+        TRIPLY_API void sortZKeys( std::vector< ZKeyIndexPair >& zKeys );
 
         const BoundingBox& getBoundingBox() const { return _boundingBox; }
-        PLYLIB_API Axis getLongestAxis( const size_t start, const size_t elements ) const;
+        TRIPLY_API Axis getLongestAxis( const size_t start, const size_t elements ) const;
 
         void useInvertedFaces() { _invertFaces = true; }
 
@@ -79,4 +80,4 @@ namespace triply
 }
 
 
-#endif // PLYLIB_VERTEXDATA_H
+#endif // TRIPLY_VERTEXDATA_H

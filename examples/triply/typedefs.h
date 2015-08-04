@@ -32,8 +32,8 @@
  Type definitions for the mesh classes.
 */
 
-#ifndef PLYLIB_TYPEDEFS_H
-#define PLYLIB_TYPEDEFS_H
+#ifndef TRIPLY_TYPEDEFS_H
+#define TRIPLY_TYPEDEFS_H
 
 #if defined(EQ_DEFINES_H) || defined(EQUALIZER_VERSION)
 #  define EQUALIZER
@@ -41,10 +41,10 @@
 
 #ifdef EQUALIZER
 #  include <eq/eq.h>
-#  define PLYLIBASSERT  LBASSERT
-#  define PLYLIBERROR   LBERROR
-#  define PLYLIBWARN    LBWARN
-#  define PLYLIBINFO    LBINFO
+#  define TRIPLYASSERT  LBASSERT
+#  define TRIPLYERROR   LBERROR
+#  define TRIPLYWARN    LBWARN
+#  define TRIPLYINFO    LBINFO
 #else
 #  include <vmmlib/vmmlib.hpp>
 #  ifdef _WIN32
@@ -57,14 +57,13 @@
 #    include <GL/gl.h>
 #  endif
 #  include <cassert>
-#  define PLYLIBASSERT  assert
-#  define PLYLIBERROR   std::cerr
-#  define PLYLIBWARN    std::cout
-#  define PLYLIBINFO    std::cout
+#  define TRIPLYASSERT  assert
+#  define TRIPLYERROR   std::cerr
+#  define TRIPLYWARN    std::cout
+#  define TRIPLYINFO    std::cout
 #endif
 
-#define NUM_ELEMS( a ) (sizeof( a ) / sizeof( a[ 0 ] ))
-
+#include <boost/progress.hpp>
 #include <cstdint>
 #include <exception>
 #include <iostream>
@@ -77,7 +76,7 @@ class ModelTreeBase;
 class ModelTreeData;
 class ModelTreeNode;
 class ModelTreeRoot;
-class TreeRenderState;
+class RenderState;
 class VertexData;
 class PagedTreeData;
 
@@ -109,13 +108,13 @@ template< class T, size_t d > struct ArrayWrapper
     ArrayWrapper( const T* from ) { memcpy( data, from, sizeof( data )); }
     T& operator[]( const size_t i )
         {
-            PLYLIBASSERT( i < d );
+            TRIPLYASSERT( i < d );
             return data[i];
         }
 
     const T& operator[]( const size_t i ) const
         {
-            PLYLIBASSERT( i < d );
+            TRIPLYASSERT( i < d );
             return data[i];
         }
 
@@ -277,4 +276,4 @@ template<> inline void byteswap( triply::Range& value )
 }
 }
 #endif
-#endif // PLYLIB_TYPEDEFS_H
+#endif // TRIPLY_TYPEDEFS_H

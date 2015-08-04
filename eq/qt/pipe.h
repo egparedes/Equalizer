@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2010-2013, Stefan Eilemann <eile@eyescale.ch>
+/* Copyright (c) 2015, Stefan.Eilemann@epfl.ch
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -15,19 +15,33 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef EQ_DEFINES_H
-#define EQ_DEFINES_H
+#ifndef EQ_QT_PIPE_H
+#define EQ_QT_PIPE_H
 
-#include <co/defines.h>
+#include <eq/systemPipe.h> // base class
 
-#ifdef __APPLE__
-#  include <eq/definesDarwin.h>
-#endif
-#ifdef __linux__
-#  include <eq/definesLinux.h>
-#endif
-#ifdef _WIN32 //_MSC_VER
-#  include <eq/definesWin32.h>
-#endif
+namespace eq
+{
+namespace qt
+{
+/** Handles a GPU/screen through Qt */
+class Pipe : public SystemPipe
+{
+public:
+    /** Create a new Qt pipe for the given eq::Pipe. @version 1.10 */
+    Pipe( eq::Pipe* parent ) : SystemPipe( parent ) {}
 
-#endif // EQ_DEFINES_H
+    /** Destroy the Qt Pipe. @version 1.10 */
+    virtual ~Pipe() {}
+
+    /** Initialize the GPU. @version 1.10 */
+    EQ_API bool configInit() override;
+
+    /** De-initialize the GPU. @version 1.10 */
+    void configExit() {}
+};
+
+}
+}
+
+#endif

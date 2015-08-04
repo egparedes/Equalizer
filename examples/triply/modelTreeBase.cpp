@@ -38,7 +38,7 @@ const unsigned ModelTreeBase::MaxZLevel = ( ZKEY_BIT_SIZE / 3 ) - 1;
 const ZKey ModelTreeBase::MinZKey = 0;
 const ZKey ModelTreeBase::MaxZKey = ( ~0ull ) >> ( 8 * sizeof( ZKey ) - ZKEY_BIT_SIZE );
 
-void ModelTreeBase::drawBoundingSphere(TreeRenderState& state ) const
+void ModelTreeBase::drawBoundingSphere(RenderState& state ) const
 {
     GLuint displayList = state.getDisplayList( &_boundingSphere );
 

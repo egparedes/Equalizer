@@ -1,8 +1,8 @@
 
-/* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
- *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
- *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
- *                    2007, Tobias Wolf <twolf@access.unizh.ch>
+/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                          Tobias Wolf <twolf@access.unizh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -130,7 +130,7 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
         return;
 
     Window* window = static_cast< Window* >( getWindow( ));
-    TreeRenderState& state = window->getState();
+    RenderState& state = window->getState();
     const Model* oldModel = _model;
     const Model* model = _getModel();
 
@@ -173,7 +173,7 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
 
     if( model )
     {
-        state.setVirtualVBD(
+        state.setPagedData(
             static_cast<Node*>( getNode() )->getModelLoader( _modelID ) );
         _drawModel( model );
     }
@@ -594,7 +594,7 @@ const Model* Channel::_getModel()
 void Channel::_drawModel( const Model* scene )
 {
     Window* window = static_cast< Window* >( getWindow( ));
-    TreeRenderState& state = window->getState();
+    RenderState& state = window->getState();
     const FrameData& frameData = _getFrameData();
 
     state.setColors( frameData.getColorMode() == COLOR_MODEL && scene->hasColors( ) );
@@ -618,13 +618,13 @@ void Channel::_drawModel( const Model* scene )
 
     const eq::Pipe* pipe = getPipe();
     const GLuint program = state.getProgram( pipe );
-    if( program != TreeRenderState::INVALID )
+    if( program != RenderState::INVALID )
         glUseProgram( program );
 
     scene->cullDraw( state );
 
     state.setChannel( 0 );
-    if( program != TreeRenderState::INVALID )
+    if( program != RenderState::INVALID )
         glUseProgram( 0 );
 
     const InitData& initData =

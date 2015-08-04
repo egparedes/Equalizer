@@ -27,8 +27,8 @@
  */
 
 
-#ifndef PLYLIB_PAGEDTREEDATA_H
-#define PLYLIB_PAGEDTREEDATA_H
+#ifndef TRIPLY_PAGEDTREEDATA_H
+#define TRIPLY_PAGEDTREEDATA_H
 
 #include "typedefs.h"
 #include "mmap.h"
@@ -93,7 +93,7 @@ public:
 
     inline T* ptr(std::size_t i) const
     {
-        PLYLIBASSERT( i < _size && _valid );
+        TRIPLYASSERT( i < _size && _valid );
         i += _offset;
         return _keyPairs[i /_pageSize].second + (i % _pageSize);
     }
@@ -226,7 +226,7 @@ inline void PagedTreeData::getElems( std::size_t start, std::size_t count,
     if( _mmapAddr == MMAP_BAD_ADDRESS )
         openBinary();
 
-    PLYLIBASSERT( start + count <= _totalElems[pType] );
+    TRIPLYASSERT( start + count <= _totalElems[pType] );
 
     PageKey key = start / _pageSize;
     std::size_t offset = start % _pageSize;
@@ -267,7 +267,7 @@ inline void PagedBuffer<T>::discard( )
 {
     if( _valid )
     {
-        PLYLIBASSERT( _virtualTreeData );
+        TRIPLYASSERT( _virtualTreeData );
         _valid = false;
         for( std::size_t i=0; i < _keyPairs.size(); ++i )
         {
@@ -288,4 +288,4 @@ typedef PagedShortIndexBuffer*    PagedShortIndexBufferPtr;
 
 } // namespace triply
 
-#endif // PLYLIB_PAGEDTREEDATA_H
+#endif // TRIPLY_PAGEDTREEDATA_H

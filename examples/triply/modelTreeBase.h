@@ -29,11 +29,11 @@
 */
 
 
-#ifndef PLYLIB_MODELTREEBASE_H
-#define PLYLIB_MODELTREEBASE_H
+#ifndef TRIPLY_MODELTREEBASE_H
+#define TRIPLY_MODELTREEBASE_H
 
-#include "api.h"
 #include "typedefs.h"
+#include <triply/api.h>
 #include <fstream>
 
 namespace eqPly
@@ -55,9 +55,9 @@ public:
 
     virtual ~ModelTreeBase() { }
 
-    PLYLIB_API virtual void draw( TreeRenderState& state ) const = 0;
-    PLYLIB_API void drawBoundingSphere(TreeRenderState &state ) const;
-    PLYLIB_API virtual Index getNumberOfVertices() const = 0;
+    TRIPLY_API virtual void draw( RenderState& state ) const = 0;
+    TRIPLY_API void drawBoundingSphere(RenderState &state ) const;
+    TRIPLY_API virtual Index getNumberOfVertices() const = 0;
 
     const BoundingSphere& getBoundingSphere() const { return _boundingSphere; }
 
@@ -91,19 +91,13 @@ protected:
                  sizeof( Range ) );
     }
 
-    virtual void setupKDTree( VertexData& modelData,
-                              const Index start,
-                              const Index length,
-                              const Axis axis,
-                              const size_t depth,
-                              ModelTreeData& treeData ) = 0;
-
     virtual void setupMKDTree( VertexData& modelData,
                               const Index start,
                               const Index length,
                               const Axis axis,
                               const size_t depth,
-                              ModelTreeData& treeData ) = 0;
+                              ModelTreeData& treeData,
+                              boost::progress_display& progress ) = 0;
 
     virtual void setupZOctree( VertexData& modelData,
                                const std::vector< ZKeyIndexPair >& zKeys,
@@ -111,7 +105,8 @@ protected:
                                const ZKey endKey,
                                const Vertex center,
                                const size_t depth,
-                               ModelTreeData& treeData ) = 0;
+                               ModelTreeData& treeData,
+                               boost::progress_display& progress ) = 0;
 
     virtual const BoundingSphere& updateBoundingSphere() = 0;
     virtual void updateRange() = 0;
@@ -125,4 +120,4 @@ protected:
 
 } // namespace
 
-#endif // PLYLIB_MODELTREEBASE_H
+#endif // TRIPLY_MODELTREEBASE_H
