@@ -50,9 +50,16 @@ int main( const int argc, char** argv )
 {
     triply::TreePartitionRule partition =
             triply::ModelTreeRoot::makeTreePartitionRule( argv[1] );
+    int firstArg = 2;
+    if ( int( partition ) < 0 )
+    {
+        // If no partition specified use KD tree
+        partition = static_cast< triply::TreePartitionRule >( 0 );
+        firstArg--;
+    }
 
     eq::Strings filenames;
-    for( int i=2; i < argc; ++i )
+    for( int i=firstArg; i < argc; ++i )
         filenames.push_back( argv[i] );
 
     while( !filenames.empty( ))

@@ -186,7 +186,6 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
     _treeData.boundingBox = bbox; // _treeData.calculateBoundingBox();
 
     {
-        TRIPLYINFO << "Generating tree... " << std::endl;
         // For kd-tree
         const Axis axis = modelData.getLongestAxis( 0, modelData.triangles.size() );
 
@@ -218,8 +217,9 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
         }
     }
     
-    TRIPLYINFO << "Updating culling data... " << std::endl;
+    ++progress;
     ModelTreeNode::updateBoundingSphere();
+    ++progress;
     ModelTreeNode::updateRange();
 
 
@@ -362,7 +362,7 @@ void ModelTreeRoot::fromMemory( char* start )
 bool ModelTreeRoot::_constructFromPly( const std::string& filename )
 {
     TRIPLYINFO << "Reading PLY file." << std::endl;
-    boost::progress_display progress( 12 );
+    boost::progress_display progress( 25 );
 
     VertexData data;
     if( _invertFaces )

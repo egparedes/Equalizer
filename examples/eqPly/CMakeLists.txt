@@ -68,7 +68,7 @@ foreach(PLY_FILE ${PLY_FILES})
     if(NOT CMAKE_BUILD_WITH_INSTALL_RPATH) # MacPorts WAR
       foreach(ARCH ${CMAKE_OSX_ARCHITECTURES})
         if(${ARCH} MATCHES "64")
-          set(BIN_POSTFIX "64.bin")
+          set( "64.bin")
         else()
           set(BIN_POSTFIX "32.bin")
         endif()
@@ -77,7 +77,7 @@ foreach(PLY_FILE ${PLY_FILES})
         else()
           set(BIN_POSTFIX "le${BIN_POSTFIX}")
         endif()
-        install_ply("${PLY_FILE}" "${PLY_FILE}.${BIN_POSTFIX}"
+        install_ply("${PLY_FILE}" "${PLY_FILE}.kd2.${BIN_POSTFIX}"
           arch -${ARCH} "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/eqPlyConverter")
       endforeach()
     endif()
@@ -92,7 +92,7 @@ foreach(PLY_FILE ${PLY_FILES})
     else()
       set(BIN_POSTFIX "le${BIN_POSTFIX}")
     endif()
-    install_ply("${PLY_FILE}" "${PLY_FILE}.${BIN_POSTFIX}"
+    install_ply("${PLY_FILE}" "${PLY_FILE}.kd2.${BIN_POSTFIX}"
       "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/eqPlyConverter")
   endif()
   file(COPY ${PLY_FILE} DESTINATION ${CMAKE_BINARY_DIR}/share/Equalizer/data)
