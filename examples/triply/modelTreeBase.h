@@ -34,6 +34,7 @@
 
 #include "typedefs.h"
 #include <triply/api.h>
+#include <utility>
 #include <fstream>
 
 namespace eqPly
@@ -43,17 +44,14 @@ class ModelTreeDist;
 
 namespace triply
 {
+
 /*  The abstract base class for all kinds of tree nodes.  */
 class ModelTreeBase
 {
 public:
-    static const unsigned LeftChildId;
-    static const unsigned RightChildId;
-    static const unsigned MaxZLevel;
-    static const ZKey MinZKey;
-    static const ZKey MaxZKey;
-
     virtual ~ModelTreeBase() { }
+
+    TRIPLY_API virtual void clear() = 0;
 
     TRIPLY_API virtual void draw( RenderState& state ) const = 0;
     TRIPLY_API void drawBoundingSphere(RenderState &state ) const;
@@ -63,10 +61,13 @@ public:
 
     const float* getRange() const { return &_range[0]; }
 
-    virtual const ModelTreeBase* getChild( unsigned char /*childId*/ ) const { return 0; }
-    virtual ModelTreeBase* getChild( unsigned char /*childId*/ ) { return 0; }
+    virtual ConstModelTreeBasePtr getChild( unsigned char /*childId*/ ) const { return 0; }
+    virtual ModelTreeBasePtr getChild( unsigned char /*childId*/ ) { return 0; }
 
     virtual unsigned getNumberOfChildren( ) const { return 0; }
+    // A pair of numbers per sublevel: (#totalnodes, #leaves)
+    virtual std::vector< std::pair< unsigned, unsigned > > getDescendantsPerLevel( ) const
+        { return std::vector< std::pair< unsigned, unsigned > >(); }
     bool isLeaf( ) const { return getNumberOfChildren() == 0; }
 
 protected:
@@ -90,23 +91,6 @@ protected:
         memRead( reinterpret_cast< char* >( &_range ), addr,
                  sizeof( Range ) );
     }
-
-    virtual void setupMKDTree( VertexData& modelData,
-                              const Index start,
-                              const Index length,
-                              const Axis axis,
-                              const size_t depth,
-                              ModelTreeData& treeData,
-                              boost::progress_display& progress ) = 0;
-
-    virtual void setupZOctree( VertexData& modelData,
-                               const std::vector< ZKeyIndexPair >& zKeys,
-                               const ZKey beginKey,
-                               const ZKey endKey,
-                               const Vertex center,
-                               const size_t depth,
-                               ModelTreeData& treeData,
-                               boost::progress_display& progress ) = 0;
 
     virtual const BoundingSphere& updateBoundingSphere() = 0;
     virtual void updateRange() = 0;

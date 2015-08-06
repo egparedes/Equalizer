@@ -37,6 +37,7 @@
 #include "modelTreeNode.h"
 #include "pagedTreeData.h"
 #include <triply/api.h>
+#include <vector>
 
 namespace triply
 {
@@ -45,28 +46,27 @@ class ModelTreeRoot : public ModelTreeNode
 {
 public:
     TRIPLY_API ModelTreeRoot( )
-        : ModelTreeNode(), _partition( KDTREE_PARTITION ),
-          _invertFaces(false), _inCoreData(false)
+        : ModelTreeNode(), _invertFaces(false), _inCoreData(false)
     { }
 
     TRIPLY_API ModelTreeRoot( unsigned arity )
-        : ModelTreeNode( arity ), _partition( KDTREE_PARTITION ),
-          _invertFaces(false), _inCoreData(false)
+        : ModelTreeNode( arity, 0 ), _invertFaces(false), _inCoreData(false)
     { }
 
-    TRIPLY_API static TreePartitionRule makeTreePartitionRule(const char* partitionTag);
+    TRIPLY_API virtual void clear();
 
     TRIPLY_API virtual void cullDraw( RenderState& state ) const;
     TRIPLY_API virtual void draw( RenderState& state ) const;
 
     TRIPLY_API bool setupTree( VertexData& modelData,
-                               TreePartitionRule partition,
-                               boost::progress_display& progress );
+                               const TreeInfo& info,
+                               boost::progress_display* progressPtr=0);
 
     TRIPLY_API bool writeToFile( const std::string& filename);
     TRIPLY_API bool readFromFile( const std::string& filename,
-                                  TreePartitionRule partition=KDTREE_PARTITION,
-                                  bool inCoreData=true);
+                                  const TreeInfo& info=TreeInfo("kd", 2),
+                                  bool inCoreData=true );
+
     TRIPLY_API bool hasColors() const { return _treeData.hasColors; }
     TRIPLY_API BoundingBox getBoundingBox() const { return _treeData.getBoundingBox(); }
 
@@ -80,20 +80,20 @@ protected:
     virtual void fromMemory( char* start );
 
 private:
-    bool _constructFromPly( const std::string& filename );
-    bool _readBinary( std::string filename );
+    bool constructFromPly( const std::string& filename, const TreeInfo& info );
+    bool readBinary( std::string filename );
+    void showBuildStats(const VertexData &modelData );
 
-    void _beginRendering( RenderState& state ) const;
-    void _endRendering( RenderState& state ) const;
+    void beginRendering( RenderState& state ) const;
+    void endRendering( RenderState& state ) const;
 
     friend class ModelTreeDist;
 
-    ModelTreeData      _treeData;
-    TreePartitionRule  _partition;
-    bool               _invertFaces;
-    bool               _inCoreData;  // For out-of-core rendering
-    std::string        _name;
-
+    ModelTreeData       _treeData;
+    bool                _invertFaces;
+    bool                _inCoreData;
+    std::string         _partition;
+    std::string         _name;
 };
 
 }  // namespace

@@ -34,7 +34,7 @@
 #include <frameData.h>
 #include <triply/modelTreeDist.h>
 #include <triply/modelTreeRoot.h>
-#include <triply/treeRenderState.h>
+#include <triply/renderState.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923

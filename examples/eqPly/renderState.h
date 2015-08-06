@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2009-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2007, Tobias Wolf <twolf@access.unizh.ch>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,12 +28,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef EQPLY_TREERENDERSTATE_H
-#define EQPLY_TREERENDERSTATE_H
+#ifndef EQPLY_RENDERSTATE_H
+#define EQPLY_RENDERSTATE_H
 
 #include "channel.h"
 
-#include <triply/treeRenderState.h>
+#include <triply/renderState.h>
 #include <eq/eq.h>
 
 namespace eqPly
@@ -94,4 +95,4 @@ private:
 };
 } // namespace eqPly
 
-#endif // EQ_MESH_TREERENDERSTATE_H
+#endif // EQPLY_RENDERSTATE_H

@@ -38,7 +38,7 @@
 #include "node.h"
 #include "view.h"
 #include "window.h"
-#include "treeRenderState.h"
+#include "renderState.h"
 
 // light parameters
 static GLfloat lightPosition[] = {0.0f, 0.0f, 1.0f, 0.0f};
@@ -93,12 +93,12 @@ void Channel::frameClear( const eq::uint128_t& /*frameID*/ )
     if( stopRendering( ))
         return;
 
-    _initJitter();
+    initJitter();
     resetRegions();
 
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     const int32_t eyeIndex = lunchbox::getIndexOfLastBit( getEye() );
-    if( _isDone() && !_accum[ eyeIndex ].transfer )
+    if( isDone() && !_accum[ eyeIndex ].transfer )
         return;
 
     applyBuffer();
@@ -125,21 +125,21 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
     if( stopRendering( ))
         return;
 
-    _initJitter();
-    if( _isDone( ))
+    initJitter();
+    if( isDone( ))
         return;
 
     Window* window = static_cast< Window* >( getWindow( ));
     RenderState& state = window->getState();
     const Model* oldModel = _model;
-    const Model* model = _getModel();
+    const Model* model = getModel();
 
     if( oldModel != model )
         //state.setFrustumCulling( false ); // create all display lists/VBOs
         state.setFrustumCulling( state.useFrustumCulling() );
 
     if( model )
-        _updateNearFar( model->getBoundingSphere( ));
+        updateNearFar( model->getBoundingSphere( ));
 
     eq::Channel::frameDraw( frameID ); // Setup OpenGL state
 
@@ -153,7 +153,7 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
     glMaterialfv( GL_FRONT, GL_SPECULAR,  materialSpecular );
     glMateriali(  GL_FRONT, GL_SHININESS, materialShininess );
 
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     glPolygonMode( GL_FRONT_AND_BACK,
                    frameData.useWireframe() ? GL_LINE : GL_FILL );
 
@@ -175,7 +175,7 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
     {
         state.setPagedData(
             static_cast<Node*>( getNode() )->getModelLoader( _modelID ) );
-        _drawModel( model );
+        drawModel( model );
     }
     else
     {
@@ -201,7 +201,7 @@ void Channel::frameAssemble( const eq::uint128_t& frameID,
     if( stopRendering( ))
         return;
 
-    if( _isDone( ))
+    if( isDone( ))
         return;
 
     Accum& accum = _accum[ lunchbox::getIndexOfLastBit( getEye()) ];
@@ -254,10 +254,10 @@ void Channel::frameAssemble( const eq::uint128_t& frameID,
 void Channel::frameReadback( const eq::uint128_t& frameID,
                              const eq::Frames& frames )
 {
-    if( stopRendering() || _isDone( ))
+    if( stopRendering() || isDone( ))
         return;
 
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     for( eq::FramesCIter i = frames.begin(); i != frames.end(); ++i )
     {
         eq::Frame* frame = *i;
@@ -296,7 +296,7 @@ void Channel::frameViewStart( const eq::uint128_t& frameID )
         return;
 
     _currentPVP = getPixelViewport();
-    _initJitter();
+    initJitter();
     eq::Channel::frameViewStart( frameID );
 }
 
@@ -328,7 +328,7 @@ void Channel::frameViewFinish( const eq::uint128_t& frameID )
 
     applyBuffer();
 
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     Accum& accum = _accum[ lunchbox::getIndexOfLastBit( getEye()) ];
 
     if( accum.buffer )
@@ -347,7 +347,7 @@ void Channel::frameViewFinish( const eq::uint128_t& frameID )
         {
             setupAssemblyState();
 
-            if( !_isDone() && accum.transfer )
+            if( !isDone() && accum.transfer )
                 accum.buffer->accum();
             accum.buffer->display();
 
@@ -356,8 +356,8 @@ void Channel::frameViewFinish( const eq::uint128_t& frameID )
     }
 
     applyViewport();
-    _drawOverlay();
-    _drawHelp();
+    drawOverlay();
+    drawHelp();
 
     if( frameData.useStatistics())
         drawStatistics();
@@ -384,19 +384,19 @@ void Channel::frameViewFinish( const eq::uint128_t& frameID )
 
 bool Channel::useOrtho() const
 {
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     return frameData.useOrtho();
 }
 
-const FrameData& Channel::_getFrameData() const
+const FrameData& Channel::getFrameData() const
 {
     const Pipe* pipe = static_cast<const Pipe*>( getPipe( ));
     return pipe->getFrameData();
 }
 
-bool Channel::_isDone() const
+bool Channel::isDone() const
 {
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     if( !frameData.isIdle( ))
         return false;
 
@@ -405,12 +405,12 @@ bool Channel::_isDone() const
     return int32_t( subpixel.index ) >= accum.step;
 }
 
-void Channel::_initJitter()
+void Channel::initJitter()
 {
-    if( !_initAccum( ))
+    if( !initAccum( ))
         return;
 
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     if( frameData.isIdle( ))
         return;
 
@@ -429,7 +429,7 @@ void Channel::_initJitter()
     accum.step = idleSteps;
 }
 
-bool Channel::_initAccum()
+bool Channel::initAccum()
 {
     View* view = static_cast< View* >( getNativeView( ));
     if( !view ) // Only alloc accum for dest
@@ -500,7 +500,7 @@ bool Channel::stopRendering() const
 
 eq::Vector2f Channel::getJitter() const
 {
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     const Accum& accum = _accum[ lunchbox::getIndexOfLastBit( getEye()) ];
 
     if( !frameData.isIdle() || accum.step <= 0 )
@@ -510,7 +510,7 @@ eq::Vector2f Channel::getJitter() const
     if( !view || view->getIdleSteps() != 256 )
         return eq::Vector2f::ZERO;
 
-    const eq::Vector2i jitterStep = _getJitterStep();
+    const eq::Vector2i jitterStep = getJitterStep();
     if( jitterStep == eq::Vector2i::ZERO )
         return eq::Vector2f::ZERO;
 
@@ -549,7 +549,7 @@ static const uint32_t _primes[100] = {
     1297, 1301, 1303, 1307, 1319, 1321, 1327, 1361, 1367, 1373, 1381, 1399,
     1409, 1423, 1427, 1429, 1433, 1439, 1447, 1451 };
 
-eq::Vector2i Channel::_getJitterStep() const
+eq::Vector2i Channel::getJitterStep() const
 {
     const eq::SubPixel& subPixel = getSubPixel();
     const uint32_t channelID = subPixel.index;
@@ -572,11 +572,11 @@ eq::Vector2i Channel::_getJitterStep() const
     return eq::Vector2i( dx, dy );
 }
 
-const Model* Channel::_getModel()
+const Model* Channel::getModel()
 {
     Config* config = static_cast< Config* >( getConfig( ));
     const View* view = static_cast< const View* >( getView( ));
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     LBASSERT( !view || dynamic_cast< const View* >( getView( )));
 
     eq::uint128_t id = view ? view->getModelID() : frameData.getModelID();
@@ -591,11 +591,11 @@ const Model* Channel::_getModel()
     return _model;
 }
 
-void Channel::_drawModel( const Model* scene )
+void Channel::drawModel( const Model* scene )
 {
     Window* window = static_cast< Window* >( getWindow( ));
     RenderState& state = window->getState();
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
 
     state.setColors( frameData.getColorMode() == COLOR_MODEL && scene->hasColors( ) );
     state.setBoundingSpheres( frameData.showBoundingSpheres() );
@@ -640,7 +640,7 @@ void Channel::_drawModel( const Model* scene )
 #endif
 }
 
-void Channel::_drawOverlay()
+void Channel::drawOverlay()
 {
     // Draw the overlay logo
     const Window* window = static_cast<Window*>( getWindow( ));
@@ -695,9 +695,9 @@ void Channel::_drawOverlay()
     glEnable( GL_DEPTH_TEST );
 }
 
-void Channel::_drawHelp()
+void Channel::drawHelp()
 {
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     std::string message = frameData.getMessage();
 
     if( !frameData.showHelp() && message.empty( ))
@@ -770,10 +770,10 @@ void Channel::_drawHelp()
     resetAssemblyState();
 }
 
-void Channel::_updateNearFar( const triply::BoundingSphere& boundingSphere )
+void Channel::updateNearFar( const triply::BoundingSphere& boundingSphere )
 {
     // compute dynamic near/far plane of whole model
-    const FrameData& frameData = _getFrameData();
+    const FrameData& frameData = getFrameData();
     const eq::Matrix4f& rotation = frameData.getCameraRotation();
     const eq::Matrix4f& view = getHeadTransform() * rotation;
 

@@ -172,7 +172,6 @@ void ModelTreeDist::getInstanceData( co::DataOStream& os )
         {
             LBASSERT( _treeRoot );
 
-            os << int32_t( _treeRoot->_partition );
             os << _treeRoot->_invertFaces;
             os << _treeRoot->_inCoreData;
             if( _treeRoot->_inCoreData )
@@ -181,6 +180,7 @@ void ModelTreeDist::getInstanceData( co::DataOStream& os )
                 os << treeData.vertices << treeData.colors
                    << treeData.normals << treeData.indices;
             }
+            os << _treeRoot->_partition;
             os << _treeRoot->_name;
         }
     }
@@ -191,8 +191,8 @@ void ModelTreeDist::getInstanceData( co::DataOStream& os )
             static_cast< const ModelTreeLeaf* >( _treeNode );
 
         os << leaf->_boundingBox[0] << leaf->_boundingBox[1]
-           << uint64_t( leaf->_vertexStart ) << uint64_t( leaf->_indexStart )
-           << uint64_t( leaf->_indexLength ) << leaf->_vertexLength;
+           << uint64_t( leaf->_indexStart ) << uint64_t( leaf->_indexLength )
+           << uint64_t( leaf->_vertexStart ) << leaf->_vertexLength;
     }
 
     os << _treeNode->_boundingSphere << _treeNode->_range;
@@ -226,9 +226,6 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
         {
             ModelTreeRoot* root = new ModelTreeRoot( arity );
 
-            int32_t partition;
-            is >> partition;
-            root->_partition = TreePartitionRule( partition );
             is >> root->_invertFaces;
             is >> root->_inCoreData;
             if( root->_inCoreData)
@@ -237,6 +234,7 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
                 is >> treeData.vertices >> treeData.colors
                    >> treeData.normals >> treeData.indices;
             }
+            is >> root->_partition;
             is >> root->_name;
 
             node  = root;
@@ -279,9 +277,9 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
         uint64_t i1, i2, i3;
         is >> leaf->_boundingBox[0] >> leaf->_boundingBox[1]
            >> i1 >> i2 >> i3 >> leaf->_vertexLength;
-        leaf->_vertexStart = size_t( i1 );
-        leaf->_indexStart = size_t( i2 );
-        leaf->_indexLength = size_t( i3 );
+        leaf->_indexStart = size_t( i1 );
+        leaf->_indexLength = size_t( i2 );
+        leaf->_vertexStart = size_t( i3 );
 
         base = leaf;
     }
@@ -312,6 +310,7 @@ void ModelTreeDist::deallocateChildArray()
         {
             if( _children[i] != 0 )
             {
+                _children[i]->deallocateChildArray();
                 delete _children[i];
             }
         }

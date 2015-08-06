@@ -70,8 +70,8 @@ public:
     const std::vector< std::string >& getFilenames() const
         { return _filenames; }
 
-    const std::string& getTreePartition() const {
-        return _treePartition;
+    const std::string& getTreeInfoString() const {
+        return _treeInfoString;
     }
     bool createLongShowcase() const {
         return _createLongShowcase;
@@ -94,7 +94,7 @@ private:
     bool        _exitAfterPlayback;
     bool        _color;
     bool        _isResident;
-    std::string _treePartition;
+    std::string _treeInfoString;
     bool        _createLongShowcase;
     eq::Vector3f _showcaseDollyArgs;
     eq::Vector3f _showcaseRadiusArgs;

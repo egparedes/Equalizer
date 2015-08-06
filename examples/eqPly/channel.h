@@ -71,21 +71,21 @@ namespace eqPly
             { _frameRestart = lastFrameNumber + 1; }
 
     private:
-        void _drawModel( const Model* model );
-        void _drawOverlay();
-        void _drawHelp();
-        void _updateNearFar( const triply::BoundingSphere& boundingSphere );
+        void drawModel( const Model* model );
+        void drawOverlay();
+        void drawHelp();
+        void updateNearFar( const triply::BoundingSphere& boundingSphere );
 
-        bool _isDone() const;
+        bool isDone() const;
 
-        void _initJitter();
-        bool _initAccum();
+        void initJitter();
+        bool initAccum();
 
         /** the subpixel for this step. */
-        eq::Vector2i _getJitterStep() const;
+        eq::Vector2i getJitterStep() const;
 
-        const FrameData& _getFrameData() const;
-        const Model*     _getModel();
+        const FrameData& getFrameData() const;
+        const Model*     getModel();
 
         const Model* _model;
         eq::uint128_t _modelID;

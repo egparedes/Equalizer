@@ -30,6 +30,7 @@
 
 #include "localInitData.h"
 #include "frameData.h"
+#include <triply/treeGenerator.h>
 
 #pragma warning( disable: 4275 )
 #include <boost/program_options.hpp>
@@ -51,7 +52,7 @@ LocalInitData::LocalInitData()
     , _maxFrames( 0xffffffffu )
     , _color( true )
     , _isResident( false )
-    , _treePartition("")
+    , _treeInfoString("")
     , _createLongShowcase( false )
     , _showcaseDollyArgs( .0, .0, .0 )
     , _showcaseRadiusArgs( .0, .0, .0 )
@@ -70,7 +71,7 @@ LocalInitData& LocalInitData::operator = ( const LocalInitData& from )
     _filenames         = from._filenames;
     _pathInFilename    = from._pathInFilename;
     _pathOutFilename   = from._pathOutFilename;
-    _treePartition     = from._treePartition;
+    _treeInfoString    = from._treeInfoString;
     _createLongShowcase   = from._createLongShowcase;
     _showcaseDollyArgs    = from._showcaseDollyArgs;
     _showcaseRadiusArgs   = from._showcaseRadiusArgs;
@@ -121,6 +122,13 @@ void LocalInitData::parseArguments( const int argc, char** argv )
     bool userDefinedDisableROI( false );
     bool userDefinedOutOfCore( false );
 
+    std::vector< std::string > names = triply::TreeGenerator::getRegisteredNames();
+    auto nameIt = names.begin();
+    std::string partitions = "Tree partition strategy (" + *nameIt;
+    while( ++nameIt != names.end() )
+        partitions += "|" + *nameIt;
+    partitions += "):arity";
+
     const std::string& desc = EqPly::getHelp();
     po::options_description options( desc + " Version " +
                                      eq::Version::getString( ));
@@ -161,8 +169,8 @@ void LocalInitData::parseArguments( const int argc, char** argv )
           po::bool_switch(&userDefinedDisableROI)->default_value( false ),
           "Disable region of interest (ROI)" )
         ( "treePartition,p",
-          po::value<std::string>(&_treePartition)->default_value( "kd" ),
-          "Tree partition strategy (kd|z)")
+          po::value<std::string>(&_treeInfoString)->default_value( "kd:2" ),
+          partitions.c_str() )
         ( "longShowcase,l", po::value<std::string>( &showcaseArgs )
                                 ->implicit_value("-0.1:0.0005:1.1/0.55:0.0001:0.7/0.0:0.0005:1.0"),
           "Create path in the model longest axis with the parameters dolly/radius/angle "

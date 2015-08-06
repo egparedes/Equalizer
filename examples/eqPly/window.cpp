@@ -33,7 +33,7 @@
 
 #include "config.h"
 #include "pipe.h"
-#include "treeRenderState.h"
+#include "renderState.h"
 
 #include "fragmentShader.glsl.h"
 #include "vertexShader.glsl.h"

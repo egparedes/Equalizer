@@ -31,7 +31,7 @@
 
 #include "modelTreeLeaf.h"
 #include "modelTreeData.h"
-#include "treeRenderState.h"
+#include "renderState.h"
 #include "vertexData.h"
 #include <map>
 
@@ -40,113 +40,29 @@ namespace triply
 
 ModelTreeLeaf::ModelTreeLeaf( ModelTreeData &treeData )
     : _treeData( treeData ),
-      _vertexStart( 0 ), _indexStart( 0 ), _indexLength( 0 ), _vertexLength( 0 )
-{
-}
+      _indexStart( 0 ), _indexLength( 0 ), _vertexStart( 0 ), _vertexLength( 0 )
+{ }
+
+
+ModelTreeLeaf::ModelTreeLeaf( ModelTreeData& treeData,
+                              Index indexStart, Index indexLength,
+                              Index vertexStart, ShortIndex vertexLength )
+    : _treeData( treeData ),
+      _indexStart( indexStart ), _indexLength( indexLength ),
+      _vertexStart( vertexStart ), _vertexLength( vertexLength )
+{ }
 
 ModelTreeLeaf::~ModelTreeLeaf()
-{
-}
+{ }
 
-/*  Finish partial multiway kd-tree setup - sort, reindex and merge into global data.  */
-void ModelTreeLeaf::setupMKDTree( VertexData& modelData,
-                                  const Index start, const Index length,
-                                  const Axis axis, const size_t /*depth*/,
-                                  ModelTreeData& treeData,
-                                  boost::progress_display& /*progress*/ )
+void ModelTreeLeaf::clear()
 {
-    modelData.sort( start, length, axis );
-    _vertexStart = treeData.vertices.size();
-    _vertexLength = 0;
-    _indexStart = treeData.indices.size();
+    _boundingBox[0] = Vertex::ZERO;
+    _boundingBox[1] = Vertex::ZERO;
+    _indexStart = 0;
     _indexLength = 0;
-
-    // stores the new indices (relative to _start)
-    std::map< Index, ShortIndex > newIndex;
-
-    for( Index t = 0; t < length; ++t )
-    {
-        for( Index v = 0; v < 3; ++v )
-        {
-            Index i = modelData.triangles[start + t][v];
-            if( newIndex.find( i ) == newIndex.end() )
-            {
-                newIndex[i] = _vertexLength++;
-                // assert number of vertices does not exceed SmallIndex range
-                TRIPLYASSERT( _vertexLength );
-                treeData.vertices.push_back( modelData.vertices[i] );
-                if( treeData.hasColors )
-                    treeData.colors.push_back( modelData.colors[i] );
-                treeData.normals.push_back( modelData.normals[i] );
-            }
-            treeData.indices.push_back( newIndex[i] );
-            ++_indexLength;
-        }
-    }
-
-#ifndef NDEBUG
-    TRIPLYINFO << "setupKDTree" << "( " << _indexStart << ", " << _indexLength
-             << "; start " << _vertexStart << ", " << _vertexLength
-             << " vertices)." << std::endl;
-#endif
-}
-
-/*  Finish partial octree setup - sort, reindex and merge into global data.  */
-void ModelTreeLeaf::setupZOctree( VertexData& modelData,
-                                  const std::vector< ZKeyIndexPair >& zKeys,
-                                  const ZKey beginKey, const ZKey endKey,
-                                  const Vertex center, const size_t depth,
-                                  ModelTreeData& treeData,
-                                  boost::progress_display& /*progress*/ )
-{
-    BoundingBox bbox = modelData.getBoundingBox();
-    Vertex halfCellSize = (bbox[1] - bbox[0]) / (2 << depth);
-    _vertexStart = treeData.vertices.size();
+    _vertexStart = 0;
     _vertexLength = 0;
-    _indexStart = treeData.indices.size();
-    _indexLength = 0;
-
-    std::vector< ZKeyIndexPair >::const_iterator beginIt =
-            std::lower_bound( zKeys.begin(), zKeys.end(), beginKey,
-                              ZKeyIndexPairLessCmpFunctor());
-    std::vector< ZKeyIndexPair >::const_iterator endIt =
-            std::lower_bound( beginIt, zKeys.end(), endKey,
-                              ZKeyIndexPairLessCmpFunctor());
-    Index start = std::distance( zKeys.begin(), beginIt );
-    Index length = std::distance( beginIt, endIt );
-
-    // stores the new indices (relative to start)
-    std::map< Index, ShortIndex > newIndex;
-
-    for( Index t = 0; t < length; ++t )
-    {
-        for( Index v = 0; v < 3; ++v )
-        {
-            Index i = modelData.triangles[ zKeys[start + t].second ][v];
-            if( newIndex.find( i ) == newIndex.end() )
-            {
-                newIndex[i] = _vertexLength++;
-                // assert number of vertices does not exceed SmallIndex range
-                TRIPLYASSERT( _vertexLength );
-                treeData.vertices.push_back( modelData.vertices[i] );
-                if( _treeData.hasColors )
-                    treeData.colors.push_back( modelData.colors[i] );
-                treeData.normals.push_back( modelData.normals[i] );
-            }
-            treeData.indices.push_back( newIndex[i] );
-            ++_indexLength;
-        }
-    }
-
-     // Initialize and compute leaf bounding box
-     _boundingBox[0] = center - halfCellSize;
-     _boundingBox[1] = center + halfCellSize;
-     
-#ifndef NDEBUG
-    TRIPLYINFO << "setupZOctree" << "( " << _indexStart << ", " << _indexLength
-             << " / start " << _vertexStart << ", " << _vertexLength
-             << " vertices)." << std::endl;
-#endif
 }
 
 /*  Compute the bounding sphere of the leaf's indexed vertices.  */

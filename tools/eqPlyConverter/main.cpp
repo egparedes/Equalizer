@@ -28,6 +28,8 @@
 
 #include <eq/eq.h>
 #include <triply/modelTreeRoot.h>
+#include <triply/treeGenerator.h>
+#include <iostream>
 
 namespace
 {
@@ -48,18 +50,34 @@ static bool _isPlyfile( const std::string& filename )
 
 int main( const int argc, char** argv )
 {
-    triply::TreePartitionRule partition =
-            triply::ModelTreeRoot::makeTreePartitionRule( argv[1] );
-    int firstArg = 2;
-    if ( int( partition ) < 0 )
+    if( argc < 2 )
     {
-        // If no partition specified use KD tree
-        partition = static_cast< triply::TreePartitionRule >( 0 );
-        firstArg--;
+        std::vector< std::string > names = triply::TreeGenerator::getRegisteredNames();
+        auto nameIt = names.begin();
+        std::cout << std::endl;
+        std::cout << "Error: wrong number of arguments!" << std::endl << std::endl;
+        std::cout << "Usage:    eqPlyConverter [partition:n] input_model(s)"<< std::endl;
+        std::cout << std::endl;
+        std::cout << "    - Available partition methods = " << *nameIt;
+        while( ++nameIt != names.end() )
+            std::cout << " | " << *nameIt;
+        std::cout << std::endl;
+        std::cout << "    - Default 'partition:n' = kd:2"<< std::endl;
+        std::cout << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    triply::TreeInfo treeInfo = triply::TreeInfo( argv[1] );
+    int firstModelArg = 2;
+    if ( !treeInfo.isValid() )
+    {
+        // If no partition specified use binary KD tree
+        treeInfo = triply::TreeInfo( "kd", 2 );
+        firstModelArg = 1;
     }
 
     eq::Strings filenames;
-    for( int i=firstArg; i < argc; ++i )
+    for( int i=firstModelArg; i < argc; ++i )
         filenames.push_back( argv[i] );
 
     while( !filenames.empty( ))
@@ -70,7 +88,7 @@ int main( const int argc, char** argv )
         if( _isPlyfile( filename ))
         {
             triply::ModelTreeRoot* model = new triply::ModelTreeRoot;
-            if( !model->readFromFile( filename.c_str( ), partition, true ) )
+            if( !model->readFromFile( filename.c_str( ), treeInfo, true ) )
                 LBWARN << "Can't generate model: " << filename << std::endl;
             
             delete model;

@@ -43,51 +43,6 @@ using std::sort;
 namespace triply
 {
 
-namespace detail
-{
-    inline static ZKey genZCode( const Vertex& point, const BoundingBox& bbox,
-                                 unsigned maxLevel)
-    {
-        Vertex minPoint = bbox[0];
-        Vertex maxPoint = bbox[1];
-        ZKey key = 0;
-
-        for( int i=maxLevel; i >= 0; --i )
-        {
-          key <<= 3;
-          if( point[0] + point[0] > minPoint[0] + maxPoint[0] )
-          {
-            key |= 0x1;
-            minPoint[0] = (minPoint[0] + maxPoint[0]) * 0.5;
-          }
-          else
-          {
-            maxPoint[0] = (minPoint[0] + maxPoint[0]) * 0.5;
-          }
-          if( point[1] + point[1] > minPoint[1] + maxPoint[1] )
-          {
-            key |= 0x2;
-            minPoint[1] = (minPoint[1] + maxPoint[1]) * 0.5;
-          }
-          else
-          {
-            maxPoint[1] = (minPoint[1] + maxPoint[1]) * 0.5;
-          }
-          if( point[2] + point[2] > minPoint[2] + maxPoint[2] )
-          {
-            key |= 0x4;
-            minPoint[2] = (minPoint[2] + maxPoint[2]) * 0.5;
-          }
-          else
-          {
-            maxPoint[2] = (minPoint[2] + maxPoint[2]) * 0.5;
-          }
-        }
-
-        return key;
-    }
-} // namespace detail
-
 /*  Contructor.  */
 VertexData::VertexData()
     : _invertFaces( false )
@@ -95,7 +50,6 @@ VertexData::VertexData()
     _boundingBox[0] = Vertex( 0.0f );
     _boundingBox[1] = Vertex( 0.0f );
 }
-
 
 /*  Read the vertex and (if available/wanted) color data from the open file.  */
 void VertexData::readVertices( PlyFile* file, const int nVertices,
@@ -267,7 +221,6 @@ bool VertexData::readPlyFile( const std::string& filename )
     return result;
 }
 
-
 /*  Calculate the face or vertex normals of the current vertex data.  */
 void VertexData::calculateNormals()
 {
@@ -313,7 +266,6 @@ void VertexData::calculateNormals()
 #endif
 }
 
-
 /*  Calculate the bounding box of the current vertex data.  */
 void VertexData::calculateBoundingBox()
 {
@@ -326,47 +278,6 @@ void VertexData::calculateBoundingBox()
             _boundingBox[1][i] = std::max( _boundingBox[1][i], vertices[v][i] );
         }
 }
-
-
-/* Calculates longest axis for a set of triangles */
-Axis VertexData::getLongestAxis( const size_t start,
-                                 const size_t elements ) const
-{
-    if( start + elements > triangles.size() )
-    {
-        LBERROR << "incorrect request to getLongestAxis" << std::endl
-                << "start:     " << start                << std::endl
-                << "elements:  " << elements             << std::endl
-                << "sum:       " << start+elements       << std::endl
-                << "data size: " << triangles.size()     << std::endl;
-        return AXIS_X;
-    }
-
-    BoundingBox bb;
-    bb[0] = vertices[ triangles[start][0] ];
-    bb[1] = vertices[ triangles[start][0] ];
-
-    for( size_t t = start; t < start+elements; ++t )
-        for( size_t v = 0; v < 3; ++v )
-            for( size_t i = 0; i < 3; ++i )
-            {
-                bb[0][i] = std::min( bb[0][i], vertices[ triangles[t][v] ][i] );
-                bb[1][i] = std::max( bb[1][i], vertices[ triangles[t][v] ][i] );
-            }
-
-    const GLfloat bbX = bb[1][0] - bb[0][0];
-    const GLfloat bbY = bb[1][1] - bb[0][1];
-    const GLfloat bbZ = bb[1][2] - bb[0][2];
-
-    if( bbX >= bbY && bbX >= bbZ )
-        return AXIS_X;
-
-    if( bbY >= bbX && bbY >= bbZ )
-        return AXIS_Y;
-
-    return AXIS_Z;
-}
-
 
 /*  Scales the data to be within +- baseSize/2 (default 2.0) coordinates.  */
 void VertexData::scale( const float baseSize )
@@ -402,85 +313,6 @@ void VertexData::scale( const float baseSize )
             _boundingBox[v][i] -= offset[i];
             _boundingBox[v][i] *= factor;
         }
-}
-
-
-/** @cond IGNORE */
-/*  Helper structure to sort Triangles with standard library sort function.  */
-struct _TriangleSort
-{
-    _TriangleSort( const VertexData& data, const Axis axis ) : _data( data ),
-                                                               _axis( axis ) {}
-
-    bool operator() ( const Triangle& t1, const Triangle& t2 )
-    {
-        // references to both triangles' three vertices
-        const Vertex& v11 = _data.vertices[ t1[0] ];
-        const Vertex& v12 = _data.vertices[ t1[1] ];
-        const Vertex& v13 = _data.vertices[ t1[2] ];
-        const Vertex& v21 = _data.vertices[ t2[0] ];
-        const Vertex& v22 = _data.vertices[ t2[1] ];
-        const Vertex& v23 = _data.vertices[ t2[2] ];
-
-        // compare first by given axis
-        int axis = _axis;
-        do
-        {
-            // test median of 'axis' component of all three vertices
-            const float median1 = (v11[axis] + v12[axis] + v13[axis] ) / 3.0f;
-            const float median2 = (v21[axis] + v22[axis] + v23[axis] ) / 3.0f;
-            if( median1 != median2 )
-                return ( median1 < median2 );
-
-            // if still equal, move on to the next axis
-            axis = ( axis + 1 ) % 3;
-        }
-        while( axis != _axis );
-
-        return false;
-    }
-
-    const VertexData&   _data;
-    const Axis          _axis;
-};
-/** @endcond */
-
-/*  Sort the index data from start to start + length along the given axis.  */
-void VertexData::sort( const Index start, const Index length, const Axis axis )
-{
-    TRIPLYASSERT( length > 0 );
-    TRIPLYASSERT( start + length <= triangles.size() );
-
-    ::sort( triangles.begin() + start, triangles.begin() + start + length,
-            _TriangleSort( *this, axis ) );
-}
-
-
-void VertexData::genZKeys( std::vector< ZKeyIndexPair >& zKeys, unsigned maxLevel )
-{
-    // Compute Z-codes for triangles and sort them
-    if( _boundingBox[0].length() == 0.0f && _boundingBox[1].length() == 0.0f )
-        calculateBoundingBox();
-
-    TRIPLYASSERT(  _boundingBox[0] != _boundingBox[1] );
-
-    zKeys.resize( triangles.size() );
-
-#pragma omp parallel for
-    for( Index i=0; i < zKeys.size(); ++i )
-    {
-        // Compute Z-key of triangle centroid
-        zKeys[ i ].first = detail::genZCode( ( vertices[ triangles[i][0] ] +
-                                               vertices[ triangles[i][1] ] +
-                                               vertices[ triangles[i][2] ] ) / 3.0f,
-                                             _boundingBox, maxLevel );
-        zKeys[ i ].second = i;
-    }
-}
-
-void VertexData::sortZKeys( std::vector< ZKeyIndexPair >& zKeys )
-{
-    ::sort( zKeys.begin(), zKeys.end(), ZKeyIndexPairLessCmpFunctor() );
 }
 
 } // namespace triply

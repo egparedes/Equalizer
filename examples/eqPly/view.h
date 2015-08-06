@@ -32,7 +32,7 @@
 
 #include <eq/eq.h>
 
-#include "treeRenderState.h"
+#include "renderState.h"
 
 #include <string>
 

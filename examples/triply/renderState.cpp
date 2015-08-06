@@ -28,7 +28,7 @@
  */
 
 
-#include "treeRenderState.h"
+#include "renderState.h"
 
 namespace triply 
 {

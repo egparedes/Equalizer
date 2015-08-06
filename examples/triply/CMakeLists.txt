@@ -12,7 +12,10 @@ set(TRIPLY_PUBLIC_HEADERS
   modelTreeLeaf.h
   modelTreeNode.h
   modelTreeRoot.h
-  treeRenderState.h
+  treeGenerator.h
+  zTreeGenerator.h
+  mkdTreeGenerator.h
+  renderState.h
   vertexData.h
   pagedTreeData.h)
 
@@ -24,7 +27,9 @@ set(TRIPLY_SOURCES
   modelTreeLeaf.cpp
   modelTreeNode.cpp
   modelTreeRoot.cpp
-  treeRenderState.cpp
+  zTreeGenerator.cpp
+  mkdTreeGenerator.cpp
+  renderState.cpp
   vertexData.cpp
   pagedTreeData.cpp)
 

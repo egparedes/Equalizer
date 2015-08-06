@@ -41,31 +41,20 @@ class ModelTreeLeaf : public ModelTreeBase
 {
 public:
     ModelTreeLeaf( ModelTreeData& treeData );
+    ModelTreeLeaf( ModelTreeData& treeData,
+                   Index indexStart, Index indexLength,
+                   Index vertexStart, ShortIndex vertexLength );
+
     virtual ~ModelTreeLeaf();
 
-    virtual void draw( RenderState& state ) const;
-    virtual Index getNumberOfVertices() const { return _indexLength; }
+    virtual void clear() override;
+
+    virtual void draw( RenderState& state ) const override;
+    virtual Index getNumberOfVertices() const override { return _indexLength; }
 
 protected:
     virtual void toStream( std::ostream& os ) override;
     virtual void fromMemory( char** addr, ModelTreeData& treeData ) override;
-
-    virtual void setupMKDTree( VertexData& modelData,
-                               const Index start,
-                               const Index length,
-                               const Axis axis,
-                               const size_t depth,
-                               ModelTreeData& treeData,
-                               boost::progress_display& progress ) override;
-
-    virtual void setupZOctree( VertexData& modelData,
-                               const std::vector< ZKeyIndexPair >& zKeys,
-                               const ZKey beginKey,
-                               const ZKey endKey,
-                               const Vertex center,
-                               const size_t depth,
-                               ModelTreeData& treeData,
-                               boost::progress_display& progress ) override;
 
     virtual const BoundingSphere& updateBoundingSphere() override;
     virtual void updateRange() override;
@@ -83,11 +72,11 @@ private:
     friend class ModelTreeDist;
 
     ModelTreeData&      _treeData;
-    BoundingBox         _boundingBox;
-    Index               _vertexStart;
     Index               _indexStart;
     Index               _indexLength;
+    Index               _vertexStart;
     ShortIndex          _vertexLength;
+    BoundingBox         _boundingBox;
 
     // For out-of-core rendering
     mutable PagedVertexBuffer         _verticesVB;

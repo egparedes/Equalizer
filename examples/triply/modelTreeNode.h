@@ -43,46 +43,35 @@ class ModelTreeNode : public ModelTreeBase
 public:
     ModelTreeNode( )
         : _arity( 0 ), _children( 0 )
-    {}
+    { }
 
-    ModelTreeNode( unsigned arity );
+    ModelTreeNode( unsigned arity, ModelTreeBasePtr* children=0 );
 
-    TRIPLY_API virtual ~ModelTreeNode();
+    virtual ~ModelTreeNode();
 
-    TRIPLY_API void draw( RenderState& state ) const override;
-    TRIPLY_API Index getNumberOfVertices() const override;
+    virtual void clear() override;
 
-    virtual const ModelTreeBase* getChild( unsigned char childId ) const override
+    virtual void draw( RenderState& state ) const override;
+    virtual Index getNumberOfVertices() const override;
+    virtual std::vector< std::pair< unsigned, unsigned > > getDescendantsPerLevel( ) const override;
+
+    virtual ConstModelTreeBasePtr getChild( unsigned char childId ) const override
     {
-        return ( _children[childId] != 0 )? _children[childId]: 0;
+        return ( _children != 0 && _children[childId] != 0 )? _children[childId]: 0;
     }
 
-    virtual ModelTreeBase* getChild( unsigned char childId ) override
+    virtual ModelTreeBasePtr getChild( unsigned char childId ) override
     {
-        return ( _children[childId] != 0 )? _children[childId]: 0;
+        return ( _children != 0 && _children[childId] != 0 )? _children[childId]: 0;
     }
 
-    TRIPLY_API virtual unsigned getNumberOfChildren() const override;
+    virtual unsigned getNumberOfChildren() const override;
 
-    TRIPLY_API unsigned getArity() const { return _arity; }
+    unsigned getArity() const { return _arity; }
 
 protected:
-
     virtual void toStream( std::ostream& os ) override;
     virtual void fromMemory( char** addr, ModelTreeData& treeData ) override;
-
-    virtual void setupMKDTree( VertexData& modelData,
-                               const Index start, const Index length,
-                               const Axis axis, const size_t depth,
-                               ModelTreeData& treeData,
-                               boost::progress_display& progress) override;
-
-    virtual void setupZOctree( VertexData& modelData,
-                               const std::vector< ZKeyIndexPair >& zKeys,
-                               const ZKey beginKey, const ZKey endKey,
-                               const Vertex center, const size_t depth,
-                               ModelTreeData& treeData,
-                               boost::progress_display& progress ) override;
 
     virtual const BoundingSphere& updateBoundingSphere() override;
     virtual void updateRange() override;
@@ -95,7 +84,7 @@ private:
     void deallocateChildArray();
 
     unsigned _arity;
-    ModelTreeBase** _children;
+    ModelTreeBasePtr* _children;
 };
 }
 

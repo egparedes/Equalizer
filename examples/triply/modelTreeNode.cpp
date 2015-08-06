@@ -31,23 +31,20 @@
 
 #include "modelTreeNode.h"
 #include "modelTreeLeaf.h"
-#include "treeRenderState.h"
+#include "renderState.h"
 #include "vertexData.h"
 #include <cmath>
 #include <set>
+#include <utility>
 
 namespace triply
 {
 
-inline static bool _subdivide( const Index length, const size_t depth )
+ModelTreeNode::ModelTreeNode( unsigned arity , ModelTreeBasePtr* children )
+    : _arity( arity ), _children( children )
 {
-    return ( length / 2 > LEAF_SIZE ) || ( depth < 3 && length > 1 );
-}
-
-ModelTreeNode::ModelTreeNode( unsigned arity )
-    : _arity( arity ), _children( 0 )
-{
-    allocateChildArray();
+    if ( _children == 0 )
+        allocateChildArray();
 }
 
 /*  Destructor, clears up children as well.  */
@@ -56,10 +53,26 @@ ModelTreeNode::~ModelTreeNode()
     deallocateChildArray();
 }
 
+void ModelTreeNode::clear()
+{
+    if( _children == 0 )
+        return;
+
+    for( unsigned i=0; i < _arity; ++i )
+    {
+        if( _children[i] != 0 )
+        {
+            _children[i]->clear();
+            delete _children[i];
+            _children[i] = 0;
+        }
+    }
+}
+
 /*  Draw the node by rendering the children.  */
 void ModelTreeNode::draw(RenderState &state ) const
 {
-    if( state.stopRendering( ) )
+    if( state.stopRendering( ) || _children == 0 )
         return;
 
     for( unsigned i=0; i < _arity; ++i )
@@ -72,10 +85,13 @@ void ModelTreeNode::draw(RenderState &state ) const
 Index ModelTreeNode::getNumberOfVertices() const
 {
     Index result = 0;
-    for( unsigned i=0; i < _arity; ++i )
+    if ( _children != 0 )
     {
-        if( _children[i] != 0 )
-            result += _children[i]->getNumberOfVertices();
+        for( unsigned i=0; i < _arity; ++i )
+        {
+            if( _children[i] != 0 )
+                result += _children[i]->getNumberOfVertices();
+        }
     }
     return result;
 }
@@ -83,12 +99,50 @@ Index ModelTreeNode::getNumberOfVertices() const
 unsigned ModelTreeNode::getNumberOfChildren() const
 {
     unsigned result = 0;
-    for( unsigned i=0; i < _arity; ++i )
+    if ( _children != 0 )
     {
-        if( _children[i] != 0 )
-            result++;
+        for( unsigned i=0; i < _arity; ++i )
+        {
+            if( _children[i] != 0 )
+                result++;
+        }
     }
     return result;
+}
+
+// A pair of numbers per sublevel: (#totalnodes, #leaves)
+std::vector< std::pair< unsigned, unsigned > > ModelTreeNode::getDescendantsPerLevel( ) const
+{
+    std::vector< std::pair< unsigned, unsigned > > nodesPerLevel;
+
+    if ( _children != 0 )
+    {
+        nodesPerLevel.push_back( std::make_pair< unsigned, unsigned >( 0, 0 ) );
+        for( unsigned i=0; i < _arity; ++i )
+        {
+            if( _children[i] != 0 )
+            {
+                nodesPerLevel[0].first++;
+                if( _children[i]->isLeaf() )
+                    nodesPerLevel[0].second++;
+                std::vector< std::pair< unsigned, unsigned > > childDescendants =
+                        _children[i]->getDescendantsPerLevel();
+
+                if( childDescendants.size() > 0 )
+                {
+                    if( nodesPerLevel.size() < childDescendants.size() + 1 )
+                        nodesPerLevel.resize( childDescendants.size() + 1 );
+                    for( unsigned l=0; l < childDescendants.size(); ++l )
+                    {
+                        nodesPerLevel[l + 1].first += childDescendants[l].first;
+                        nodesPerLevel[l + 1].second += childDescendants[l].second;
+                    }
+                }
+            }
+        }
+    }
+
+    return nodesPerLevel;
 }
 
 /*  Write node to output stream and continue with remaining nodes.  */
@@ -100,12 +154,15 @@ void ModelTreeNode::toStream( std::ostream& os )
 
     size_t numberOfChildren = getNumberOfChildren();
     os.write( reinterpret_cast< char* >( &numberOfChildren ), sizeof( size_t ) );
-    for( size_t i=0; i < _arity; ++i)
+    if( numberOfChildren > 0 )
     {
-        if( _children[i] != 0 )
+        for( size_t i=0; i < _arity; ++i)
         {
-            os.write( reinterpret_cast< char* >( &i), sizeof( size_t ) );
-            static_cast< ModelTreeNode* >( _children[i] )->toStream( os );
+            if( _children[i] != 0 )
+            {
+                os.write( reinterpret_cast< char* >( &i), sizeof( size_t ) );
+                static_cast< ModelTreeNode* >( _children[i] )->toStream( os );
+            }
         }
     }
 }
@@ -123,6 +180,8 @@ void ModelTreeNode::fromMemory( char** addr, ModelTreeData& treeData )
 
     size_t numberOfChildren;
     memRead( reinterpret_cast< char* >( &numberOfChildren ), addr, sizeof( size_t ) );
+    if( _children == 0 )
+        allocateChildArray();
     for( size_t i=0; i < numberOfChildren; ++i)
     {
         // read child index
@@ -147,113 +206,13 @@ void ModelTreeNode::fromMemory( char** addr, ModelTreeData& treeData )
     }
 }
 
-/*  Continue mkd-tree setup, create intermediary or leaf nodes as required.  */
-void ModelTreeNode::setupMKDTree( VertexData& modelData,
-                                  const Index start, const Index length,
-                                  const Axis axis, const size_t depth,
-                                  ModelTreeData& treeData,
-                                  boost::progress_display& progress)
-{
-#ifndef NDEBUG
-    TRIPLYINFO << "setupMKDTree - " << _arity << " "
-             << "( " << start << ", " << length << ", " << axis << ", "
-             << depth << " )." << std::endl;
-#endif
-
-    modelData.sort( start, length, axis );
-    const Index childStep = length / _arity;
-
-    for( unsigned i=0; i < _arity; ++i )
-    {
-        const Index childStart = start + ( i * childStep );
-        const Index childLength = (i + 1 < _arity) ? childStep : length - ( i * childStep );
-        const bool  subdivideChild = _subdivide( childLength, depth );
-
-        Axis newAxisChild = AXIS_X;
-        if( subdivideChild )
-        {
-            _children[ i ] =  new ModelTreeNode( _arity );
-            // move to next axis and continue contruction in the child nodes
-            newAxisChild = modelData.getLongestAxis( childStart, childLength );
-        }
-        else
-        {
-            _children[ i ] =  new ModelTreeLeaf( treeData );
-        }
-
-        static_cast< ModelTreeNode* >
-            ( _children[ i ] )->setupMKDTree( modelData, childStart, childLength,
-                                              newAxisChild, depth+1, treeData,
-                                              progress );
-
-        if( depth == 3 )
-            ++progress;
-    }
-}
-
-/*  Continue z-octree setup, create intermediary or leaf nodes as required.  */
-void ModelTreeNode::setupZOctree( VertexData& modelData,
-                                  const std::vector< ZKeyIndexPair >& zKeys,
-                                  const ZKey beginKey, const ZKey endKey,
-                                  const Vertex center, const size_t depth,
-                                  ModelTreeData& treeData,
-                                  boost::progress_display& progress )
-{
-#ifndef NDEBUG
-    TRIPLYINFO << "setupZOctree"
-             << "( " << beginKey << ", " << endKey << ", " << depth
-             << " )." << std::endl;
-#endif
-    ZKey currentKey = beginKey;
-
-    // Compute level
-    const BoundingBox& bbox = modelData.getBoundingBox();
-    Vertex halfChildSize = ( bbox[1] - bbox[0] ) / ( 2 << (depth + 1) );
-
-    ZKey keyStep = 1ull << 3 * ( ModelTreeBase::MaxZLevel - depth );
-    std::vector< ZKeyIndexPair >::const_iterator childBeginIt =
-            std::lower_bound( zKeys.begin(), zKeys.end(), currentKey,
-                              ZKeyIndexPairLessCmpFunctor() );
-    for( unsigned i=0; i < _arity; ++i )
-    {
-        std::vector< ZKeyIndexPair >::const_iterator childEndIt =
-                std::lower_bound( childBeginIt, zKeys.end(), currentKey + keyStep,
-                                  ZKeyIndexPairLessCmpFunctor() );
-        Index length = std::distance( childBeginIt, childEndIt );
-
-        if( length > 0 )
-        {
-            if( depth < ModelTreeBase::MaxZLevel - 1 && _subdivide( length, depth ) )
-                _children[i] = new ModelTreeNode( _arity );
-            else
-                _children[i] = new ModelTreeLeaf( treeData );
-
-            Vertex offset = halfChildSize;
-            offset[0] *= ( i & 0x1 ) ? 1.0 : -1.0;
-            offset[1] *= ( i & 0x2 ) ? 1.0 : -1.0;
-            offset[2] *= ( i & 0x4 ) ? 1.0 : -1.0;
-            static_cast< ModelTreeNode* >
-                    ( _children[i] )->setupZOctree( modelData, zKeys,
-                                                    currentKey, currentKey + keyStep,
-                                                    center + offset, depth + 1,
-                                                    treeData, progress );
-        }
-
-        currentKey += keyStep;
-        childBeginIt = childEndIt;
-    }
-
-    TRIPLYASSERT( currentKey == endKey);
-    currentKey = endKey; // Compilation trick
-
-    if( depth == 3 )
-        ++progress;
-}
-
 /*  Compute the bounding sphere from the children's bounding spheres.  */
 const BoundingSphere& ModelTreeNode::updateBoundingSphere()
 {
     _boundingSphere.w() = 0;
+
+    if ( _children == 0 )
+        return _boundingSphere;
 
     // Merge the bounding spheres returned by the children
     for( unsigned i=0; i < _arity; ++i )
@@ -314,6 +273,9 @@ const BoundingSphere& ModelTreeNode::updateBoundingSphere()
 /*  Compute the range from the children's ranges.  */
 void ModelTreeNode::updateRange()
 {
+    if ( _children == 0 )
+        return;
+
     _range[0] = FLT_MAX;
     _range[1] = FLT_MIN;
     // update the children's ranges
@@ -339,7 +301,7 @@ void ModelTreeNode::allocateChildArray()
     LBASSERT( _arity > 0 );
     LBASSERT( !_children );
 
-    _children = new ModelTreeBase*[_arity];
+    _children = new ModelTreeBasePtr[_arity];
     for( unsigned i=0; i < _arity; ++i )
     {
         _children[i] = 0;
@@ -348,18 +310,12 @@ void ModelTreeNode::allocateChildArray()
 
 void ModelTreeNode::deallocateChildArray()
 {
-    if( _children != 0 )
-    {
-        for( unsigned i=0; i < _arity; ++i )
-        {
-            if( _children[i] != 0 )
-            {
-                delete _children[i];
-            }
-        }
-        delete[] _children;
-        _children = 0;
-    }
+    if ( _children == 0 )
+        return;
+
+    clear();
+    delete[] _children;
+    _children = 0;
 }
 
 }

@@ -63,22 +63,34 @@
 #  define TRIPLYINFO    std::cout
 #endif
 
+#define NUM_ELEMS( a ) (sizeof( a ) / sizeof( a[ 0 ] ))
+#define UNUSED(VAR) (void)VAR
+
+#include <triply/api.h>
 #include <boost/progress.hpp>
 #include <cstdint>
 #include <exception>
 #include <iostream>
 #include <string>
+#include <sstream>
 
 namespace triply
 {
 // class forward declarations
 class ModelTreeBase;
 class ModelTreeData;
+class ModelTreeLeaf;
 class ModelTreeNode;
 class ModelTreeRoot;
-class RenderState;
-class VertexData;
+class TreeGenerator;
+class MKDGenerator;
+class ZTreeGenerator;
 class PagedTreeData;
+class VertexData;
+class RenderState;
+
+typedef ModelTreeBase* ModelTreeBasePtr;
+typedef const ModelTreeBase* ConstModelTreeBasePtr;
 
 // basic type definitions
 typedef vmml::vector< 3, float >      Vertex;
@@ -89,7 +101,6 @@ typedef vmml::vector< 4, float >      Vector4f;
 typedef size_t                        Index;
 typedef GLushort                      ShortIndex;
 typedef std::size_t                   PageKey;
-typedef std::uint64_t                 ZKey;
 
 // mesh exception
 struct MeshException : public std::exception
@@ -122,36 +133,38 @@ private:
     T data[d];
 };
 
-
 // compound type definitions
 typedef vmml::vector< 3, Index >    Triangle;
 typedef ArrayWrapper< Vertex, 2 >   BoundingBox;
 typedef vmml::vector< 4, float >    BoundingSphere;
 typedef ArrayWrapper< float, 2 >    Range;
-typedef std::pair< ZKey, Index >    ZKeyIndexPair;
 
-struct ZKeyIndexPairLessCmpFunctor
+// Tree description class
+struct TreeInfo
 {
-    inline bool operator()( const ZKeyIndexPair& lhs, const ZKeyIndexPair& rhs ) const
+    TRIPLY_API TreeInfo( const std::string& treePartition, unsigned treeArity )
+        : partition( treePartition ), arity( treeArity )
+    { }
+
+    // 'treeInfoString' format -> partition:arity (e.g. "kd:2", "z:8")
+    TRIPLY_API TreeInfo( const std::string& treeInfoString )
+        : partition( "" ), arity( 0 )
     {
-        return lhs.first < rhs.first;
+        size_t pos = treeInfoString.rfind(':');
+        if( pos != std::string::npos && pos < treeInfoString.length() - 1 )
+        {
+            std::istringstream iss( treeInfoString.substr( pos + 1 ));
+            iss >> arity;
+            partition = treeInfoString;
+            partition.erase( pos );
+        }
     }
 
-    inline bool operator()( const ZKeyIndexPair& lhs, const ZKey& rhs ) const
-    {
-       return lhs.first < rhs;
-    }
+    TRIPLY_API bool isValid() const { return partition.length() > 0 && arity > 0; }
+
+    std::string partition;
+    unsigned arity;
 };
-
-// Tree description
-enum TreePartitionRule
-{
-    KDTREE_PARTITION = 0,
-    OCTREE_PARTITION = 1,
-};
-
-
-const unsigned short    ZKEY_BIT_SIZE( 3 * ( 8*sizeof( ZKey ) / 3 ) );
 
 // maximum triangle count per leaf node (keep in mind that the number of
 // different vertices per leaf must stay below ShortIndex range; usually
@@ -159,21 +172,7 @@ const unsigned short    ZKEY_BIT_SIZE( 3 * ( 8*sizeof( ZKey ) / 3 ) );
 const Index             LEAF_SIZE( 21845 );
 
 // binary mesh file version, increment if changing the file format
-const unsigned short    FILE_VERSION( 0x011A );
-
-// enumeration for the sort axis
-enum Axis
-{
-    AXIS_X,
-    AXIS_Y,
-    AXIS_Z
-};
-inline std::ostream& operator << ( std::ostream& os, const Axis axis )
-{
-    os << ( axis == AXIS_X ? "x axis" : axis == AXIS_Y ? "y axis" :
-            axis == AXIS_Z ? "z axis" : "ERROR" );
-    return os;
-}
+const unsigned short    FILE_VERSION( 0x011B );
 
 // enumeration for the buffer objects
 enum BufferObject

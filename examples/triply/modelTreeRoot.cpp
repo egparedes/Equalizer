@@ -30,46 +30,39 @@
 
 
 #include "modelTreeRoot.h"
-#include "treeRenderState.h"
+#include "renderState.h"
 #include "vertexData.h"
+#include "treeGenerator.h"
 #include "mmap.h"
+
+#include <algorithm>
 #include <string>
 #include <sstream>
+#include <vector>
 #include <cstring>
 
-#define NUM_ELEMS( a ) (sizeof( a ) / sizeof( a[ 0 ] ))
 
 namespace triply
 {
 
 namespace detail
 {
-static const char* PartitionTags[] = { "kd", "z" };
-static unsigned PartitionArities[] = { 2, 8 }; //{ 2, 8 };
-
-bool isValidPartition( TreePartitionRule partition)
-{
-    return partition >= KDTREE_PARTITION && partition <= OCTREE_PARTITION;
-}
-} // detail
-
-
-TreePartitionRule ModelTreeRoot::makeTreePartitionRule(const char* partitionTag)
-{
-    for( unsigned i=0; i < NUM_ELEMS( detail::PartitionTags ); ++i )
-    {
-        if( strcmp( partitionTag, detail::PartitionTags[i]) == 0 )
-            return TreePartitionRule( i );
-    }
-    return TreePartitionRule(-1);
-}
+    static const unsigned StepsInSetup = TreeGenerator::MaxProgressCount + 1;
+    static const unsigned StepsInConstruct = StepsInSetup + 3;
+} // namespace detail
 
 typedef vmml::frustum_culler< float >  FrustumCuller;
+
+void ModelTreeRoot::clear()
+{
+    ModelTreeNode::clear();
+    _treeData.clear();
+}
 
 //#define LOGCULL
 void ModelTreeRoot::cullDraw( RenderState& state ) const
 {
-    _beginRendering( state );
+    beginRendering( state );
 
 #ifdef LOGCULL
     size_t verticesRendered = 0;
@@ -155,7 +148,7 @@ void ModelTreeRoot::cullDraw( RenderState& state ) const
         }
     }
 
-    _endRendering( state );
+    endRendering( state );
 
 #ifdef LOGCULL
     const size_t verticesTotal = _globalData.vertices.size(); //model->getNumberOfVertices();
@@ -172,56 +165,49 @@ void ModelTreeRoot::draw( RenderState& state ) const
     ModelTreeNode::draw( state );
 }
 
-bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partition,
-                               boost::progress_display& progress )
+bool ModelTreeRoot::setupTree( VertexData& modelData,
+                               const TreeInfo& info,
+                               boost::progress_display* progressPtr )
 {
-    TRIPLYASSERT( detail::isValidPartition( partition ));
-
-    ModelTreeNode::_arity = detail::PartitionArities[partition];
-    allocateChildArray();
-
-    const BoundingBox& bbox = modelData.getBoundingBox();
-    _treeData.clear();
-    _treeData.hasColors = !modelData.colors.empty();
-    _treeData.boundingBox = bbox; // _treeData.calculateBoundingBox();
-
+    bool useTempProgress = false;
+    if (progressPtr == 0)
     {
-        // For kd-tree
-        const Axis axis = modelData.getLongestAxis( 0, modelData.triangles.size() );
-
-        // For ZOctree
-        std::vector< ZKeyIndexPair > zKeys;
-
-        switch( partition )
-        {
-        case KDTREE_PARTITION:
-            //  Begin kd-tree setup, go through full range starting with x axis.
-            ModelTreeNode::setupMKDTree( modelData, 0, modelData.triangles.size(),
-                                         axis, 0, _treeData, progress );
-            break;
-
-        case OCTREE_PARTITION:
-            // Compute Z-codes for triangles and sort them.
-            modelData.genZKeys( zKeys, ModelTreeBase::MaxZLevel );
-            modelData.sortZKeys( zKeys );
-
-            ModelTreeNode::setupZOctree( modelData, zKeys,
-                                         ModelTreeBase::MinZKey, ModelTreeBase::MaxZKey + 1,
-                                         (bbox[0] + bbox[1]) / 2.0, 0,
-                                         _treeData, progress );
-            break;
-
-        default:
-            TRIPLYASSERT( 0 );
-            return false;
-        }
+        progressPtr = new boost::progress_display( detail::StepsInSetup );
+        useTempProgress = true;
     }
-    
-    ++progress;
-    ModelTreeNode::updateBoundingSphere();
-    ++progress;
-    ModelTreeNode::updateRange();
 
+    if( modelData.getBoundingBox()[0].length() == 0.0f
+        && modelData.getBoundingBox()[1].length() == 0.0f )
+    {
+        modelData.calculateBoundingBox();
+    }
+
+    clear();
+    if( ModelTreeNode::_children != 0)
+        ModelTreeNode::deallocateChildArray();
+
+    ModelTreeNode::_arity = info.arity;
+    _treeData.hasColors = !modelData.colors.empty();
+    _treeData.boundingBox = modelData.getBoundingBox(); // _treeData.calculateBoundingBox();
+
+    TreeGenerator* treeGenerator = TreeGenerator::instantiate( info.partition );
+    if( treeGenerator == 0 )
+    {
+        TRIPLYASSERT( treeGenerator );
+        return false;
+    }
+
+    unsigned expectedCount = progressPtr->count() + TreeGenerator::MaxProgressCount;
+
+    treeGenerator->generate( modelData, *this, _treeData, *progressPtr );
+
+    while( progressPtr->count() < expectedCount )
+        ++(*progressPtr);
+
+    ModelTreeNode::updateBoundingSphere();
+    ++(*progressPtr);
+    ModelTreeNode::updateRange();
+    ++(*progressPtr);
 
 #if 0
     TRIPLYINFO << _treeData.boundingBox[0] << std::endl;
@@ -242,6 +228,13 @@ bool ModelTreeRoot::setupTree( VertexData& modelData, TreePartitionRule partitio
                       distanceSquared << " > " << radiusSquared );
     }
 #endif
+
+    if ( useTempProgress )
+    {
+        while( progressPtr->count() < progressPtr->expected_count() )
+            ++(*progressPtr);
+        delete progressPtr;
+    }
 
     return true;
 }
@@ -280,32 +273,35 @@ bool ModelTreeRoot::writeToFile( const std::string& filename )
 
 /*  Read binary octree representation, construct from ply if unavailable.  */
 bool ModelTreeRoot::readFromFile( const std::string& filename,
-                                  TreePartitionRule partition,
-                                  bool inCoreData )
+                                  const TreeInfo &info, bool inCoreData )
 {
-    if( !detail::isValidPartition( partition ))
-        return false;
-    ModelTreeNode::_arity = detail::PartitionArities[partition];
-
-    _partition = partition;
-    _inCoreData = inCoreData;
-    _name = filename;
-
-    if( _readBinary( getBinaryName( ) ) || _constructFromPly( filename ) )
+    if( !(info.isValid() && TreeGenerator::isValidName( info.partition )))
     {
-        return true;
+        TRIPLYERROR << "Invalid tree description." << std::endl;
+        return false;
     }
 
-    _name = "";
+    ModelTreeNode::_arity = info.arity;
+    _inCoreData = inCoreData;
+    _partition = info.partition;
+    _name = filename;
 
-    return false;
+    if( !readBinary( getBinaryName( ) ))
+    {
+        if( !constructFromPly( filename, info ))
+        {
+            _name = "";
+            return false;
+        }
+    }
+
+    return true;
 }
-
 
 std::string ModelTreeRoot::getBinaryName( ) const
 {
     std::ostringstream oss;
-    oss << detail::PartitionTags[_partition];
+    oss << _partition;
     oss << ModelTreeNode::_arity;
     return getArchitectureFilename( _name, oss.str() );
 }
@@ -315,8 +311,9 @@ void ModelTreeRoot::toStream( std:: ostream& os )
 {
     size_t version = FILE_VERSION;
     os.write( reinterpret_cast< char* >( &version ), sizeof( size_t ) );
-    size_t partition = _partition;
-    os.write( reinterpret_cast< char* >( &partition ), sizeof( size_t ) );
+    size_t partitionLength = _partition.length();
+    os.write( reinterpret_cast< char* >( &partitionLength ), sizeof( size_t ) );
+    os.write( _partition.c_str(), partitionLength  * sizeof( char ) );
     size_t treeArity = ModelTreeNode::_arity;
     os.write( reinterpret_cast< char* >( &treeArity ), sizeof( size_t ) );
     size_t nodeType = ROOT_TYPE;
@@ -336,8 +333,11 @@ void ModelTreeRoot::fromMemory( char* start )
         throw MeshException( "Error reading binary file. Version in file "
                              "does not match the expected version." );
 
-    size_t partition;
-    memRead( reinterpret_cast< char* >( &partition ), addr, sizeof( size_t ) );
+    size_t partitionLength;
+    char partitionChars[256];
+    memRead( reinterpret_cast< char* >( &partitionLength ), addr, sizeof( size_t ) );
+    memRead( &(partitionChars[0]), addr, partitionLength * sizeof( char ) );
+    std::string partition( partitionChars, partitionLength );
     size_t treeArity;
     memRead( reinterpret_cast< char* >( &treeArity ), addr, sizeof( size_t ) );
     if( _partition != partition || ModelTreeNode::_arity != treeArity)
@@ -359,39 +359,45 @@ void ModelTreeRoot::fromMemory( char* start )
 }
 
 /*  Functions extracted out of readFromFile to enhance readability.  */
-bool ModelTreeRoot::_constructFromPly( const std::string& filename )
+bool ModelTreeRoot::constructFromPly( const std::string& filename,
+                                      const TreeInfo& info )
 {
     TRIPLYINFO << "Reading PLY file." << std::endl;
-    boost::progress_display progress( 25 );
+    boost::progress_display progress( detail::StepsInConstruct );
 
-    VertexData data;
+    VertexData modelData;
     if( _invertFaces )
-        data.useInvertedFaces();
-    if( !data.readPlyFile( filename ) )
+        modelData.useInvertedFaces();
+    if( !modelData.readPlyFile( filename ) )
     {
         TRIPLYERROR << "Unable to load PLY file." << std::endl;
         return false;
     }
     ++progress;
 
-    data.calculateNormals();
-    data.scale( 2.0f );
+    modelData.calculateNormals();
+    modelData.scale( 2.0f );
     ++progress;
 
-    setupTree( data, _partition, progress );
-    ++progress;
+    setupTree( modelData, info, &progress );
+
     if( !writeToFile( filename ))
     {
         TRIPLYWARN << "Unable to write binary representation." << std::endl;
         TRIPLYWARN << "Out-of-core will not work." << std::endl;
         _inCoreData = false;
     }
-
     ++progress;
+
+    while( progress.count() < progress.expected_count() )
+        ++progress;
+    std::cout << std::endl;
+    showBuildStats( modelData );
+
     return true;
 }
 
-bool ModelTreeRoot::_readBinary(std::string filename)
+bool ModelTreeRoot::readBinary(std::string filename)
 {
     // create memory mapped file
     char* addr;
@@ -421,8 +427,46 @@ bool ModelTreeRoot::_readBinary(std::string filename)
     return result;
 }
 
+void ModelTreeRoot::showBuildStats( const VertexData& modelData )
+{
+    int modelVertices = modelData.vertices.size();
+    int modelTriangles = modelData.triangles.size();
+    unsigned treeVertices = _treeData.vertices.size();
+    unsigned treeTriangles = _treeData.indices.size() / 3;
+    std::vector< std::pair< unsigned, unsigned > > nodesPerLevel =
+            ModelTreeNode::getDescendantsPerLevel( );
+
+    unsigned totalNodes = 1;
+    unsigned totalLeaves = 0;
+    for ( auto l : nodesPerLevel )
+    {
+        totalNodes += l.first;
+        totalLeaves += l.second;
+    }
+
+    TRIPLYINFO << std::endl
+               << "--[Tree stats]-- " << std::endl
+               << "    + arity (root) => " << ModelTreeNode::getArity() << std::endl
+               << "    + vertices [ model | tree | %up ] => "
+               << modelVertices << " | " << treeVertices << " | "
+               << 100*( ((1.0*treeVertices)/(1.0*modelVertices)) - 1.0 ) << " %" << std::endl
+               << "    + triangles [ model == tree ] => "
+               << modelTriangles << " == " << treeTriangles << std::endl
+               << "    + nodes => " << totalNodes << std::endl
+               << "    + leaf nodes => " << totalLeaves << std::endl
+               << "    + nodes per level [ total | leaves] => "  << std::endl
+               << "        0 : 1 | 0" << std::endl;
+    for( unsigned l=0; l < nodesPerLevel.size(); ++l )
+    {
+        TRIPLYINFO << "        " << l + 1<< " : "
+                   << nodesPerLevel[l].first << " | "
+                   << nodesPerLevel[l].second << std::endl;
+    }
+    TRIPLYINFO << std::endl;
+}
+
 /*  Set up the common OpenGL state for rendering of all nodes.  */
-void ModelTreeRoot::_beginRendering( RenderState& state ) const
+void ModelTreeRoot::beginRendering( RenderState& state ) const
 {
     state.resetRegion();
     switch( state.getRenderMode() )
@@ -443,7 +487,7 @@ void ModelTreeRoot::_beginRendering( RenderState& state ) const
 }
 
 /*  Tear down the common OpenGL state for rendering of all nodes.  */
-void ModelTreeRoot::_endRendering( RenderState& state ) const
+void ModelTreeRoot::endRendering( RenderState& state ) const
 {
     switch( state.getRenderMode() )
     {
