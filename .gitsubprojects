@@ -1,8 +1,8 @@
 # -*- mode: cmake -*-
 git_subproject(vmmlib https://github.com/VMML/vmmlib.git master)
 git_subproject(Lunchbox https://github.com/VMML/Lunchbox.git vmml)
-git_subproject(Pression https://github.com/Eyescale/Pression.git 7873fa6)
-git_subproject(hwsd https://github.com/Eyescale/hwsd.git fdd970a)
+git_subproject(Pression https://github.com/Eyescale/Pression.git 93883cf)
+git_subproject(hwsd https://github.com/Eyescale/hwsd.git 0ecf64a)
 git_subproject(Collage https://github.com/VMML/Collage.git vmml)
-git_subproject(GLStats https://github.com/Eyescale/GLStats.git 5cc56db)
-git_subproject(Deflect https://github.com/BlueBrain/Deflect.git 1965fb5)
+git_subproject(GLStats https://github.com/Eyescale/GLStats.git 3c76246)
+git_subproject(Deflect https://github.com/BlueBrain/Deflect.git 8556bc3)

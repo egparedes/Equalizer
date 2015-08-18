@@ -179,10 +179,11 @@ if(NOT EQUALIZER_BUILD_2_0_API)
   list(APPEND EQUALIZER_SOURCES configEvent.cpp)
 endif()
 
-set(EQUALIZER_LINK_LIBRARIES EqualizerFabric EqualizerServer ${EQ_GL_LIBRARIES}
-  ${PRESSION_LIBRARIES} ${PTHREAD_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY}
-  ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY}
-  ${GLEW_LIBRARY})
+set(EQUALIZER_LINK_LIBRARIES
+  PUBLIC EqualizerFabric ${GLEW_LIBRARY} ${EQ_GL_LIBRARIES}
+  PRIVATE EqualizerServer hwsd Pression ${PTHREAD_LIBRARIES}
+          ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_FILESYSTEM_LIBRARY}
+          ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
 
 if(DEFLECT_FOUND)
   list(APPEND EQUALIZER_SOURCES
@@ -192,7 +193,7 @@ if(DEFLECT_FOUND)
     dc/proxy.cpp
     dc/proxy.h
     )
-  list(APPEND EQUALIZER_LINK_LIBRARIES ${DEFLECT_LIBRARIES})
+  list(APPEND EQUALIZER_LINK_LIBRARIES Deflect)
 endif()
 
 if(OPENSCENEGRAPH_FOUND)
@@ -250,11 +251,12 @@ if(EQ_QT_USED)
     qt/messagePump.cpp
     qt/pipe.cpp
     qt/window.cpp
+    qt/windowImpl.h
     qt/windowFactory.cpp
     qt/windowSystem.cpp
     )
   list(APPEND EQUALIZER_LINK_LIBRARIES
-    ${Qt5Core_LIBRARIES} ${Qt5Gui_LIBRARIES} ${Qt5Widgets_LIBRARIES})
+    Qt5::Core Qt5::Gui Qt5::Widgets)
 endif()
 
 if(OpenCV_FOUND)
@@ -270,7 +272,7 @@ if(MAGELLAN_FOUND)
 endif()
 
 if(GLSTATS_FOUND)
-  list(APPEND EQUALIZER_LINK_LIBRARIES ${GLSTATS_LIBRARIES})
+  list(APPEND EQUALIZER_LINK_LIBRARIES GLStats)
 endif()
 
 if(HWLOC_GL_FOUND)

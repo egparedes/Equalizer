@@ -20,6 +20,12 @@
 
 #include "channel.h"
 
+// must be included before any header defining Bool
+#ifdef EQ_QT_USED
+#  include "qt/window.h"
+#  include <QThread>
+#endif
+
 #include "channelStatistics.h"
 #include "client.h"
 #include "compositor.h"
@@ -60,11 +66,8 @@
 #include <co/queueSlave.h>
 #include <co/sendToken.h>
 #include <lunchbox/rng.h>
-#include <lunchbox/sleep.h>
 #include <lunchbox/scopedMutex.h>
 #include <pression/plugins/compressor.h>
-
-#include <boost/crc.hpp>
 
 #ifdef EQUALIZER_USE_GLSTATS
 #  include "detail/statsRenderer.h"
@@ -90,13 +93,6 @@ using detail::STATE_INITIALIZING;
 using detail::STATE_RUNNING;
 using detail::STATE_FAILED;
 /** @endcond */
-
-// static int calcCrc32(void const *buffer, std::size_t byteCount)   // TEST
-// {
-//     boost::crc_32_type result;
-//     result.process_bytes(buffer, byteCount);
-//     return result.checksum();
-// }
 
 Channel::Channel( Window* parent )
         : Super( parent )
@@ -152,8 +148,11 @@ void Channel::attach( const uint128_t& id, const uint32_t instanceID )
                      CmdFunc( this, &Channel::_cmdFrameChunks ), queue );
     registerCommand( fabric::CMD_CHANNEL_FINISH_READBACK,
                      CmdFunc( this, &Channel::_cmdFinishReadback ), transferQ );
-    registerCommand( fabric::CMD_CHANNEL_DELETE_TRANSFER_CONTEXT,
-                     CmdFunc( this,&Channel::_cmdDeleteTransferContext ),
+    registerCommand( fabric::CMD_CHANNEL_CREATE_TRANSFER_WINDOW,
+                     CmdFunc( this,&Channel::_cmdCreateTransferWindow ),
+                     queue );
+    registerCommand( fabric::CMD_CHANNEL_DELETE_TRANSFER_WINDOW,
+                     CmdFunc( this,&Channel::_cmdDeleteTransferWindow ),
                      transferQ );
 }
 
@@ -306,9 +305,10 @@ void Channel::addStatistic( Event& event )
 //---------------------------------------------------------------------------
 // operations
 //---------------------------------------------------------------------------
-void Channel::waitFrameFinished( const uint32_t frame ) const
+bool Channel::waitFrameFinished( const uint32_t frame,
+                                 const uint32_t timeout ) const
 {
-    _impl->finishedFrame.waitGE( frame );
+    return _impl->finishedFrame.timedWaitGE( frame, timeout );
 }
 
 void Channel::frameClear( const uint128_t& )
@@ -954,15 +954,15 @@ namespace detail
 {
 struct RBStat
 {
-    RBStat( eq::Channel* channel )
-            : event( Statistic::CHANNEL_READBACK, channel )
-            , uncompressed( 0 )
-            , compressed( 0 )
-        {
-            event.event.data.statistic.plugins[0] = EQ_COMPRESSOR_NONE;
-            event.event.data.statistic.plugins[1] = EQ_COMPRESSOR_NONE;
-            LBASSERT( event.event.data.statistic.frameNumber > 0 );
-        }
+    explicit RBStat( eq::Channel* channel )
+        : event( Statistic::CHANNEL_READBACK, channel )
+        , uncompressed( 0 )
+        , compressed( 0 )
+    {
+        event.event.data.statistic.plugins[0] = EQ_COMPRESSOR_NONE;
+        event.event.data.statistic.plugins[1] = EQ_COMPRESSOR_NONE;
+        LBASSERT( event.event.data.statistic.frameNumber > 0 );
+    }
 
     lunchbox::SpinLock lock;
     ChannelStatistics event;
@@ -971,18 +971,20 @@ struct RBStat
 
     void ref( void* ) { ++_refCount; }
     bool unref( void* )
-        {
-            if( --_refCount > 0 )
-                return false;
+    {
+        if( --_refCount > 0 )
+            return false;
 
-            if( uncompressed > 0 && compressed > 0 )
-                event.event.data.statistic.ratio = float( compressed ) /
-                                                   float( uncompressed );
-            else
-                event.event.data.statistic.ratio = 1.0f;
-            delete this;
-            return true;
+        if( uncompressed > 0 && compressed > 0 )
+        {
+            event.event.data.statistic.ratio = float( compressed ) /
+                                               float( uncompressed );
         }
+        else
+            event.event.data.statistic.ratio = 1.0f;
+        delete this;
+        return true;
+    }
 
     int32_t getRefCount() const { return _refCount; }
 
@@ -1263,7 +1265,6 @@ void Channel::_unrefFrame( const uint32_t frameNumber )
 
     stats.data.clear();
     stats.region = Viewport::FULL;
-
     _impl->finishedFrame = frameNumber;
 }
 
@@ -1335,7 +1336,6 @@ bool Channel::_asyncFinishReadback( const std::vector< size_t >& imagePos,
             if( images[j]->hasAsyncReadback( )) // finish async readback
             {
                 LBCHECK( getPipe()->startTransferThread( ));
-                LBCHECK( getWindow()->createTransferWindow( ));
 
                 hasAsyncReadback = true;
                 _refFrame( frameNumber );
@@ -1653,7 +1653,30 @@ void Channel::_setReady( FrameDataPtr frame, detail::RBStat* stat,
     }
 }
 
-void Channel::_deleteTransferContext()
+void Channel::_createTransferWindow()
+{
+    const SystemWindow* transferWindow = getWindow()->getTransferWindow();
+    if( !transferWindow )
+    {
+        // transfer window creation must happen in pipe thread (#177), but the
+        // context is used in the transfer thread and Qt requires moving the
+        // object to that thread.
+        co::LocalNodePtr localNode = getLocalNode();
+
+        void* tferThread = 0;
+#ifdef EQ_QT_USED
+        tferThread = QThread::currentThread();
+#endif
+        lunchbox::Request< void > request =
+                localNode->registerRequest< void >( tferThread );
+        send( localNode, fabric::CMD_CHANNEL_CREATE_TRANSFER_WINDOW ) <<request;
+        request.wait();
+        transferWindow = getWindow()->getTransferWindow();
+    }
+    transferWindow->makeCurrent();
+}
+
+void Channel::_deleteTransferWindow()
 {
     if( !getPipe()->hasTransferThread( ))
         return;
@@ -1661,7 +1684,7 @@ void Channel::_deleteTransferContext()
     co::LocalNodePtr localNode = getLocalNode();
     const lunchbox::Request< void >& request =
         localNode->registerRequest< void >();
-    send( localNode, fabric::CMD_CHANNEL_DELETE_TRANSFER_CONTEXT ) << request;
+    send( localNode, fabric::CMD_CHANNEL_DELETE_TRANSFER_WINDOW ) << request;
 }
 
 //---------------------------------------------------------------------------
@@ -1709,7 +1732,7 @@ bool Channel::_cmdConfigExit( co::ICommand& cmd )
     LBLOG( LOG_INIT ) << "Exit channel " << co::ObjectICommand( cmd )
                       << std::endl;
 
-    _deleteTransferContext();
+    _deleteTransferWindow();
 
     if( _impl->state != STATE_STOPPED )
         _impl->state = configExit() ? STATE_STOPPED : STATE_FAILED;
@@ -1880,7 +1903,7 @@ bool Channel::_cmdFinishReadback( co::ICommand& cmd )
             command.read< std::vector< uint128_t > >();
     const co::NodeIDs& netNodes = command.read< co::NodeIDs >();
 
-    getWindow()->makeCurrentTransfer();
+    _createTransferWindow();
     _finishReadback( frameData, imageIndex, frameNumber, taskID, nodes,
                      netNodes );
     _unrefFrame( frameNumber );
@@ -2042,13 +2065,34 @@ bool Channel::_cmdFrameChunks( co::ICommand& cmd )
     return true;
 }
 
-bool Channel::_cmdDeleteTransferContext( co::ICommand& cmd )
+bool Channel::_cmdCreateTransferWindow( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
 
-    LBLOG( LOG_INIT ) << "Delete transfer context " << command << std::endl;
+    LBLOG( LOG_INIT ) << "Create transfer window " << command << std::endl;
 
-    getWindow()->deleteTransferSystemWindow();
+    LBCHECK( getWindow()->createTransferWindow( ));
+
+    const uint32_t requestID = command.get< uint32_t >();
+#ifdef EQ_QT_USED
+    QThread* transferThread = reinterpret_cast< QThread* >
+            ( getLocalNode()->getRequestData( requestID ));
+    qt::Window* transferWindow = dynamic_cast< qt::Window* >
+            ( getWindow()->getTransferWindow( ));
+    if( transferWindow )
+        transferWindow->moveContextToThread( transferThread );
+#endif
+    getLocalNode()->serveRequest( requestID );
+    return true;
+}
+
+bool Channel::_cmdDeleteTransferWindow( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+
+    LBLOG( LOG_INIT ) << "Delete transfer window " << command << std::endl;
+
+    getWindow()->deleteTransferWindow();
     getLocalNode()->serveRequest( command.read< uint32_t >( ));
     return true;
 }

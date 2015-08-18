@@ -190,7 +190,7 @@ public:
     lunchbox::Monitor< uint32_t > finishedFrame;
 
     /** The number of the last locally unlocked frame. */
-    lunchbox::Monitor<uint32_t> unlockedFrame;
+    lunchbox::Monitor< uint32_t > unlockedFrame;
 
     /** The running per-frame statistic clocks. */
     std::deque< int64_t > frameTimes;
@@ -752,23 +752,38 @@ namespace
 class WaitFinishedVisitor : public PipeVisitor
 {
 public:
-    WaitFinishedVisitor( const uint32_t frame ) : _frame( frame ) {}
+    WaitFinishedVisitor( const uint32_t frame, MessagePump* pump )
+        : _frame( frame ), _pump( pump ) {}
 
     virtual VisitorResult visit( Channel* channel )
+    {
+        while( !channel->waitFrameFinished( _frame, 100 ))
         {
-            channel->waitFrameFinished( _frame );
-            return TRAVERSE_CONTINUE;
+            // process potential pending Qt slots
+            if( _pump )
+                _pump->dispatchAll();
         }
+
+        return TRAVERSE_CONTINUE;
+    }
 
 private:
     const uint32_t _frame;
+    MessagePump* _pump;
 };
 }
 
-void Pipe::waitFrameFinished( const uint32_t frameNumber ) const
+void Pipe::waitFrameFinished( const uint32_t frameNumber )
 {
-    _impl->finishedFrame.waitGE( frameNumber );
-    WaitFinishedVisitor waiter( frameNumber );
+    MessagePump* pump = getConfig()->getMessagePump();
+    while( !_impl->finishedFrame.timedWaitGE( frameNumber, 100 ))
+    {
+        // process potential pending Qt slots
+        if( pump )
+            pump->dispatchAll();
+    }
+
+    WaitFinishedVisitor waiter( frameNumber, pump );
     accept( waiter );
 }
 

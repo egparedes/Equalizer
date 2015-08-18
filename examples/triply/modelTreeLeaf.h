@@ -1,6 +1,6 @@
 
-/* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
- *               2008-2013, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2007-2015, Tobias Wolf <twolf@access.unizh.ch>
+ *                          Stefan Eilemann <eile@equalizergraphics.com>
  *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@ namespace triply
 class ModelTreeLeaf : public ModelTreeBase
 {
 public:
-    ModelTreeLeaf( ModelTreeData& treeData );
-    ModelTreeLeaf( ModelTreeData& treeData,
+    explicit ModelTreeLeaf( ModelTreeData& treeData );
+    explicit ModelTreeLeaf( ModelTreeData& treeData,
                    Index indexStart, Index indexLength,
                    Index vertexStart, ShortIndex vertexLength );
 

@@ -501,6 +501,7 @@ bool Window::configInitGL( const uint128_t& )
 
 bool Window::createTransferWindow()
 {
+    LB_TS_THREAD( _pipeThread );
     LBASSERT( _systemWindow );
 
     if( _transferWindow )
@@ -524,7 +525,12 @@ bool Window::createTransferWindow()
             _transferWindow = 0;
         }
         else
-            makeCurrentTransfer(); // #177
+        {
+            // #177: It looks like the driver realizes the context on the first
+            // makeCurrent
+            _transferWindow->makeCurrent();
+            _transferWindow->doneCurrent();
+        }
     }
     else
         LBERROR << "Window system " << pipe->getWindowSystem()
@@ -544,15 +550,7 @@ const GLEWContext* Window::getTransferGlewContext()
     return 0;
 }
 
-void Window::makeCurrentTransfer( const bool useCache ) const
-{
-    LBASSERT( _transferWindow );
-    if( _transferWindow )
-        _transferWindow->makeCurrent( useCache );
-}
-
-
-void Window::deleteTransferSystemWindow()
+void Window::deleteTransferWindow()
 {
     if( !_transferWindow )
         return;
@@ -560,6 +558,11 @@ void Window::deleteTransferSystemWindow()
     _transferWindow->configExit();
     delete _transferWindow;
     _transferWindow = 0;
+}
+
+SystemWindow* Window::getTransferWindow()
+{
+    return _transferWindow;
 }
 
 //----------------------------------------------------------------------
@@ -597,7 +600,13 @@ void Window::makeCurrent( const bool useCache ) const
     LBASSERT( _systemWindow );
     if( _systemWindow )
         _systemWindow->makeCurrent( useCache );
-    // _pipe->setCurrent done by SystemWindow::makeCurrent
+}
+
+void Window::doneCurrent() const
+{
+    LBASSERT( _systemWindow );
+    if( _systemWindow )
+        _systemWindow->doneCurrent();
 }
 
 void Window::bindFrameBuffer() const
@@ -644,14 +653,7 @@ void Window::_enterBarrier( co::ObjectVersion barrier )
     WindowStatistics stat( Statistic::WINDOW_SWAP_BARRIER, this );
     Config* config = getConfig();
     const uint32_t timeout = config->getTimeout()/2;
-    try
-    {
-        netBarrier->enter( timeout );
-    }
-    catch( const co::Exception& e )
-    {
-        LBWARN << e.what() << " for " << *netBarrier << std::endl;
-    }
+    LBCHECK( netBarrier->enter( timeout ));
 }
 
 void Window::_updateEvent( Event& event )

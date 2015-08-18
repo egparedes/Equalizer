@@ -61,7 +61,7 @@ public:
                             ConfigVisitor > Super; //!< base class
 
     /** Construct a new config. @version 1.0 */
-    EQ_API Config( ServerPtr parent );
+    EQ_API explicit Config( ServerPtr parent );
 
     /** Destruct a config. @version 1.0 */
     EQ_API virtual ~Config();
@@ -115,7 +115,7 @@ public:
     EQ_API int64_t getTime() const;
 
     /** @return the config's message pump, or 0. @version 1.0 */
-    MessagePump* getMessagePump();
+    EQ_API MessagePump* getMessagePump();
 
     /** @internal */
     const Channel* findChannel( const std::string& name ) const
@@ -421,7 +421,7 @@ public:
      * method does not block if the given timeout is 0. Not thread safe.
      *
      * @param timeout time in ms to wait for incoming events
-     * @return the event command.
+     * @return the event command, or an invalid command on timeout
      * @version 1.5.1
      * @sa Client::processCommand()
      */

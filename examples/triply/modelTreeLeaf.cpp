@@ -75,12 +75,12 @@ const BoundingSphere& ModelTreeLeaf::updateBoundingSphere()
     for( Index i = 1; i < _vertexLength; ++i )
     {
         const Vertex& vertex = _treeData.vertices[ _vertexStart + i ];
-        _boundingBox[0][0] = LB_MIN( _boundingBox[0][0], vertex[0] );
-        _boundingBox[1][0] = LB_MAX( _boundingBox[1][0], vertex[0] );
-        _boundingBox[0][1] = LB_MIN( _boundingBox[0][1], vertex[1] );
-        _boundingBox[1][1] = LB_MAX( _boundingBox[1][1], vertex[1] );
-        _boundingBox[0][2] = LB_MIN( _boundingBox[0][2], vertex[2] );
-        _boundingBox[1][2] = LB_MAX( _boundingBox[1][2], vertex[2] );
+        _boundingBox[0][0] = std::min( _boundingBox[0][0], vertex[0] );
+        _boundingBox[1][0] = std::max( _boundingBox[1][0], vertex[0] );
+        _boundingBox[0][1] = std::min( _boundingBox[0][1], vertex[1] );
+        _boundingBox[1][1] = std::max( _boundingBox[1][1], vertex[1] );
+        _boundingBox[0][2] = std::min( _boundingBox[0][2], vertex[2] );
+        _boundingBox[1][2] = std::max( _boundingBox[1][2], vertex[2] );
     }
 
     // We determine a bounding sphere by:
@@ -93,9 +93,9 @@ const BoundingSphere& ModelTreeLeaf::updateBoundingSphere()
     _boundingSphere.y() = ( _boundingBox[0].y() + _boundingBox[1].y() ) * 0.5f;
     _boundingSphere.z() = ( _boundingBox[0].z() + _boundingBox[1].z() ) * 0.5f;
 
-    _boundingSphere.w()  = LB_MAX( _boundingBox[1].x() - _boundingBox[0].x(),
+    _boundingSphere.w()  = std::max( _boundingBox[1].x() - _boundingBox[0].x(),
                                    _boundingBox[1].y() - _boundingBox[0].y() );
-    _boundingSphere.w()  = LB_MAX( _boundingBox[1].z() - _boundingBox[0].z(),
+    _boundingSphere.w()  = std::max( _boundingBox[1].z() - _boundingBox[0].z(),
                                    _boundingSphere.w() );
     _boundingSphere.w() *= 0.5f;
     

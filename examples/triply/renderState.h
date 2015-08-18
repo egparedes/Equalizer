@@ -91,7 +91,7 @@ public:
         { return _pagedData; }
 
 protected:
-    TRIPLY_API RenderState( const GLEWContext* glewContext );
+    TRIPLY_API explicit RenderState( const GLEWContext* glewContext );
     TRIPLY_API virtual ~RenderState() {}
 
     Matrix4f      _pmvMatrix; //!< projection * modelView matrix
@@ -117,7 +117,7 @@ private:
     typedef GLMap::const_iterator GLMapCIter;
 
 public:
-    TRIPLY_API SimpleRenderState( const GLEWContext* glewContext )
+    TRIPLY_API explicit SimpleRenderState( const GLEWContext* glewContext )
         : RenderState( glewContext ) {}
 
     TRIPLY_API virtual GLuint getDisplayList( const void* key );

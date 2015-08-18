@@ -46,7 +46,7 @@ public:
                             ConfigVisitor > Super;
 
     /** Construct a new config. */
-    EQSERVER_API Config( ServerPtr parent );
+    EQSERVER_API explicit Config( ServerPtr parent );
     virtual ~Config();
 
     /**
