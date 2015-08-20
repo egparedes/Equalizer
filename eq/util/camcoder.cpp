@@ -99,9 +99,9 @@ bool Camcoder::loadAnimation( const std::string& fileName )
 
         file >> frame
              >> keyEvent.key;
-        position.read_from_stream( file );
-        rotation.read_from_stream( file );
-        modelRotation.read_from_stream( file );
+        read_from_stream( position, file );
+        read_from_stream( rotation, file );
+        read_from_stream( modelRotation, file );
 
         _steps.push_back( Step( frame, keyEvent, position, rotation, modelRotation ));
     }
@@ -128,9 +128,9 @@ bool Camcoder::saveAnimation( const std::string& fileName )
     {
         file << it->frame - first   << " "
              << it->keyEvent.key    << " ";
-        (it->position).write_to_stream( file );
-        (it->rotation).write_to_stream( file );
-        (it->modelRotation).write_to_stream( file );
+        write_to_stream( (it->position), file );
+        write_to_stream( (it->rotation), file );
+        write_to_stream( (it->modelRotation), file );
         file << std::endl;
     }
     file.close();
@@ -261,6 +261,40 @@ void Camcoder::stopPlaying()
 {
     _currentStep = 0;
     _playing = false;
+}
+
+void Camcoder::read_from_stream( eq::Vector3f& v, std::istream& is )
+{
+    for( size_t i = 0; i < v.DIMENSION; ++i )
+        is >> v.at( i );
+}
+
+void Camcoder::read_from_stream( eq::Matrix4f& m, std::istream& is )
+{
+    for( size_t row_index = 0; row_index < m.ROWS; ++row_index )
+    {
+        for( size_t col_index = 0; col_index < m.COLS; ++col_index )
+        {
+            is >> m.at( row_index, col_index );
+        }
+    }
+}
+
+void Camcoder::write_to_stream( const eq::Vector3f& v, std::ostream& os ) const
+{
+    for( size_t i = 0; i < v.DIMENSION; ++i )
+        os << v.at( i ) << " ";
+}
+
+void Camcoder::write_to_stream( const eq::Matrix4f& m, std::ostream& os ) const
+{
+     for( size_t row_index = 0; row_index < m.ROWS; ++row_index )
+     {
+         for( size_t col_index = 0; col_index < m.COLS; ++col_index )
+         {
+             os << m.at( row_index, col_index ) << " ";
+         }
+     }
 }
 
 }

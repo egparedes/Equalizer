@@ -159,6 +159,11 @@ public:
     typedef std::vector< Step > Steps;
 
 private:
+    void read_from_stream( eq::Vector3f& v, std::istream& is );
+    void read_from_stream( eq::Matrix4f& m, std::istream& is );
+    void write_to_stream( const eq::Vector3f& v, std::ostream& os ) const;
+    void write_to_stream( const eq::Matrix4f& m, std::ostream& os ) const;
+
     Steps        _steps;
     uint32_t     _currentStep;
     uint32_t     _currentFrame;
