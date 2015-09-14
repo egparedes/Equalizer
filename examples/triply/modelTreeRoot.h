@@ -35,7 +35,7 @@
 #include "typedefs.h"
 #include "modelTreeData.h"
 #include "modelTreeNode.h"
-#include "pagedTreeData.h"
+#include "treeDataManager.h"
 #include <triply/api.h>
 #include <vector>
 
@@ -58,7 +58,7 @@ public:
     TRIPLY_API virtual void cullDraw( RenderState& state ) const;
     TRIPLY_API virtual void draw( RenderState& state ) const;
 
-    TRIPLY_API bool setupTree( VertexData& modelData,
+    TRIPLY_API bool setupTree( MeshData& modelData,
                                const TreeInfo& info,
                                boost::progress_display* progressPtr=0);
 
@@ -69,6 +69,9 @@ public:
 
     TRIPLY_API bool hasColors() const { return _treeData.hasColors; }
     TRIPLY_API BoundingBox getBoundingBox() const { return _treeData.getBoundingBox(); }
+    TRIPLY_API size_t getTotalVertices() const { return _treeData.vertices.size(); }
+    TRIPLY_API size_t getTotalIndices() const { return _treeData.indices.size(); }
+    TRIPLY_API size_t getTotalMemory() const { return _treeData.getTotalSize(); }
 
     TRIPLY_API void useInvertedFaces() { _invertFaces = true; }
 
@@ -82,7 +85,7 @@ protected:
 private:
     bool constructFromPly( const std::string& filename, const TreeInfo& info );
     bool readBinary( std::string filename );
-    void showBuildStats(const VertexData &modelData );
+    void showBuildStats(const MeshData &modelData );
 
     void beginRendering( RenderState& state ) const;
     void endRendering( RenderState& state ) const;

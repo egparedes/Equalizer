@@ -33,7 +33,7 @@
 #define TRIPLY_RENDERSTATE_H
 
 #include "typedefs.h"
-#include "pagedTreeData.h"
+#include "treeDataManager.h"
 #include <triply/api.h>
 #include <map>
 
@@ -85,25 +85,25 @@ public:
     TRIPLY_API const GLEWContext* glewGetContext() const
         { return _glewContext; }
 
-    TRIPLY_API void setPagedData( PagedTreeDataPtr pagedData)
-        { _pagedData = pagedData; }
-    TRIPLY_API PagedTreeDataPtr getPagedData() const
-        { return _pagedData; }
+    TRIPLY_API void setDataManager( TreeDataManager* dataManager)
+        { _dataManager = dataManager; }
+    TRIPLY_API TreeDataManager* getDataManager() const
+        { return _dataManager; }
 
 protected:
     TRIPLY_API explicit RenderState( const GLEWContext* glewContext );
     TRIPLY_API virtual ~RenderState() {}
 
-    Matrix4f      _pmvMatrix; //!< projection * modelView matrix
-    Range         _range; //!< normalized [0,1] part of the model to draw
+    Matrix4f            _pmvMatrix; //!< projection * modelView matrix
+    Range               _range; //!< normalized [0,1] part of the model to draw
     const GLEWContext* const _glewContext;
-    RenderMode    _renderMode;
-    Vector4f      _region; //!< normalized x1 y1 x2 y2 region from cullDraw
-    bool          _useColors;
-    bool          _useFrustumCulling;
-    bool          _useBoundingSpheres;
-    bool          _outOfCore;
-    PagedTreeDataPtr _pagedData;
+    RenderMode          _renderMode;
+    Vector4f            _region; //!< normalized x1 y1 x2 y2 region from cullDraw
+    bool                _useColors;
+    bool                _useFrustumCulling;
+    bool                _useBoundingSpheres;
+    bool                _outOfCore;
+    TreeDataManager*    _dataManager;
 
 private:
 };

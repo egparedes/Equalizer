@@ -31,32 +31,52 @@
 
 #include "modelTreeLeaf.h"
 #include "modelTreeData.h"
+#include "meshData.h"
+#include "treeDataManager.h"
 #include "renderState.h"
-#include "vertexData.h"
-#include <map>
 
 namespace triply
 {
 
 ModelTreeLeaf::ModelTreeLeaf( ModelTreeData &treeData )
     : _treeData( treeData ),
-      _indexStart( 0 ), _indexLength( 0 ), _vertexStart( 0 ), _vertexLength( 0 )
-{ }
-
+      _indexStart( 0 ), _indexLength( 0 ), _vertexStart( 0 ), _vertexLength( 0 ),
+      _dataReady( false ), _dataManager( 0 )
+{
+    for( size_t i=0; i <= ISegsUploaded; ++i)
+    {
+        _stats[i] = 0;
+    }
+}
 
 ModelTreeLeaf::ModelTreeLeaf( ModelTreeData& treeData,
                               Index indexStart, Index indexLength,
                               Index vertexStart, ShortIndex vertexLength )
     : _treeData( treeData ),
       _indexStart( indexStart ), _indexLength( indexLength ),
-      _vertexStart( vertexStart ), _vertexLength( vertexLength )
-{ }
-
-ModelTreeLeaf::~ModelTreeLeaf()
-{ }
+      _vertexStart( vertexStart ), _vertexLength( vertexLength ),
+      _dataReady( false ), _dataManager( 0 )
+{
+    for( size_t i=0; i <= ISegsUploaded; ++i)
+    {
+        _stats[i] = 0;
+    }
+}
 
 void ModelTreeLeaf::clear()
 {
+#if 0
+ifndef NDEBUG
+    TRIPLYINFO << "LeafStats [v-" << _vertexStart << "] 0-Rendered   : \t" << _stats[Rendered] << std::endl;
+    TRIPLYINFO << "LeafStats [v-" << _vertexStart << "] 1-Uploaded   : \t" << _stats[Uploaded] << std::endl;
+    TRIPLYINFO << "LeafStats [v-" << _vertexStart << "] 2-DataRead   : \t" << _stats[DataRead] << std::endl;
+    TRIPLYINFO << "LeafStats [v-" << _vertexStart << "] 3-DataDiscard: \t" << _stats[DataDiscard] << std::endl;
+    TRIPLYINFO << "LeafStats [v-" << _vertexStart << "] 4-VSegsUpload: \t" << _stats[VSegsUploaded] << std::endl;
+    TRIPLYINFO << "LeafStats [v-" << _vertexStart << "] 5-ISegsUpload: \t" << _stats[ISegsUploaded] << std::endl;
+    TRIPLYASSERT( _stats[DataRead] == _stats[DataDiscard] );
+#endif
+
+    discardLocalData();
     _boundingBox[0] = Vertex::ZERO;
     _boundingBox[1] = Vertex::ZERO;
     _indexStart = 0;
@@ -174,8 +194,12 @@ void ModelTreeLeaf::updateRange()
 
 /*  Set up rendering of the leaf nodes.  */
 void ModelTreeLeaf::setupRendering( RenderState& state,
-                                       GLuint* data ) const
+                                    GLuint* data ) const
 {
+    _stats[Uploaded]++;
+    if( !_dataReady )
+        setupLocalData( state.useColors(), state.getDataManager( ) );
+
     switch( state.getRenderMode() )
     {
     case RENDER_MODE_IMMEDIATE:
@@ -185,92 +209,74 @@ void ModelTreeLeaf::setupRendering( RenderState& state,
     {
         const char* charThis = reinterpret_cast< const char* >( this );
 
-        // If out-of-core rendering, the real data will be uploaded later
-        Vertex* verticesPtr =
-                ( state.useOutOfCore() ) ? NULL : &_treeData.vertices[_vertexStart];
-        Color* colorsPtr =
-                ( state.useOutOfCore() ) ? NULL : &_treeData.colors[_vertexStart];
-        Normal* normalsPtr =
-                ( state.useOutOfCore() ) ? NULL : &_treeData.normals[_vertexStart];
-        ShortIndex* indicesPtr =
-                ( state.useOutOfCore() ) ? NULL : &_treeData.indices[_indexStart];
+        // Allocate empty VBOs
+        if( data[VERTEX_BUFFER_TYPE] == state.INVALID )
+            data[VERTEX_BUFFER_TYPE] = state.newBufferObject( charThis + 0 );
+        glBindBuffer( GL_ARRAY_BUFFER, data[VERTEX_BUFFER_TYPE] );
+        glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Vertex ), 0,
+                      GL_STATIC_DRAW );
 
-        if( data[VERTEX_OBJECT] == state.INVALID )
-            data[VERTEX_OBJECT] = state.newBufferObject( charThis + 0 );
-        glBindBuffer( GL_ARRAY_BUFFER, data[VERTEX_OBJECT] );
-        glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Vertex ),
-                      verticesPtr, GL_STATIC_DRAW );
+        if( data[NORMAL_BUFFER_TYPE] == state.INVALID )
+            data[NORMAL_BUFFER_TYPE] = state.newBufferObject( charThis + 1 );
+        glBindBuffer( GL_ARRAY_BUFFER, data[NORMAL_BUFFER_TYPE] );
+        glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Normal ), 0,
+                      GL_STATIC_DRAW );
 
-        if( data[NORMAL_OBJECT] == state.INVALID )
-            data[NORMAL_OBJECT] = state.newBufferObject( charThis + 1 );
-        glBindBuffer( GL_ARRAY_BUFFER, data[NORMAL_OBJECT] );
-        glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Normal ),
-                      normalsPtr, GL_STATIC_DRAW );
-
-        if( data[COLOR_OBJECT] == state.INVALID )
-            data[COLOR_OBJECT] = state.newBufferObject( charThis + 2 );
+        if( data[COLOR_BUFFER_TYPE] == state.INVALID )
+            data[COLOR_BUFFER_TYPE] = state.newBufferObject( charThis + 2 );
         if( state.useColors() )
         {
-            glBindBuffer( GL_ARRAY_BUFFER, data[COLOR_OBJECT] );
-            glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Color ),
-                          colorsPtr, GL_STATIC_DRAW );
+            glBindBuffer( GL_ARRAY_BUFFER, data[COLOR_BUFFER_TYPE] );
+            glBufferData( GL_ARRAY_BUFFER, _vertexLength * sizeof( Color ), 0,
+                          GL_STATIC_DRAW );
         }
 
-        if( data[INDEX_OBJECT] == state.INVALID )
-            data[INDEX_OBJECT] = state.newBufferObject( charThis + 3 );
-        glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, data[INDEX_OBJECT] );
-        glBufferData( GL_ELEMENT_ARRAY_BUFFER, _indexLength * sizeof( ShortIndex ),
-                      indicesPtr, GL_STATIC_DRAW );
+        if( data[INDEX_BUFFER_TYPE] == state.INVALID )
+            data[INDEX_BUFFER_TYPE] = state.newBufferObject( charThis + 3 );
+        glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, data[INDEX_BUFFER_TYPE] );
+        glBufferData( GL_ELEMENT_ARRAY_BUFFER, _indexLength * sizeof( ShortIndex ), 0,
+                      GL_STATIC_DRAW );
 
-        // If using out-of-core rendering, upload real data to buffers in a page-by-page way
-        if( state.useOutOfCore() )
-        {
-            std::size_t vbLength = 0;
-            std::size_t verticesOffset = 0;
-            std::size_t colorsOffset = 0;
-            std::size_t normalsOffset = 0;
+        // Upload data to VBOs
+        TRIPLYASSERT( _buffers[VERTEX_BUFFER_TYPE].numSegments() ==
+                            _buffers[NORMAL_BUFFER_TYPE].numSegments() );
+        TRIPLYASSERT( _buffers[VERTEX_BUFFER_TYPE].numSegments() ==
+                            _buffers[COLOR_BUFFER_TYPE].numSegments()
+                       || ! state.useColors() );
 
-            TRIPLYASSERT ( _verticesVB.numBlocks() == _normalsVB.numBlocks() );
-            TRIPLYASSERT ( !state.useColors() ||
-                           _verticesVB.numBlocks() == _colorsVB.numBlocks() );
-
-            for( unsigned int i=0; i < _verticesVB.numBlocks(); ++i )
+        size_t offset[3];
+        for( unsigned int i=0; i < 3; ++i)
+            offset[i] = 0;
+        for( unsigned int i=0; i < _buffers[VERTEX_BUFFER_TYPE].numSegments(); ++i )
+        {            
+            _stats[VSegsUploaded]++;
+            for( int bufferType=VERTEX_BUFFER_TYPE; bufferType < INDEX_BUFFER_TYPE;
+                 ++bufferType )
             {
-                _verticesVB.getMemBlock(i, verticesPtr, vbLength);
-                glBindBuffer( GL_ARRAY_BUFFER, data[VERTEX_OBJECT] );
-                glBufferSubData( GL_ARRAY_BUFFER, verticesOffset, vbLength * sizeof( Vertex ),
-                                 verticesPtr );
-                verticesOffset += vbLength * sizeof( Vertex ) ;
-
-                _normalsVB.getMemBlock(i, normalsPtr, vbLength);
-                glBindBuffer( GL_ARRAY_BUFFER, data[NORMAL_OBJECT] );
-                glBufferSubData( GL_ARRAY_BUFFER, normalsOffset, vbLength * sizeof( Normal ),
-                                 normalsPtr );
-                normalsOffset += vbLength * sizeof( Normal ) ;
-
-                if( state.useColors() )
+                if( bufferType != COLOR_BUFFER_TYPE || state.useColors() )
                 {
-                    _colorsVB.getMemBlock(i, colorsPtr, vbLength);
-                    glBindBuffer( GL_ARRAY_BUFFER, data[COLOR_OBJECT] );
-                    glBufferSubData( GL_ARRAY_BUFFER, colorsOffset, vbLength * sizeof( Color ),
-                                     colorsPtr );
-                    colorsOffset += vbLength * sizeof( Color);
+                    SegmentedBuffer::Segment segment = _buffers[bufferType].getSegment( i );
+                    glBindBuffer( GL_ARRAY_BUFFER, data[bufferType] );
+                    glBufferSubData( GL_ARRAY_BUFFER, offset[bufferType],
+                                     segment.size, segment.ptr );
+                    offset[bufferType] += segment.size;
                 }
             }
-
-            std::size_t idxOffset = 0;
-            for( unsigned int i=0; i < _indicesVB.numBlocks(); ++i )
-            {
-                _indicesVB.getMemBlock(i, indicesPtr, vbLength);
-                glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, data[INDEX_OBJECT] );
-                glBufferSubData( GL_ELEMENT_ARRAY_BUFFER, idxOffset, vbLength * sizeof( ShortIndex ),
-                                 indicesPtr );
-                idxOffset += vbLength * sizeof( ShortIndex ) ;
-            }
         }
 
+        size_t idxOffset = 0;
+        for( unsigned int i=0; i < _buffers[INDEX_BUFFER_TYPE].numSegments(); ++i )
+        {
+            _stats[ISegsUploaded]++;
+            SegmentedBuffer::Segment segment =
+                    _buffers[INDEX_BUFFER_TYPE].getSegment( i );
+            glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, data[INDEX_BUFFER_TYPE] );
+            glBufferSubData( GL_ELEMENT_ARRAY_BUFFER, idxOffset, segment.size, segment.ptr );
+            idxOffset += segment.size;
+        }
         break;
     }
+
     case RENDER_MODE_DISPLAY_LIST:
     default:
     {
@@ -292,11 +298,9 @@ void ModelTreeLeaf::setupRendering( RenderState& state,
 /*  Draw the leaf.  */
 void ModelTreeLeaf::draw( RenderState& state ) const
 {
-    if( state.stopRendering( ) )
+    if( state.stopRendering() )
         return;
 
-    if( state.useOutOfCore() && !isDataLoaded() )
-        loadVirtualData( state.getPagedData(), state.useColors() );
     state.updateRegion( _boundingBox );
     switch( state.getRenderMode() )
     {
@@ -305,12 +309,12 @@ void ModelTreeLeaf::draw( RenderState& state ) const
           return;
       case RENDER_MODE_BUFFER_OBJECT:
           renderBufferObject( state );
-          if( state.useOutOfCore() )
-              freeVirtualData();
+          discardLocalData();
           return;
       case RENDER_MODE_DISPLAY_LIST:
       default:
           renderDisplayList( state );
+          discardLocalData();
           return;
     }
 }
@@ -318,6 +322,7 @@ void ModelTreeLeaf::draw( RenderState& state ) const
 /*  Render the leaf with buffer objects.  */
 void ModelTreeLeaf::renderBufferObject( RenderState& state ) const
 {
+    _stats[Rendered]++;
     GLuint buffers[4];
     for( int i = 0; i < 4; ++i )
     {
@@ -325,10 +330,10 @@ void ModelTreeLeaf::renderBufferObject( RenderState& state ) const
             state.getBufferObject( reinterpret_cast< const char* >(this) + i );
     }
 
-    if( buffers[VERTEX_OBJECT] == state.INVALID ||
-        buffers[NORMAL_OBJECT] == state.INVALID ||
-        buffers[COLOR_OBJECT] == state.INVALID ||
-        buffers[INDEX_OBJECT] == state.INVALID )
+    if( buffers[VERTEX_BUFFER_TYPE] == state.INVALID ||
+        buffers[NORMAL_BUFFER_TYPE] == state.INVALID ||
+        buffers[COLOR_BUFFER_TYPE] == state.INVALID  ||
+        buffers[INDEX_BUFFER_TYPE] == state.INVALID )
     {
         setupRendering( state, buffers );
     }
@@ -336,14 +341,14 @@ void ModelTreeLeaf::renderBufferObject( RenderState& state ) const
 
     if( state.useColors() )
     {
-        glBindBuffer( GL_ARRAY_BUFFER, buffers[COLOR_OBJECT] );
+        glBindBuffer( GL_ARRAY_BUFFER, buffers[COLOR_BUFFER_TYPE] );
         glColorPointer( 3, GL_UNSIGNED_BYTE, 0, 0 );
     }
-    glBindBuffer( GL_ARRAY_BUFFER, buffers[NORMAL_OBJECT] );
+    glBindBuffer( GL_ARRAY_BUFFER, buffers[NORMAL_BUFFER_TYPE] );
     glNormalPointer( GL_FLOAT, 0, 0 );
-    glBindBuffer( GL_ARRAY_BUFFER, buffers[VERTEX_OBJECT] );
+    glBindBuffer( GL_ARRAY_BUFFER, buffers[VERTEX_BUFFER_TYPE] );
     glVertexPointer( 3, GL_FLOAT, 0, 0 );
-    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, buffers[INDEX_OBJECT] );
+    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, buffers[INDEX_BUFFER_TYPE] );
     glDrawElements( GL_TRIANGLES, GLsizei(_indexLength), GL_UNSIGNED_SHORT, 0 );
 }
 
@@ -369,28 +374,15 @@ void ModelTreeLeaf::renderDisplayList( RenderState& state ) const
 inline
 void ModelTreeLeaf::renderImmediate( RenderState& state ) const
 {
+    setupRendering( state, NULL );
     glBegin( GL_TRIANGLES );
-    if( state.useOutOfCore() )
+    for( Index i = 0; i < _indexLength; ++i )
     {
-        for( Index idx = 0; idx < _indexLength; ++idx )
-        {
-            const ShortIndex i = _indicesVB[idx];
-            if( state.useColors() )
-                glColor3ubv( &(_colorsVB[i][0]) );
-            glNormal3fv( &(_normalsVB[i][0]) );
-            glVertex3fv( &(_verticesVB[i][0]) );
-        }
-    }
-    else
-    {
-        for( Index offset = 0; offset < _indexLength; ++offset )
-        {
-            const Index i =_vertexStart + _treeData.indices[_indexStart + offset];
-            if( state.useColors() )
-                glColor3ubv( &_treeData.colors[i][0] );
-            glNormal3fv( &_treeData.normals[i][0] );
-            glVertex3fv( &_treeData.vertices[i][0] );
-        }
+        const ShortIndex idx = getIndex( i );
+        if( state.useColors() )
+            glColor3ubv( &(getColor( idx )[0]) );
+        glNormal3fv( &(getNormal( idx )[0]) );
+        glVertex3fv( &(getVertex( idx )[0]) );
     }
     glEnd();
 }
@@ -431,36 +423,76 @@ void ModelTreeLeaf::toStream( std::ostream& os )
     os.write( reinterpret_cast< char* >( &_indexLength ), sizeof( Index ));
 }
 
-bool ModelTreeLeaf::isDataLoaded( ) const
+void ModelTreeLeaf::setupLocalData( bool useColors,
+                                    TreeDataManager* dataManager ) const
 {
-    return _verticesVB.isValid() && _colorsVB.isValid() && _normalsVB.isValid();
-}
-
-void ModelTreeLeaf::loadVirtualData(PagedTreeDataPtr pagedVBD, bool useColors) const
-{
-    if( isDataLoaded() )
+    if( _dataReady )
         return;
-    TRIPLYASSERT( pagedVBD != 0 );
 
-//    pagedVBD->getVertexData( _vertexStart, _vertexLength, useColors,
-//                             _verticesVB, _colorsVB, _normalsVB );
-    
-    if (!_verticesVB.isValid())
-        pagedVBD->getVertices(_vertexStart, _vertexLength, _verticesVB );
-    if (useColors && !_colorsVB.isValid())
-        pagedVBD->getColors(_vertexStart, _vertexLength, _colorsVB );
-    if (!_normalsVB.isValid())
-        pagedVBD->getNormals(_vertexStart, _vertexLength, _normalsVB );
-    if (!_indicesVB.isValid())
-        pagedVBD->getIndices(_indexStart, _indexLength, _indicesVB );
+    _stats[DataRead]++;
+    if( dataManager == 0 )
+    {
+        // In-core rendering: use single segment buffers
+        _buffers[VERTEX_BUFFER_TYPE].set( &_treeData.vertices[_vertexStart][0],
+                                          _vertexLength * sizeof( Vertex ));
+        _buffers[NORMAL_BUFFER_TYPE].set( &_treeData.normals[_vertexStart][0],
+                                          _vertexLength * sizeof( Normal ));
+        if( useColors )
+        {
+            _buffers[COLOR_BUFFER_TYPE].set( &_treeData.colors[_vertexStart][0],
+                                             _vertexLength * sizeof( Color ));
+        }
+        _buffers[INDEX_BUFFER_TYPE].set( &_treeData.indices[_indexStart],
+                                         _indexLength * sizeof( ShortIndex ) );
+    }
+    else
+    {
+        // Out-of-core rendering: get segmented buffers from shared DataManager instance
+        if( _dataManager == 0)
+        {
+            _dataManager = dataManager;
+        }
+        else
+        {
+            TRIPLYASSERT( _dataManager == dataManager );
+        }
+
+        if( useColors )
+        {
+            _dataManager->getVertexData( _vertexStart, _vertexLength,
+                                         _buffers[VERTEX_BUFFER_TYPE],
+                                         _buffers[NORMAL_BUFFER_TYPE],
+                                         _buffers[COLOR_BUFFER_TYPE] );
+        }
+        else
+        {
+            _dataManager->getVertexData( _vertexStart, _vertexLength,
+                                         _buffers[VERTEX_BUFFER_TYPE],
+                                         _buffers[NORMAL_BUFFER_TYPE] );
+        }
+        _dataManager->getIndexData( _indexStart, _indexLength,
+                                    _buffers[INDEX_BUFFER_TYPE] );
+    }
+
+    _dataReady =  true;
 }
 
-void ModelTreeLeaf::freeVirtualData() const
+void ModelTreeLeaf::discardLocalData() const
 {
-    _verticesVB.discard();
-    _colorsVB.discard();
-    _normalsVB.discard();
-    _indicesVB.discard();
+    if( !_dataReady )
+        return;
+
+    _stats[DataDiscard]++;
+    if( _dataManager != 0 )
+    {
+        _dataManager->discardVertexData( _vertexStart, _vertexLength );
+        _dataManager->discardIndexData( _indexStart, _indexLength );
+    }
+
+    for( unsigned i=0; i < 4; ++i)
+        _buffers[i].reset();
+
+    _dataReady = false;
 }
 
-}
+} // namespace triply

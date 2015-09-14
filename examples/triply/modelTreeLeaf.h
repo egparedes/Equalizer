@@ -32,20 +32,19 @@
 #define TRIPLY_MODELTREELEAF_H
 
 #include "modelTreeBase.h"
-#include "pagedTreeData.h"
+#include "segmentedBuffer.h"
 
 namespace triply
 {
+
 /*  The class for kd-tree leaf nodes.  */
 class ModelTreeLeaf : public ModelTreeBase
 {
 public:
     explicit ModelTreeLeaf( ModelTreeData& treeData );
     explicit ModelTreeLeaf( ModelTreeData& treeData,
-                   Index indexStart, Index indexLength,
-                   Index vertexStart, ShortIndex vertexLength );
-
-    virtual ~ModelTreeLeaf();
+                            Index indexStart, Index indexLength,
+                            Index vertexStart, ShortIndex vertexLength );
 
     virtual void clear() override;
 
@@ -65,24 +64,49 @@ private:
     void renderDisplayList( RenderState& state ) const;
     void renderBufferObject( RenderState& state ) const;
 
-    bool isDataLoaded( ) const;
-    void loadVirtualData(PagedTreeDataPtr pagedVBD, bool useColors) const;
-    void freeVirtualData() const;
+    void setupLocalData( bool useColors,
+                         TreeDataManager *dataManager=0 ) const;
+    void discardLocalData() const;
+
+    const Vertex& getVertex( const size_t i ) const
+    {
+        return _buffers[VERTEX_BUFFER_TYPE].at< Vertex >( i );
+    }
+
+    const Color& getColor( const size_t i ) const
+    {
+        return _buffers[COLOR_BUFFER_TYPE].at< Color >( i );
+    }
+
+    const Normal& getNormal( const size_t i ) const
+    {
+        return _buffers[NORMAL_BUFFER_TYPE].at< Normal >( i );
+    }
+
+    const ShortIndex& getIndex( const size_t i ) const
+    {
+        return _buffers[INDEX_BUFFER_TYPE].at< ShortIndex >( i );
+    }
 
     friend class ModelTreeDist;
 
-    ModelTreeData&      _treeData;
-    Index               _indexStart;
-    Index               _indexLength;
-    Index               _vertexStart;
-    ShortIndex          _vertexLength;
-    BoundingBox         _boundingBox;
+    ModelTreeData&          _treeData;
+    BoundingBox             _boundingBox;
+    Index                   _indexStart;
+    Index                   _indexLength;
+    Index                   _vertexStart;
+    ShortIndex              _vertexLength;
 
-    // For out-of-core rendering
-    mutable PagedVertexBuffer         _verticesVB;
-    mutable PagedColorBuffer          _colorsVB;
-    mutable PagedNormalBuffer         _normalsVB;
-    mutable PagedShortIndexBuffer     _indicesVB;
+    // Mutable for out-of-core rendering
+    mutable bool                 _dataReady;
+    mutable TreeDataManager*     _dataManager;
+    mutable SegmentedBuffer      _buffers[4];
+
+    enum StatsFields
+    {
+        Rendered=0, Uploaded, DataRead, DataDiscard, VSegsUploaded, ISegsUploaded
+    };
+    mutable size_t _stats[ISegsUploaded+1];
 };
 
 } // namespace

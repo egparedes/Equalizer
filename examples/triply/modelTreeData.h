@@ -43,7 +43,9 @@ namespace triply
     class ModelTreeData
     {
     public:
-        ModelTreeData() : hasColors(false) {}
+        ModelTreeData()
+            : hasColors(false), _skippedVertices( 0 ), _skippedIndices( 0 )
+        { }
 
         void clear()
         {
@@ -77,14 +79,14 @@ namespace triply
         }
 
         /*  Read the vectors' sizes and skip the contents from the given MMF address.  */
-        void skipFromMemory( char** addr )
+        void fromMemorySkipData( char** addr )
         {
             clear();
             readBoundingBox( addr );
-            skipVector< Vertex >( addr );
+            _skippedVertices = skipVector< Vertex >( addr );
             hasColors = ( skipVector< Color >( addr ) > 0 );
             skipVector< Normal >( addr );
-            skipVector< ShortIndex >( addr );
+            _skippedIndices = skipVector< ShortIndex >( addr );
         }
 
         void calculateBoundingBox()
@@ -101,6 +103,24 @@ namespace triply
             }
         }
 
+        size_t getNumVertices() const
+        {
+            return ( vertices.size() > 0 ) ? vertices.size() : _skippedVertices;
+        }
+
+        size_t getNumIndices() const
+        {
+            return ( indices.size() > 0 ) ? indices.size() : _skippedIndices;
+        }
+
+        size_t getTotalSize() const
+        {
+            return getNumVertices() * sizeof( Vertex )
+                   + getNumVertices() * sizeof( Color ) * size_t( hasColors )
+                   + getNumVertices() * sizeof( Normal )
+                   + getNumIndices() * sizeof( ShortIndex );
+        }
+
         BoundingBox getBoundingBox() const { return boundingBox; }
 
         std::vector< Vertex >       vertices;
@@ -109,9 +129,8 @@ namespace triply
         std::vector< ShortIndex >   indices;
         BoundingBox                 boundingBox;
         bool                        hasColors;
-        
-    private:        
 
+    private:        
         void writeBoundingBox( std::ostream& os )
         {
             os.write( reinterpret_cast< char* >( &boundingBox[0] ), 2 * sizeof( Vertex ) );
@@ -163,9 +182,10 @@ namespace triply
             }
             return length;
         }
+
+        size_t      _skippedVertices;
+        size_t      _skippedIndices;
     };
-    
-    
 }
 
 

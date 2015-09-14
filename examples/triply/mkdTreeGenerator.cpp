@@ -35,7 +35,7 @@
 #include "modelTreeRoot.h"
 #include "modelTreeNode.h"
 #include "modelTreeLeaf.h"
-#include "vertexData.h"
+#include "meshData.h"
 #include <cstdlib>
 #include <algorithm>
 #include <utility>
@@ -52,7 +52,7 @@ namespace triply
 
 /*  Helper structure to sort Triangles with standard library sort function.  */
 MKDGenerator::TriangleLessCmpFunctor::TriangleLessCmpFunctor(
-            const VertexData& dataArg, const MKDGenerator::Axis axisArg )
+            const MeshData& dataArg, const MKDGenerator::Axis axisArg )
     : data( dataArg ), axis( axisArg )
 { }
 
@@ -90,7 +90,7 @@ const std::string MKDGenerator::Partition =
     TreeGenerator::addGenerator< MKDGenerator >( "kd" );
 
 MKDGenerator::MKDGenerator()
-    : _modelData( 0 ), _treeRoot( 0 ), _treeData( 0 ), _progress( 0 ),
+    : _meshData( 0 ), _treeRoot( 0 ), _treeData( 0 ), _progress( 0 ),
       _initialCount( 0 )
 { }
 
@@ -99,21 +99,21 @@ const std::string MKDGenerator::getPartition() const
     return Partition;
 }
 
-bool MKDGenerator::generate( VertexData& modelData,
+bool MKDGenerator::generate( MeshData& meshData,
                              ModelTreeRoot& treeRoot, ModelTreeData& treeData,
                              boost::progress_display& progress )
 {
     using std::swap;
 
-    _modelData = &modelData;
+    _meshData = &meshData;
     _treeRoot = &treeRoot;
     _treeData = &treeData;
     _progress = &progress;
     _initialCount = progress.count();
 
     //  Begin kd-tree setup, go through full range starting with largest axis.
-    State state( getLongestAxis( 0, _modelData->triangles.size() ),
-                 0, _modelData->triangles.size(), 0);
+    State state( getLongestAxis( 0, _meshData->triangles.size() ),
+                 0, _meshData->triangles.size(), 0);
     ModelTreeNode* generatedNode = generateNode( static_cast< void* >( &state) );
 
 //    swap( static_cast< ModelTreeNode& >( treeRoot ), *generatedNode );
@@ -171,7 +171,7 @@ ModelTreeNode* MKDGenerator::generateNode( void* state )
 
     if ( depth <= 4 )
     {
-        size_t count = ( MaxProgressCount * (start + length)) / _modelData->triangles.size();
+        size_t count = ( MaxProgressCount * (start + length)) / _meshData->triangles.size();
         while( _initialCount + count > _progress->count() )
             ++(*_progress);
     }
@@ -186,7 +186,7 @@ ModelTreeLeaf* MKDGenerator::generateLeaf( void* state )
     Axis& axis = static_cast< MKDGenerator::State* >( state )->axis;
     Index& start = static_cast< MKDGenerator::State* >( state )->start;
     Index& length = static_cast< MKDGenerator::State* >( state )->length;
-    VertexData& modelData = *_modelData;
+    MeshData& modelData = *_meshData;
     ModelTreeData& treeData = *_treeData;
 
     sortVertices( start, length, axis );
@@ -232,8 +232,8 @@ ModelTreeLeaf* MKDGenerator::generateLeaf( void* state )
 MKDGenerator::Axis MKDGenerator::getLongestAxis( const size_t start,
                                                  const size_t elements )
 {
-    std::vector< triply::Triangle >& triangles = _modelData->triangles;
-    std::vector< triply::Vertex >& vertices = _modelData->vertices;
+    std::vector< triply::Triangle >& triangles = _meshData->triangles;
+    std::vector< triply::Vertex >& vertices = _meshData->vertices;
 
     if( start + elements > triangles.size() )
     {
@@ -280,11 +280,11 @@ inline void MKDGenerator::sortVertices( const Index start, const Index length,
                                         const MKDGenerator::Axis axis )
 {
     TRIPLYASSERT( length > 0 );
-    TRIPLYASSERT( start + length <= _modelData->triangles.size() );
+    TRIPLYASSERT( start + length <= _meshData->triangles.size() );
 
-    ::sort( _modelData->triangles.begin() + start,
-            _modelData->triangles.begin() + start + length,
-            TriangleLessCmpFunctor( *_modelData, axis ) );
+    ::sort( _meshData->triangles.begin() + start,
+            _meshData->triangles.begin() + start + length,
+            TriangleLessCmpFunctor( *_meshData, axis ) );
 }
 
 std::ostream& operator<<( std::ostream& os, const MKDGenerator::Axis& axis )

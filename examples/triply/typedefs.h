@@ -78,6 +78,7 @@
 namespace triply
 {
 // class forward declarations
+class MeshData;
 class ModelTreeBase;
 class ModelTreeData;
 class ModelTreeLeaf;
@@ -86,12 +87,12 @@ class ModelTreeRoot;
 class TreeGenerator;
 class MKDGenerator;
 class ZTreeGenerator;
-class PagedTreeData;
-class VertexData;
+class TreeDataManager;
 class RenderState;
 
 typedef ModelTreeBase* ModelTreeBasePtr;
 typedef const ModelTreeBase* ConstModelTreeBasePtr;
+typedef lunchbox::RefPtr< TreeDataManager > SharedDataManagerPtr;
 
 // basic type definitions
 typedef vmml::vector< 3, float >      Vertex;
@@ -101,7 +102,6 @@ typedef vmml::matrix< 4, 4, float >   Matrix4f;
 typedef vmml::vector< 4, float >      Vector4f;
 typedef size_t                        Index;
 typedef unsigned short                ShortIndex;
-typedef std::size_t                   PageKey;
 
 // mesh exception
 struct MeshException : public std::exception
@@ -175,13 +175,29 @@ const Index             LEAF_SIZE( 21845 );
 // binary mesh file version, increment if changing the file format
 const unsigned short    FILE_VERSION( 0x011B );
 
-// enumeration for the buffer objects
-enum BufferObject
+// enumerations for the buffer objects
+enum BufferType
 {
-    VERTEX_OBJECT,
-    NORMAL_OBJECT,
-    COLOR_OBJECT,
-    INDEX_OBJECT
+    INVALID_BUFFER_TYPE = -1,
+    VERTEX_BUFFER_TYPE = 0,
+    NORMAL_BUFFER_TYPE,
+    COLOR_BUFFER_TYPE,
+    INDEX_BUFFER_TYPE
+};
+
+enum BufferElementSizeConstant
+{
+    VERTEX_BUFFER_ELEMENT_SIZE = sizeof( Vertex ),
+    NORMAL_BUFFER_ELEMENT_SIZE = sizeof( Normal ),
+    COLOR_BUFFER_ELEMENT_SIZE = sizeof( Color ),
+    INDEX_BUFFER_ELEMENT_SIZE = sizeof( ShortIndex )
+};
+
+static const size_t BufferElementSizes[] = {
+    VERTEX_BUFFER_ELEMENT_SIZE,
+    NORMAL_BUFFER_ELEMENT_SIZE,
+    COLOR_BUFFER_ELEMENT_SIZE,
+    INDEX_BUFFER_ELEMENT_SIZE
 };
 
 // enumeration for the render modes
@@ -207,18 +223,6 @@ enum NodeType
     NODE_TYPE = 0xde,
     LEAF_TYPE = 0xef
 };
-
-enum PageType
-{
-    INVALID_PAGE_TYPE = -1,
-    POSITION_PAGE_TYPE = 0,
-    COLOR_PAGE_TYPE = 1,
-    NORMAL_PAGE_TYPE = 2,
-    SHORTINDEX_PAGE_TYPE = 3
-};
-
-const int TOTAL_PAGE_TYPES( SHORTINDEX_PAGE_TYPE + 1 );
-
 
 // helper function for MMF (memory mapped file) reading
 inline void memRead( char* destination, char** source, size_t length )

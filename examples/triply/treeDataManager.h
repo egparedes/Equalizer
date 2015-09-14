@@ -1,6 +1,5 @@
 
-/* Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch> 
+/* Copyright (c) 2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,47 +26,50 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "node.h"
 
-#include "config.h"
-#include "error.h"
+#ifndef TRIPLY_TREEDATAMANAGER_H
+#define TRIPLY_TREEDATAMANAGER_H
 
-namespace eqPly
+#include "typedefs.h"
+#include "segmentedBuffer.h"
+#include <triply/api.h>
+#include <lunchbox/refPtr.h>
+
+namespace triply {
+
+namespace detail { class TreeDataManager; }
+
+class TreeDataManager
 {
+public:
+    static const size_t DefaultMaxMemoryHint = 512*1024*1024; // 512 MiB
 
-ModelLoader& Node::getModelLoader(const lunchbox::uint128_t &modelId)
-{
-    if( _loadersMap.count( modelId ) == 0 )
-    {
-        Config* config = static_cast< Config* >( getConfig( ));
-        const Model* model = config->getModel( modelId );
-        if( model == 0 )
-            sendError( ERROR_EQPLY_UNKNOWN_MODEL );
-        size_t maxMemoryHint = std::min( ModelLoader::DefaultMaxMemoryHint,
-                                         model->getTotalMemory() );
-        if ( !_loadersMap[modelId].init( model->getBinaryName(), model->hasColors(),
-                                         maxMemoryHint ))
-            sendError( ERROR_EQPLY_INVALID_MODELMANAGER );
-    }
-    return _loadersMap[modelId];
-}
+    TRIPLY_API explicit TreeDataManager();
+    TRIPLY_API ~TreeDataManager();
 
-bool Node::configInit( const eq::uint128_t& initID )
-{
-    // All render data is static or multi-buffered, we can run asynchronously
-    if( getIAttribute( IATTR_THREAD_MODEL ) == eq::UNDEFINED )
-        setIAttribute( IATTR_THREAD_MODEL, eq::ASYNC );
+    TRIPLY_API bool init( const std::string& filename, bool useColors,
+                          size_t maxMemoryHint=DefaultMaxMemoryHint );
 
-    if( !eq::Node::configInit( initID ))
-        return false;
+    TRIPLY_API void getVertexData( Index start, Index length,
+                                   SegmentedBuffer& vertices,
+                                   SegmentedBuffer& normals );
+    TRIPLY_API void getVertexData( Index start, Index length,
+                                   SegmentedBuffer& vertices,
+                                   SegmentedBuffer& normals,
+                                   SegmentedBuffer& colors );
 
-    Config* config = static_cast< Config* >( getConfig( ));
-    if( !isApplicationNode() && !config->loadInitData( initID ))
-    {
-        sendError( ERROR_EQPLY_MAPOBJECT_FAILED );
-        return false;
-    }
-    return true;
-}
+    TRIPLY_API void getIndexData( Index start, Index length,
+                                  SegmentedBuffer& indices );
 
-} // namespace eqPly
+    TRIPLY_API void discardVertexData( Index start, Index length );
+
+    TRIPLY_API void discardIndexData( Index start, Index length );
+
+private:   
+    typedef lunchbox::RefPtr< detail::TreeDataManager > SharedDataPtr;
+    SharedDataPtr _impl;
+};
+
+} // namespace triply
+
+#endif // TRIPLY_TREEDATAMANAGER_H

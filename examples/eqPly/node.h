@@ -48,7 +48,7 @@ namespace eqPly
     public:
         Node( eq::Config* parent ) : eq::Node( parent ) {}
 
-        VMLoaderPtr getModelLoader( const eq::uint128_t& modelId );
+        ModelLoader& getModelLoader( const eq::uint128_t& modelId );
 
     protected:
         virtual ~Node(){}
@@ -56,7 +56,7 @@ namespace eqPly
         virtual bool configInit( const eq::uint128_t& initID );
 
     private:
-        VMLoadersMap _loadersMap;
+        ModelLoadersMap _loadersMap;
     };
 }
 

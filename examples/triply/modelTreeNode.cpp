@@ -32,7 +32,7 @@
 #include "modelTreeNode.h"
 #include "modelTreeLeaf.h"
 #include "renderState.h"
-#include "vertexData.h"
+#include "meshData.h"
 #include <cmath>
 #include <set>
 #include <utility>

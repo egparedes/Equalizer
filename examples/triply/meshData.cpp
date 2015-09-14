@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "vertexData.h"
+#include "meshData.h"
 #include "ply.h"
 
 #include <cstdlib>
@@ -44,7 +44,7 @@ namespace triply
 {
 
 /*  Contructor.  */
-VertexData::VertexData()
+MeshData::MeshData()
     : _invertFaces( false )
 {
     _boundingBox[0] = Vertex( 0.0f );
@@ -52,7 +52,7 @@ VertexData::VertexData()
 }
 
 /*  Read the vertex and (if available/wanted) color data from the open file.  */
-void VertexData::readVertices( PlyFile* file, const int nVertices,
+void MeshData::readVertices( PlyFile* file, const int nVertices,
                                const bool readColors )
 {
     // temporary vertex structure for ply loading
@@ -102,7 +102,7 @@ void VertexData::readVertices( PlyFile* file, const int nVertices,
 
 
 /*  Read the index data from the open file.  */
-void VertexData::readTriangles( PlyFile* file, const int nFaces )
+void MeshData::readTriangles( PlyFile* file, const int nFaces )
 {
     // temporary face structure for ply loading
     struct _Face
@@ -146,7 +146,7 @@ void VertexData::readTriangles( PlyFile* file, const int nFaces )
 
 
 /*  Open a PLY file and read vertex, color and index data.  */
-bool VertexData::readPlyFile( const std::string& filename )
+bool MeshData::readPlyFile( const std::string& filename )
 {
     int     nPlyElems;
     char**  elemNames;
@@ -222,7 +222,7 @@ bool VertexData::readPlyFile( const std::string& filename )
 }
 
 /*  Calculate the face or vertex normals of the current vertex data.  */
-void VertexData::calculateNormals()
+void MeshData::calculateNormals()
 {
 #ifndef NDEBUG
     int wrongNormals = 0;
@@ -267,7 +267,7 @@ void VertexData::calculateNormals()
 }
 
 /*  Calculate the bounding box of the current vertex data.  */
-void VertexData::calculateBoundingBox()
+void MeshData::calculateBoundingBox()
 {
     _boundingBox[0] = vertices[0];
     _boundingBox[1] = vertices[0];
@@ -280,7 +280,7 @@ void VertexData::calculateBoundingBox()
 }
 
 /*  Scales the data to be within +- baseSize/2 (default 2.0) coordinates.  */
-void VertexData::scale( const float baseSize )
+void MeshData::scale( const float baseSize )
 {
     // calculate bounding box if not yet done
     if( _boundingBox[0].length() == 0.0f && _boundingBox[1].length() == 0.0f )

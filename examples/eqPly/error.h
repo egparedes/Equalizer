@@ -36,7 +36,9 @@ namespace eqPly
     /** Defines errors produced by eqPly. */
     enum Error
     {
-        ERROR_EQPLY_MAPOBJECT_FAILED = eq::ERROR_CUSTOM
+        ERROR_EQPLY_MAPOBJECT_FAILED = eq::ERROR_CUSTOM,
+        ERROR_EQPLY_UNKNOWN_MODEL,
+        ERROR_EQPLY_INVALID_MODELMANAGER
     };
 
     /** Set up eqPly-specific error codes. */

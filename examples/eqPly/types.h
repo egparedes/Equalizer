@@ -34,7 +34,7 @@
 
 #include <triply/modelTreeDist.h>
 #include <triply/modelTreeRoot.h>
-#include <triply/pagedTreeData.h>
+#include <triply/treeDataManager.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923
@@ -47,9 +47,8 @@ class View;
 
 typedef triply::ModelTreeRoot  Model;
 typedef triply::ModelTreeDist  ModelDist;
-typedef triply::PagedTreeData  VMLoader;
-typedef triply::PagedTreeDataPtr  VMLoaderPtr;
-typedef std::map< eq::uint128_t, VMLoaderPtr > VMLoadersMap;
+typedef triply::TreeDataManager  ModelLoader;
+typedef std::map< eq::uint128_t, ModelLoader > ModelLoadersMap;
 
 typedef std::vector< Model* > Models;
 typedef std::vector< ModelDist* > ModelDists;

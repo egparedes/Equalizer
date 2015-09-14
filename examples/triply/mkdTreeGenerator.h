@@ -36,7 +36,7 @@
 #include "typedefs.h"
 #include "treeGenerator.h"
 #include "modelTreeBase.h"
-#include "vertexData.h"
+#include "meshData.h"
 
 namespace triply
 {
@@ -57,12 +57,12 @@ public:
 
     struct TriangleLessCmpFunctor
     {
-        TriangleLessCmpFunctor( const VertexData& dataArg,
+        TriangleLessCmpFunctor( const MeshData& dataArg,
                                 const MKDGenerator::Axis axisArg );
 
         bool operator()( const Triangle& t1, const Triangle& t2 ) const;
 
-        const VertexData& data;
+        const MeshData& data;
         const MKDGenerator::Axis axis;
     };
 
@@ -84,7 +84,7 @@ public:
 
     TRIPLY_API virtual const std::string getPartition() const override;
 
-    TRIPLY_API virtual bool generate( VertexData& modelData,
+    TRIPLY_API virtual bool generate( MeshData& meshData,
                                       ModelTreeRoot& treeRoot,
                                       ModelTreeData& treeData,                                      
                                       boost::progress_display& progress ) override;
@@ -98,7 +98,7 @@ private:
     void sortVertices( const Index start, const Index length,
                        const Axis axis );
 
-    VertexData* _modelData;
+    MeshData* _meshData;
     ModelTreeRoot* _treeRoot;
     ModelTreeData* _treeData;
     boost::progress_display* _progress;

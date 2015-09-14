@@ -110,7 +110,7 @@ public:
 
     TRIPLY_API virtual const std::string getPartition() const = 0;
 
-    TRIPLY_API virtual bool generate( VertexData& modelData,
+    TRIPLY_API virtual bool generate( MeshData& modelData,
                                       ModelTreeRoot& treeRoot,
                                       ModelTreeData& treeData,
                                       boost::progress_display& progress ) = 0;

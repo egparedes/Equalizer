@@ -30,37 +30,47 @@
 
 #include "mmap.h"
 
-#include "typedefs.h"
+//#include "typedefs.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef WIN32
+#   include <sys/mman.h>
+#   include <unistd.h>
+#endif
 
 namespace triply
 {
-
-namespace detail
-{
-	struct MMapInfo
-	{
-        bool mapped;
 #ifdef WIN32
-		HANDLE	handle;
+    const char* MMap::MMAP_BAD_ADDRESS = 0;
 #else
-		int fd;
-		size_t mmapSize;
+    const char* MMap::MMAP_BAD_ADDRESS = static_cast< char* >( MAP_FAILED );
 #endif
-	};
 
-	static std::map< char*, detail::MMapInfo > MMInfos;
+MMap::MMap()
+    : _address( const_cast< char* >( MMap::MMAP_BAD_ADDRESS )),
+      _filename( "" ),
+#ifdef WIN32
+    _handle( INVALID_HANDLE_VALUE )
+#else
+    _fd( -1 ),
+    _mmapSize( 0 )
+#endif
+{ }
 
-} // namespace detail
-
-
-bool openMMap( std::string filename, char** mmapAddrPtr )
+MMap::~MMap()
 {
-	bool  result = false;
-    detail::MMapInfo info;
+    if( isValid() )
+        close();
+}
+
+bool MMap::open( const std::string &filename )
+{
+    if( isValid() )
+        return false;
+
+    _filename = filename;
 
 #ifdef WIN32
     // replace dir delimiters since '\' is often used as escape char
@@ -77,10 +87,10 @@ bool openMMap( std::string filename, char** mmapAddrPtr )
     TRIPLYINFO << "Reading cached binary representation." << std::endl;
 
     // create a file mapping
-    info.handle = CreateFileMapping( file, 0, PAGE_READONLY, 0, 0,
+    _handle = CreateFileMapping( file, 0, PAGE_READONLY, 0, 0,
                                      filename.c_str( ));
     CloseHandle( file );
-    if( !info.handle )
+    if( !_handle )
     {
         TRIPLYERROR << "Unable to read binary file, file mapping failed."
                   << std::endl;
@@ -88,73 +98,51 @@ bool openMMap( std::string filename, char** mmapAddrPtr )
     }
 
     // get a view of the mapping
-    *mmapAddrPtr   = static_cast< char* >( MapViewOfFile( info.handle, FILE_MAP_READ, 0,
+    _address   = static_cast< char* >( MapViewOfFile( _handle, FILE_MAP_READ, 0,
                                                           0, 0 ) );
-    if( *mmapAddrPtr != MMAP_BAD_ADDRESS )
+    if( _address == MMAP_BAD_ADDRESS )
     {
-    	info.mapped = true;
-    	detail::MMInfos[*mmapAddrPtr] = info;
-    	result = true;
-    }
-    else
-    {
-    	CloseHandle( info.handle );
+        CloseHandle( _handle );
     }
 #else
     // try to open binary file
-    info.fd = open( filename.c_str(), O_RDONLY );
-    if( info.fd < 0 )
+    _fd = ::open( filename.c_str(), O_RDONLY );
+    if( _fd < 0 )
         return false;
 
     // retrieving file information
     struct stat status;
-    fstat( info.fd, &status );
-    info.mmapSize = status.st_size;
+    fstat( _fd, &status );
+    _mmapSize = status.st_size;
 
     // create memory mapped file
-    *mmapAddrPtr   = static_cast< char* >( mmap( 0, status.st_size, PROT_READ,
-                                                 MAP_SHARED, info.fd, 0 ) );
-    if( *mmapAddrPtr != MMAP_BAD_ADDRESS )
-    {
-    	info.mapped = true;
-    	detail::MMInfos[*mmapAddrPtr] = info;
-		result = true;
-    }
-	else
+    _address   = static_cast< char* >( mmap( 0, status.st_size, PROT_READ,
+                                                 MAP_SHARED, _fd, 0 ) );
+    if( _address == MMAP_BAD_ADDRESS )
 	{
-		close( info.fd );
+        ::close( _fd );
 	}
 #endif
 
-    return result;
+    return isValid();
 }
 
-void closeMMap( char** mmapAddrPtr )
+void MMap::close( )
 {
-	if( mmapAddrPtr == 0 )
-		return;	
-
-	char* mmapAddr = *mmapAddrPtr;
-	if( detail::MMInfos.count( mmapAddr ) > 0 )
-		return;	
-
-    if( mmapAddr != MMAP_BAD_ADDRESS )
+    if( _address != MMAP_BAD_ADDRESS )
     {
-        detail::MMapInfo info = detail::MMInfos[mmapAddr];
 #ifdef WIN32
-        if( info.mmapped )
-        	UnmapViewOfFile( mmapAddr );
-    	CloseHandle( info.handle );
+        UnmapViewOfFile( _address );
+        CloseHandle( _handle );
 #else
-        if( info.mapped )
-            munmap( mmapAddr, info.mmapSize );
-        if( info.fd >= 0 )
-            close( info.fd );
+        munmap( _address, _mmapSize );
+        if( _fd >= 0 )
+            ::close( _fd );
 #endif
-        *mmapAddrPtr = const_cast< char* >( MMAP_BAD_ADDRESS );
+        _address = const_cast< char* >( MMAP_BAD_ADDRESS );
     }
-
-    detail::MMInfos.erase( mmapAddr );
 }
 
 } //namespace triply
+
+

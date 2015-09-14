@@ -29,8 +29,8 @@
 */
 
 
-#ifndef TRIPLY_VERTEXDATA_H
-#define TRIPLY_VERTEXDATA_H
+#ifndef TRIPLY_MESHDATA_H
+#define TRIPLY_MESHDATA_H
 
 #include <triply/api.h>
 #include "typedefs.h"
@@ -43,10 +43,10 @@ struct PlyFile;
 namespace triply 
 {
     /*  Holds the flat data and offers routines to read, scale and sort it.  */
-    class VertexData
+    class MeshData
     {
     public:
-        TRIPLY_API VertexData();
+        TRIPLY_API MeshData();
 
         TRIPLY_API bool readPlyFile( const std::string& file );
         TRIPLY_API void calculateNormals();
@@ -73,4 +73,4 @@ namespace triply
 }
 
 
-#endif // TRIPLY_VERTEXDATA_H
+#endif // TRIPLY_MESHDATA_H

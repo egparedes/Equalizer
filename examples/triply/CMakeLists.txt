@@ -3,9 +3,10 @@
 #                    2015 Enrique G. Paredes <egparedes@ifi.uzh.ch>
 
 set(TRIPLY_PUBLIC_HEADERS
+  typedefs.h
   ply.h
   mmap.h
-  typedefs.h
+  meshData.h
   modelTreeBase.h
   modelTreeData.h
   modelTreeDist.h
@@ -15,13 +16,13 @@ set(TRIPLY_PUBLIC_HEADERS
   treeGenerator.h
   zTreeGenerator.h
   mkdTreeGenerator.h
-  renderState.h
-  vertexData.h
-  pagedTreeData.h)
+  treeDataManager.h
+  renderState.h)
 
 set(TRIPLY_SOURCES
   plyfile.cpp
   mmap.cpp
+  meshData.cpp
   modelTreeBase.cpp
   modelTreeDist.cpp
   modelTreeLeaf.cpp
@@ -29,9 +30,8 @@ set(TRIPLY_SOURCES
   modelTreeRoot.cpp
   zTreeGenerator.cpp
   mkdTreeGenerator.cpp
-  renderState.cpp
-  vertexData.cpp
-  pagedTreeData.cpp)
+  treeDataManager.cpp
+  renderState.cpp)
 
 
 set(TRIPLY_LINK_LIBRARIES

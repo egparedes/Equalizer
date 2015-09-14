@@ -32,7 +32,7 @@
 #include "modelTreeRoot.h"
 #include "modelTreeNode.h"
 #include "modelTreeLeaf.h"
-#include "vertexData.h"
+#include "meshData.h"
 #include <cstdlib>
 #include <algorithm>
 #include <utility>
@@ -61,7 +61,7 @@ const ZTreeGenerator::ZKey ZTreeGenerator::MaxZKey =
         ( ~0ull ) >> ( 8 * sizeof( ZKey ) - ZKEY_BIT_SIZE );
 
 ZTreeGenerator::ZTreeGenerator()
-    : _zKeys( 0 ), _modelData( 0 ), _treeRoot( 0 ), _treeData( 0 ), _progress( 0 ),
+    : _zKeys( 0 ), _meshData( 0 ), _treeRoot( 0 ), _treeData( 0 ), _progress( 0 ),
       _initialCount( 0 )
 { }
 
@@ -70,14 +70,14 @@ const std::string ZTreeGenerator::getPartition() const
     return Partition;
 }
 
-bool ZTreeGenerator::generate( VertexData& modelData,
+bool ZTreeGenerator::generate( MeshData& meshData,
                                ModelTreeRoot& treeRoot, ModelTreeData& treeData,
                                boost::progress_display& progress )
 {
     using std::swap;
 
-    _bbox = modelData.getBoundingBox();
-    _modelData = &modelData;
+    _bbox = meshData.getBoundingBox();
+    _meshData = &meshData;
     _treeRoot = &treeRoot;
     _treeData = &treeData;
     _progress = &progress;
@@ -163,7 +163,7 @@ ModelTreeNode* ZTreeGenerator::generateNode( void* state )
     {
         size_t count =
                 ( MaxProgressCount * std::distance( _zKeys.begin(), childEndIt ))
-                / _modelData->triangles.size();
+                / _meshData->triangles.size();
         while( _initialCount + count > _progress->count() )
             ++(*_progress);
     }
@@ -176,7 +176,7 @@ ModelTreeLeaf* ZTreeGenerator::generateLeaf( void* state )
 {
     ZKey& beginKey = static_cast< ZTreeGenerator::State* >( state )->beginKey;
     ZKey& endKey = static_cast< ZTreeGenerator::State* >( state )->endKey;
-    VertexData& modelData = *_modelData;
+    MeshData& meshData = *_meshData;
     ModelTreeData& treeData = *_treeData;
 
     Index indexStart = treeData.indices.size();
@@ -200,16 +200,16 @@ ModelTreeLeaf* ZTreeGenerator::generateLeaf( void* state )
     {
         for( Index v = 0; v < 3; ++v )
         {
-            Index i = modelData.triangles[ _zKeys[t].second ][v];
+            Index i = meshData.triangles[ _zKeys[t].second ][v];
             if( newIndex.find( i ) == newIndex.end() )
             {
                 newIndex[i] = vertexLength++;
                 // assert number of vertices does not exceed SmallIndex range
                 TRIPLYASSERT( vertexLength );
-                treeData.vertices.push_back( modelData.vertices[i] );
+                treeData.vertices.push_back( meshData.vertices[i] );
                 if( treeData.hasColors )
-                    treeData.colors.push_back( modelData.colors[i] );
-                treeData.normals.push_back( modelData.normals[i] );
+                    treeData.colors.push_back( meshData.colors[i] );
+                treeData.normals.push_back( meshData.normals[i] );
             }
             treeData.indices.push_back( newIndex[i] );
             ++indexLength;
@@ -271,8 +271,8 @@ inline ZTreeGenerator::ZKey ZTreeGenerator::generateZCode( const Vertex& point,
 // Compute Z-codes for triangles and sort them
 void ZTreeGenerator::initZKeys( unsigned maxLevel )
 {
-    const std::vector< Vertex >& vertices = _modelData->vertices;
-    const std::vector< Triangle >& triangles = _modelData->triangles;
+    const std::vector< Vertex >& vertices = _meshData->vertices;
+    const std::vector< Triangle >& triangles = _meshData->triangles;
 
     _zKeys.resize( triangles.size() );
 

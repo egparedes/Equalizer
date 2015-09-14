@@ -36,16 +36,34 @@
 
 namespace triply
 {
+
+class MMap
+{
+private:
+    static const char* MMAP_BAD_ADDRESS;
+
+public:
+    MMap();
+    ~MMap();
+
+    inline bool isValid() { return _address != MMAP_BAD_ADDRESS; }
+    inline std::string getFilename() { return _filename; }
+    inline char* getPtr() { return ( isValid() ) ? _address: 0; }
+
+    bool open( const std::string& filename );
+    void close( );
+
+private:
+    char*       _address;
+    std::string _filename;
+
 #ifdef WIN32
-    static const char* MMAP_BAD_ADDRESS = 0;
+        HANDLE	_handle;
 #else
-#   include <sys/mman.h>
-    static const char* MMAP_BAD_ADDRESS = static_cast< char* >( MAP_FAILED );
+        int     _fd;
+        size_t  _mmapSize;
 #endif
-
-    bool openMMap( std::string filename, char** mmapAddrPtr );
-
-    void closeMMap( char** mmapAddrPtr );
+};
 
 } //namespace triply
 

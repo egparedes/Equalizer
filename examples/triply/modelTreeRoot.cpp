@@ -31,7 +31,7 @@
 
 #include "modelTreeRoot.h"
 #include "renderState.h"
-#include "vertexData.h"
+#include "meshData.h"
 #include "treeGenerator.h"
 #include "mmap.h"
 
@@ -165,7 +165,7 @@ void ModelTreeRoot::draw( RenderState& state ) const
     ModelTreeNode::draw( state );
 }
 
-bool ModelTreeRoot::setupTree( VertexData& modelData,
+bool ModelTreeRoot::setupTree( MeshData& modelData,
                                const TreeInfo& info,
                                boost::progress_display* progressPtr )
 {
@@ -352,7 +352,7 @@ void ModelTreeRoot::fromMemory( char* start )
     if( _inCoreData )
         _treeData.fromMemory( addr );
     else
-        _treeData.skipFromMemory( addr );
+        _treeData.fromMemorySkipData( addr );
 
     allocateChildArray();
     ModelTreeNode::fromMemory( addr, _treeData );
@@ -365,7 +365,7 @@ bool ModelTreeRoot::constructFromPly( const std::string& filename,
     TRIPLYINFO << "Reading PLY file." << std::endl;
     boost::progress_display progress( detail::StepsInConstruct );
 
-    VertexData modelData;
+    MeshData modelData;
     if( _invertFaces )
         modelData.useInvertedFaces();
     if( !modelData.readPlyFile( filename ) )
@@ -399,15 +399,15 @@ bool ModelTreeRoot::constructFromPly( const std::string& filename,
 
 bool ModelTreeRoot::readBinary(std::string filename)
 {
-    // create memory mapped file
-    char* addr;
-    bool  result = false;
+    bool result = false;
 
-    if( openMMap( filename, &addr ))
+    // create memory mapped file
+    MMap mmapedFile;
+    if( mmapedFile.open( filename ))
     {
         try
         {
-            fromMemory( addr );
+            fromMemory( mmapedFile.getPtr() );
             result = true;
         }
         catch( const std::exception& e )
@@ -421,13 +421,12 @@ bool ModelTreeRoot::readBinary(std::string filename)
         TRIPLYWARN << "Unable to read binary file, memory mapping failed."
                   << std::endl;
     }
-
-    closeMMap( &addr );
+    mmapedFile.close( );
 
     return result;
 }
 
-void ModelTreeRoot::showBuildStats( const VertexData& modelData )
+void ModelTreeRoot::showBuildStats( const MeshData& modelData )
 {
     int modelVertices = modelData.vertices.size();
     int modelTriangles = modelData.triangles.size();

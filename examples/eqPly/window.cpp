@@ -94,7 +94,7 @@ bool Window::configInitGL( const eq::uint128_t& initID )
     if( initData.useGLSL() )
         _loadShaders();
 
-    _state->setOutOfCore(initData.useOutOfCore());
+    _state->setOutOfCore( initData.useOutOfCore() );
 
     return true;
 }

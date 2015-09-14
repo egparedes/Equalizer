@@ -34,7 +34,7 @@
 #include "typedefs.h"
 #include "treeGenerator.h"
 #include "modelTreeBase.h"
-#include "vertexData.h"
+#include "meshData.h"
 #include <cstdint>
 #include <utility>
 
@@ -54,6 +54,17 @@ public:
     static const ZKey MinZKey;
     static const ZKey MaxZKey;
 
+    TRIPLY_API ZTreeGenerator();
+    TRIPLY_API virtual ~ZTreeGenerator() { }
+
+    TRIPLY_API virtual const std::string getPartition() const override;
+
+    TRIPLY_API virtual bool generate( MeshData& meshData,
+                                      ModelTreeRoot& treeRoot,
+                                      ModelTreeData& treeData,
+                                      boost::progress_display& progress ) override;
+
+private:
     struct ZKeyIndexPairLessCmpFunctor
     {
         inline bool operator()( const ZKeyIndexPair& lhs, const ZKeyIndexPair& rhs ) const
@@ -78,17 +89,6 @@ public:
         size_t depth;
     };
 
-    TRIPLY_API ZTreeGenerator();
-    TRIPLY_API virtual ~ZTreeGenerator() { }
-
-    TRIPLY_API virtual const std::string getPartition() const override;
-
-    TRIPLY_API virtual bool generate( VertexData& modelData,
-                                      ModelTreeRoot& treeRoot,
-                                      ModelTreeData& treeData,
-                                      boost::progress_display& progress ) override;
-
-private:
     ModelTreeNode* generateNode( void* state );
     ModelTreeLeaf* generateLeaf( void* state );
 
@@ -98,7 +98,7 @@ private:
 
     BoundingBox _bbox;
     std::vector< ZKeyIndexPair > _zKeys;
-    VertexData* _modelData;
+    MeshData* _meshData;
     ModelTreeRoot* _treeRoot;
     ModelTreeData* _treeData;
     boost::progress_display* _progress;

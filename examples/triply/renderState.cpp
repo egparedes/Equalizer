@@ -40,6 +40,7 @@ RenderState::RenderState( const GLEWContext* glewContext )
         , _useFrustumCulling( true )
         , _useBoundingSpheres( false )
         , _outOfCore( false )
+        , _dataManager( 0 )
 {
     _range[0] = 0.f;
     _range[1] = 1.f;
