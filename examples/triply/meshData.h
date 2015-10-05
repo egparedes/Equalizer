@@ -32,8 +32,8 @@
 #ifndef TRIPLY_MESHDATA_H
 #define TRIPLY_MESHDATA_H
 
-#include <triply/api.h>
 #include "typedefs.h"
+#include <triply/api.h>
 #include <vector>
 
 
@@ -47,6 +47,7 @@ namespace triply
     {
     public:
         TRIPLY_API MeshData();
+        TRIPLY_API ~MeshData();
 
         TRIPLY_API bool readPlyFile( const std::string& file );
         TRIPLY_API void calculateNormals();
@@ -57,13 +58,13 @@ namespace triply
 
         void useInvertedFaces() { _invertFaces = true; }
 
-        std::vector< Vertex >   vertices;
-        std::vector< Color >    colors;
-        std::vector< Normal >   normals;
+        std::vector< Vertex > vertices;
+        std::vector< Color > colors;
+        std::vector< Normal > normals;
         std::vector< Triangle > triangles;
 
     private:
-        void readVertices( PlyFile* file, const int nVertices, 
+        void readVertices( PlyFile* file, const int nVertices,
                            const bool readColors );
         void readTriangles( PlyFile* file, const int nFaces );
 

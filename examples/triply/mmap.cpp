@@ -79,7 +79,8 @@ bool MMap::open( const std::string &filename )
             filename[i] = '/';
 
     // try to open binary file
-    HANDLE file = CreateFile( filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
+    HANDLE file = CreateFile( filename.c_str(), GENERIC_READ | GENERIC_WRITE,
+                              FILE_SHARE_READ,
                               0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 );
     if( file == INVALID_HANDLE_VALUE )
         return false;
@@ -87,7 +88,7 @@ bool MMap::open( const std::string &filename )
     TRIPLYINFO << "Reading cached binary representation." << std::endl;
 
     // create a file mapping
-    _handle = CreateFileMapping( file, 0, PAGE_READONLY, 0, 0,
+    _handle = CreateFileMapping( file, 0, PAGE_READWRITE, 0, 0,
                                      filename.c_str( ));
     CloseHandle( file );
     if( !_handle )
@@ -106,7 +107,7 @@ bool MMap::open( const std::string &filename )
     }
 #else
     // try to open binary file
-    _fd = ::open( filename.c_str(), O_RDONLY );
+    _fd = ::open( filename.c_str(), O_RDWR );
     if( _fd < 0 )
         return false;
 
@@ -116,8 +117,9 @@ bool MMap::open( const std::string &filename )
     _mmapSize = status.st_size;
 
     // create memory mapped file
-    _address   = static_cast< char* >( mmap( 0, status.st_size, PROT_READ,
-                                                 MAP_SHARED, _fd, 0 ) );
+    _address   = static_cast< char* >( mmap( 0, status.st_size,
+                                             PROT_READ | PROT_WRITE,
+                                             MAP_SHARED, _fd, 0 ) );
     if( _address == MMAP_BAD_ADDRESS )
 	{
         ::close( _fd );

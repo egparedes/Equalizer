@@ -133,7 +133,7 @@ void ModelTreeRoot::cullDraw( RenderState& state ) const
                 }
                 else
                 {
-                    for( unsigned i=0; i < ModelTreeNode::_arity; ++i)
+                    for( unsigned i=0; i < ModelTreeNode::_children.size(); ++i)
                     {
                         const triply::ModelTreeBase* child = treeNode->getChild( i );
                         if( child != 0 )
@@ -183,11 +183,10 @@ bool ModelTreeRoot::setupTree( MeshData& modelData,
     }
 
     clear();
-    if( ModelTreeNode::_children != 0)
-        ModelTreeNode::deallocateChildArray();
+    ModelTreeNode::_children.clear( true );
 
-    ModelTreeNode::_arity = info.arity;
-    _treeData.hasColors = !modelData.colors.empty();
+    ModelTreeNode::_children.resize( info.arity );
+    _treeData.hasColors = modelData.colors.size() > 0;
     _treeData.boundingBox = modelData.getBoundingBox(); // _treeData.calculateBoundingBox();
 
     TreeGenerator* treeGenerator = TreeGenerator::instantiate( info.partition );
@@ -281,7 +280,7 @@ bool ModelTreeRoot::readFromFile( const std::string& filename,
         return false;
     }
 
-    ModelTreeNode::_arity = info.arity;
+    ModelTreeNode::_children.resize( info.arity, 0 );
     _inCoreData = inCoreData;
     _partition = info.partition;
     _name = filename;
@@ -298,11 +297,36 @@ bool ModelTreeRoot::readFromFile( const std::string& filename,
     return true;
 }
 
+bool ModelTreeRoot::hasColors() const
+{
+    return _treeData.hasColors;
+}
+
+BoundingBox ModelTreeRoot::getBoundingBox() const
+{
+    return _treeData.getBoundingBox();
+}
+
+size_t ModelTreeRoot::getTotalVertices() const
+{
+    return _treeData.vertices.size();
+}
+
+size_t ModelTreeRoot::getTotalIndices() const
+{
+    return _treeData.indices.size();
+}
+
+size_t ModelTreeRoot::getTotalMemory() const
+{
+    return _treeData.getTotalSize();
+}
+
 std::string ModelTreeRoot::getBinaryName( ) const
 {
     std::ostringstream oss;
     oss << _partition;
-    oss << ModelTreeNode::_arity;
+    oss << ModelTreeNode::getArity();
     return getArchitectureFilename( _name, oss.str() );
 }
 
@@ -314,7 +338,7 @@ void ModelTreeRoot::toStream( std:: ostream& os )
     size_t partitionLength = _partition.length();
     os.write( reinterpret_cast< char* >( &partitionLength ), sizeof( size_t ) );
     os.write( _partition.c_str(), partitionLength  * sizeof( char ) );
-    size_t treeArity = ModelTreeNode::_arity;
+    size_t treeArity = ModelTreeNode::getArity();
     os.write( reinterpret_cast< char* >( &treeArity ), sizeof( size_t ) );
     size_t nodeType = ROOT_TYPE;
     os.write( reinterpret_cast< char* >( &nodeType ), sizeof( size_t ) );
@@ -340,7 +364,7 @@ void ModelTreeRoot::fromMemory( char* start )
     std::string partition( partitionChars, partitionLength );
     size_t treeArity;
     memRead( reinterpret_cast< char* >( &treeArity ), addr, sizeof( size_t ) );
-    if( _partition != partition || ModelTreeNode::_arity != treeArity)
+    if( _partition != partition || ModelTreeNode::getArity() != treeArity)
         throw MeshException( "Error reading binary file. Invalid tree specification." );
 
     size_t nodeType;
@@ -354,7 +378,6 @@ void ModelTreeRoot::fromMemory( char* start )
     else
         _treeData.fromMemorySkipData( addr );
 
-    allocateChildArray();
     ModelTreeNode::fromMemory( addr, _treeData );
 }
 

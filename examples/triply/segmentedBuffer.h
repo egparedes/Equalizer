@@ -30,9 +30,6 @@
 #ifndef TRIPLY_SEGMENTEDBUFFER_H
 #define TRIPLY_SEGMENTEDBUFFER_H
 
-#include "typedefs.h"
-#include "modelTreeData.h"
-#include <lunchbox/refPtr.h>
 #include <vector>
 #include <utility>
 
@@ -56,20 +53,19 @@ public:
 
     inline SegmentedBuffer( size_t segmentSize=0, size_t start=0 )
         : _startOffset( start ), _endOffset( segmentSize ),
-          _segmentSize( segmentSize ), _isClosed( false )
+          _segmentSize( segmentSize ), _closed( false )
     { }
 
     inline bool isValid() const
     {
-        return _segmentPtrs.size() > 0
-                && _startOffset < _segmentSize
-                && _startOffset < _endOffset
-                && _endOffset <= _segmentSize;
+        return _segmentPtrs.size() > 0 &&
+               _startOffset < _endOffset &&
+               _endOffset <= _segmentSize;
     }
 
     inline bool isClosed() const
     {
-        return _isClosed;
+        return _closed;
     }
 
     inline size_t size() const
@@ -118,7 +114,7 @@ public:
         TRIPLYASSERT( isValid() && i < size() );
 
         i += _startOffset;
-        return _segmentPtrs[i /_segmentSize] + ( i % _segmentSize );
+        return _segmentPtrs[i / _segmentSize] + ( i % _segmentSize );
     }
 
     template < typename T >
@@ -133,7 +129,7 @@ public:
         _startOffset = start;
         _endOffset = _segmentSize;
         _segmentPtrs.clear();
-        _isClosed = false;
+        _closed = false;
     }
 
     // Set single segment buffer
@@ -144,32 +140,26 @@ public:
         _segmentSize = segmentSize;
         _endOffset = segmentSize;
         _segmentPtrs.push_back( reinterpret_cast< char* >( segmentPtr ));
-        _isClosed = true;
+        _closed = true;
     }
 
     template < typename T >
     inline void addSegment( T* segmentPtr )
     {
-        TRIPLYASSERT( !_isClosed );
+        TRIPLYASSERT( !_closed );
 
-        if( !_isClosed )
-        {
-            _segmentPtrs.push_back( reinterpret_cast< char* >( segmentPtr ));
-        }
+        _segmentPtrs.push_back( reinterpret_cast< char* >( segmentPtr ));
     }
 
     template < typename T >
-    inline void addTail( T* segmentPtr, size_t tailSize )
+    inline void setEnd( T* segmentPtr, size_t endSegmentSize )
     {
-        TRIPLYASSERT( !_isClosed );
-        TRIPLYASSERT( tailSize <= _segmentSize );
+        TRIPLYASSERT( !_closed );
+        TRIPLYASSERT( endSegmentSize <= _segmentSize );
 
-        if( !_isClosed )
-        {
-            _endOffset = tailSize + _startOffset * ( _segmentPtrs.size() == 0 );
-            _segmentPtrs.push_back( reinterpret_cast< char* >( segmentPtr ));
-            _isClosed = true;
-        }
+        _endOffset = endSegmentSize + ( ( _segmentPtrs.size() == 0 ) ? _startOffset : 0);
+        _segmentPtrs.push_back( reinterpret_cast< char* >( segmentPtr ));
+        _closed = true;
     }
 
     inline void popSegment()
@@ -178,7 +168,7 @@ public:
 
         _endOffset = _segmentSize;
         _segmentPtrs.pop_back();
-        _isClosed = false;
+        _closed = false;
     }
 
 private:
@@ -186,7 +176,7 @@ private:
     size_t                  _endOffset;
     size_t                  _segmentSize;
     std::vector< char* >    _segmentPtrs;
-    bool                    _isClosed;
+    bool                    _closed;
 };
 
 } // namespace triply

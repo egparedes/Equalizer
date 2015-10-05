@@ -56,6 +56,8 @@ InitData::InitData()
 #  error Unknown window system
 #endif
     , _renderMode( triply::RENDER_MODE_BUFFER_OBJECT ) // triply::RENDER_MODE_DISPLAY_LIST
+    , _glslVertexSource("")
+    , _glslFragmentSource("")
     , _useGLSL( false )
     , _invFaces( false )
     , _logo( true )
@@ -70,14 +72,16 @@ InitData::~InitData()
 
 void InitData::getInstanceData( co::DataOStream& os )
 {
-    os << _frameDataID << _windowSystem << _renderMode << _useGLSL << _invFaces
-       << _logo << _roi << _outOfCore;
+    os << _frameDataID << _windowSystem << _renderMode << _useGLSL
+       << _glslVertexSource << _glslFragmentSource
+       << _invFaces << _logo << _roi << _outOfCore;
 }
 
 void InitData::applyInstanceData( co::DataIStream& is )
 {
-    is >> _frameDataID >> _windowSystem >> _renderMode >> _useGLSL >> _invFaces
-       >> _logo >> _roi >> _outOfCore;
+    is >> _frameDataID >> _windowSystem >> _renderMode >> _useGLSL
+       >> _glslVertexSource >> _glslFragmentSource
+       >> _invFaces >> _logo >> _roi >> _outOfCore;
     LBASSERT( _frameDataID != 0 );
 }
 

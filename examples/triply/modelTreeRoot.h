@@ -33,9 +33,8 @@
 #define TRIPLY_MODELTREEROOT_H
 
 #include "typedefs.h"
-#include "modelTreeData.h"
 #include "modelTreeNode.h"
-#include "treeDataManager.h"
+#include "modelTreeData.h"
 #include <triply/api.h>
 #include <vector>
 
@@ -67,11 +66,11 @@ public:
                                   const TreeInfo& info=TreeInfo("kd", 2),
                                   bool inCoreData=true );
 
-    TRIPLY_API bool hasColors() const { return _treeData.hasColors; }
-    TRIPLY_API BoundingBox getBoundingBox() const { return _treeData.getBoundingBox(); }
-    TRIPLY_API size_t getTotalVertices() const { return _treeData.vertices.size(); }
-    TRIPLY_API size_t getTotalIndices() const { return _treeData.indices.size(); }
-    TRIPLY_API size_t getTotalMemory() const { return _treeData.getTotalSize(); }
+    TRIPLY_API bool hasColors() const;
+    TRIPLY_API BoundingBox getBoundingBox() const;
+    TRIPLY_API size_t getTotalVertices() const;
+    TRIPLY_API size_t getTotalIndices() const;
+    TRIPLY_API size_t getTotalMemory() const;
 
     TRIPLY_API void useInvertedFaces() { _invertFaces = true; }
 

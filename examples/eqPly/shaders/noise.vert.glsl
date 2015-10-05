@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2007-2011, Stefan Eilemann <eile@equalizergraphics.com> 
+/* Copyright (c) 2015, Enrique g. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,49 +24,32 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- */
+ */ 
+    
+// Vertex shader for procedural noise functions from (c) Ashima Arts
+// URL: https://github.com/ashima/webgl-noise
 
-#ifndef EQ_PLY_WINDOW_H
-#define EQ_PLY_WINDOW_H
+#version 120
 
-#include <eq/eq.h>
+varying vec3 normalEye;
+varying vec4 positionEye;
+varying vec3 v_texCoord3D;
 
-namespace eqPly
+void main( void )
 {
-    class RenderState;
+    // transform position to screen coordinates
+    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    //gl_Position = ftransform();
+    
+    // pass the vertex colors on to the fragment shader
+    gl_FrontColor = gl_Color;
 
-    /**
-     * A window represent an OpenGL drawable and context
-     *
-     * Manages OpenGL-specific data, i.e., it creates the logo texture during
-     * initialization and holds a state object for GL object creation. It
-     * initializes the OpenGL state and draws the statistics overlay.
-     */
-    class Window : public eq::Window
-    {
-    public:
-        Window( eq::Pipe* parent ) 
-                : eq::Window( parent ), _state( 0 ), _logoTexture( 0 ) {}
-
-        const eq::util::Texture* getLogoTexture() const { return _logoTexture; }
-        RenderState& getState() { return *_state; }
-        
-    protected:
-        virtual ~Window() {}
-        virtual bool configInitSystemWindow( const eq::uint128_t& initID );
-        virtual bool configInitGL( const eq::uint128_t& initID );
-        virtual bool configExitGL();
-        virtual void frameStart( const eq::uint128_t& frameID,
-                                 const uint32_t frameNumber );
-
-    private:
-        RenderState* _state;
-        eq::util::Texture* _logoTexture;
-
-        void _loadLogo();
-        void _loadShaders( const std::string &glslVertexSource,
-                           const std::string &glslFragmentSource );
-    };
+    // transform normal to eye coordinates
+    normalEye = normalize( gl_NormalMatrix * gl_Normal );
+    
+    // transform position to eye coordinates
+    positionEye = normalize( gl_ModelViewMatrix * gl_Vertex );
+    
+    v_texCoord3D = gl_Vertex.xyz;
 }
 
-#endif // EQ_PLY_WINDOW_H

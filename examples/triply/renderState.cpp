@@ -35,7 +35,7 @@ namespace triply
 RenderState::RenderState( const GLEWContext* glewContext )
         : _pmvMatrix( Matrix4f::IDENTITY )
         , _glewContext( glewContext )
-        , _renderMode( RENDER_MODE_DISPLAY_LIST ) /* RENDER_MODE_BUFFER_OBJECT  */
+        , _renderMode( RENDER_MODE_BUFFER_OBJECT ) /* RENDER_MODE_DISPLAY_LIST  */
         , _useColors( false )
         , _useFrustumCulling( true )
         , _useBoundingSpheres( false )
@@ -145,7 +145,20 @@ GLuint SimpleRenderState::newBufferObject( const void* key )
     return _bufferObjects[key];
 }
         
-void SimpleRenderState::deleteAll()
+GLuint SimpleRenderState::getVertexArray( const void* key )
+{
+    if( _vertexArrays.find( key ) == _vertexArrays.end() )
+        return INVALID;
+    return _vertexArrays[key];
+}
+
+GLuint SimpleRenderState::newVertexArray( const void* key )
+{
+    glGenVertexArrays( 1, &_vertexArrays[key] );
+    return _vertexArrays[key];
+}
+
+void SimpleRenderState::deleteGlObjects()
 {
     for( GLMapCIter i = _displayLists.begin(); i != _displayLists.end(); ++i )
         glDeleteLists( i->second, 1 );
@@ -153,8 +166,12 @@ void SimpleRenderState::deleteAll()
     for( GLMapCIter i = _bufferObjects.begin(); i != _bufferObjects.end(); ++i )
         glDeleteBuffers( 1, &(i->second) );
 
+    for( GLMapCIter i = _vertexArrays.begin(); i != _vertexArrays.end(); ++i )
+        glDeleteVertexArrays( 1, &(i->second) );
+
     _displayLists.clear();
     _bufferObjects.clear();
+    _vertexArrays.clear();
 }
 
 }

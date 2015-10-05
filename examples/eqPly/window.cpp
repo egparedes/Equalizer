@@ -35,9 +35,6 @@
 #include "pipe.h"
 #include "renderState.h"
 
-#include "fragmentShader.glsl.h"
-#include "vertexShader.glsl.h"
-
 #include <fstream>
 #include <sstream>
 
@@ -92,7 +89,8 @@ bool Window::configInitGL( const eq::uint128_t& initID )
         _loadLogo();
 
     if( initData.useGLSL() )
-        _loadShaders();
+        _loadShaders( initData.getGLSLVertexSource(),
+                      initData.getGLSLFragmentSource() );
 
     _state->setOutOfCore( initData.useOutOfCore() );
 
@@ -102,7 +100,7 @@ bool Window::configInitGL( const eq::uint128_t& initID )
 bool Window::configExitGL()
 {
     if( _state && !_state->isShared( ))
-        _state->deleteAll();
+        _state->deleteGlObjects();
 
     delete _state;
     _state = 0;
@@ -148,7 +146,8 @@ void Window::_loadLogo()
            << _logoTexture->getHeight() << std::endl;
 }
 
-void Window::_loadShaders()
+void Window::_loadShaders( const std::string& glslVertexSource,
+                           const std::string& glslFragmentSource )
 {
     if( _state->getProgram( getPipe( )) != RenderState::INVALID )
         // already loaded
@@ -163,7 +162,8 @@ void Window::_loadShaders()
     }
 
     const GLuint program = _state->newProgram( getPipe( ));
-    if( !_state->linkProgram( program, vertexShader_glsl, fragmentShader_glsl ))
+    if( !_state->linkProgram( program, glslVertexSource.c_str(),
+                              glslFragmentSource.c_str() ))
         return;
 
     // turn off OpenGL lighting if we are using our own shaders

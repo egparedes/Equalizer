@@ -29,9 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #include "mkdTreeGenerator.h"
-
+#include "modelTreeData.h"
 #include "modelTreeRoot.h"
 #include "modelTreeNode.h"
 #include "modelTreeLeaf.h"
@@ -116,16 +115,13 @@ bool MKDGenerator::generate( MeshData& meshData,
                  0, _meshData->triangles.size(), 0);
     ModelTreeNode* generatedNode = generateNode( static_cast< void* >( &state) );
 
-//    swap( static_cast< ModelTreeNode& >( treeRoot ), *generatedNode );
-//    delete generatedNode;
-    static_cast< ModelTreeNode& >( treeRoot ) = *generatedNode;
     // Free the (not longer needed) generated root node without calling the
     // destructor, since it would delete the whole tree
+    static_cast< ModelTreeNode& >( treeRoot ) = *generatedNode;
     operator delete( generatedNode );
 
     return true;
 }
-
 
 /*  Continue mkd-tree setup, create intermediary or leaf nodes as required.  */
 ModelTreeNode* MKDGenerator::generateNode( void* state )
@@ -232,8 +228,8 @@ ModelTreeLeaf* MKDGenerator::generateLeaf( void* state )
 MKDGenerator::Axis MKDGenerator::getLongestAxis( const size_t start,
                                                  const size_t elements )
 {
-    std::vector< triply::Triangle >& triangles = _meshData->triangles;
-    std::vector< triply::Vertex >& vertices = _meshData->vertices;
+    std::vector< Triangle >& triangles = _meshData->triangles;
+    std::vector< Vertex >& vertices = _meshData->vertices;
 
     if( start + elements > triangles.size() )
     {

@@ -28,7 +28,7 @@
 */
 
 #include "zTreeGenerator.h"
-
+#include "modelTreeData.h"
 #include "modelTreeRoot.h"
 #include "modelTreeNode.h"
 #include "modelTreeLeaf.h"
@@ -90,11 +90,10 @@ bool ZTreeGenerator::generate( MeshData& meshData,
     State state( MinZKey, MaxZKey + 1, 0);
     ModelTreeNode* generatedNode = generateNode( static_cast< void* >( &state) );
 
-    swap( static_cast< ModelTreeNode& >( treeRoot ), *generatedNode );
-    delete generatedNode;
-    // A different hacky way to swap the root and the generated node:
-    //static_cast< ModelTreeNode& >( treeRoot ) = *generatedNode;
-    //operator delete( generatedNode );
+    // Free the (not longer needed) generated root node without calling the
+    // destructor, since it would delete the whole tree
+    static_cast< ModelTreeNode& >( treeRoot ) = *generatedNode;
+    operator delete( generatedNode );
 
     while( progress.count() < TreeGenerator::MaxProgressCount )
         ++progress;
@@ -125,7 +124,6 @@ ModelTreeNode* ZTreeGenerator::generateNode( void* state )
     ZKey currentKey = beginKey;
     ZKey keyStep = (endKey - beginKey) / arity;
     //ZKey keyStep = 1ull << 3 * ( MaxZLevel - depth ); // Only for octrees
-
 
     std::vector< ZKeyIndexPair >::iterator childBeginIt =
             std::lower_bound( _zKeys.begin(), _zKeys.end(), currentKey,
@@ -180,8 +178,8 @@ ModelTreeLeaf* ZTreeGenerator::generateLeaf( void* state )
     ModelTreeData& treeData = *_treeData;
 
     Index indexStart = treeData.indices.size();
-    Index indexLength = 0;
     Index vertexStart = treeData.vertices.size();
+    Index indexLength = 0;
     ShortIndex vertexLength = 0;
 
     std::vector< ZKeyIndexPair >::iterator beginIt =

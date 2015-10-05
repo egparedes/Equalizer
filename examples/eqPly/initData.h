@@ -45,10 +45,14 @@ namespace eqPly
         void setFrameDataID( const eq::uint128_t& id )
             { _frameDataID = id; }
 
-        eq::uint128_t getFrameDataID() const  { return _frameDataID; }
-        const std::string& getWindowSystem() const { return _windowSystem; }
-        triply::RenderMode getRenderMode() const       { return _renderMode; }
+        eq::uint128_t getFrameDataID() const        { return _frameDataID; }
+        const std::string& getWindowSystem() const  { return _windowSystem; }
+        triply::RenderMode getRenderMode() const    { return _renderMode; }
         bool               useGLSL() const          { return _useGLSL; }
+        const std::string& getGLSLVertexSource() const
+            { return _glslVertexSource; }
+        const std::string& getGLSLFragmentSource() const
+            { return _glslFragmentSource; }
         bool               useInvertedFaces() const { return _invFaces; }
         bool               showLogo() const         { return _logo; }
         bool               useROI() const           { return _roi; }
@@ -62,6 +66,10 @@ namespace eqPly
             { _windowSystem = windowSystem; }
         void setRenderMode( const triply::RenderMode renderMode )
             { _renderMode = renderMode; }
+        void setGLSLVertexSource( const std::string& glslVertexSource )
+            { _glslVertexSource = glslVertexSource; }
+        void setGLSLFragmentSource( const std::string& glslFragmentSource )
+            { _glslFragmentSource = glslFragmentSource; }
         void enableGLSL()          { _useGLSL  = true; }
         void enableInvertedFaces() { _invFaces = true; }
         void disableLogo()         { _logo     = false; }
@@ -72,6 +80,8 @@ namespace eqPly
         eq::uint128_t      _frameDataID;
         std::string        _windowSystem;
         triply::RenderMode _renderMode;
+        std::string        _glslVertexSource;
+        std::string        _glslFragmentSource;
         bool               _useGLSL;
         bool               _invFaces;
         bool               _logo;

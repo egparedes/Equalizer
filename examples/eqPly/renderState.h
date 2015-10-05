@@ -35,6 +35,8 @@
 
 #include <triply/renderState.h>
 #include <eq/eq.h>
+#include <map>
+#include <string>
 
 namespace eqPly
 {
@@ -62,7 +64,13 @@ public:
     GLuint newBufferObject( const void* key ) override
         { return _objectManager.newBuffer( key ); }
 
-    void deleteAll()  override
+    GLuint getVertexArray( const void* key ) override
+        { return _objectManager.getVertexArray( key ); }
+
+    GLuint newVertexArray( const void* key ) override
+        { return _objectManager.newVertexArray( key ); }
+
+    void deleteGlObjects()  override
         { _objectManager.deleteAll(); }
 
     GLuint getProgram( const void* key )

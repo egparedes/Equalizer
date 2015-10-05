@@ -30,6 +30,7 @@
 #include "meshData.h"
 #include "ply.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <algorithm>
 
@@ -39,6 +40,7 @@ using __gnu_parallel::sort;
 #else
 using std::sort;
 #endif
+
 
 namespace triply
 {
@@ -51,99 +53,9 @@ MeshData::MeshData()
     _boundingBox[1] = Vertex( 0.0f );
 }
 
-/*  Read the vertex and (if available/wanted) color data from the open file.  */
-void MeshData::readVertices( PlyFile* file, const int nVertices,
-                               const bool readColors )
-{
-    // temporary vertex structure for ply loading
-    struct _Vertex
-    {
-        float           x;
-        float           y;
-        float           z;
-        unsigned char   r;
-        unsigned char   g;
-        unsigned char   b;
-    } vertex;
-
-    PlyProperty vertexProps[] =
-    {
-        { "x", PLY_FLOAT, PLY_FLOAT, offsetof( _Vertex, x ), 0, 0, 0, 0 },
-        { "y", PLY_FLOAT, PLY_FLOAT, offsetof( _Vertex, y ), 0, 0, 0, 0 },
-        { "z", PLY_FLOAT, PLY_FLOAT, offsetof( _Vertex, z ), 0, 0, 0, 0 },
-        { "red", PLY_UCHAR, PLY_UCHAR, offsetof( _Vertex, r ), 0, 0, 0, 0 },
-        { "green", PLY_UCHAR, PLY_UCHAR, offsetof( _Vertex, g ), 0, 0, 0, 0 },
-        { "blue", PLY_UCHAR, PLY_UCHAR, offsetof( _Vertex, b ), 0, 0, 0, 0 }
-    };
-
-    // use all 6 properties when reading colors, only the first 3 otherwise
-    int limit = readColors ? 6 : 3;
-    for( int i = 0; i < limit; ++i )
-        ply_get_property( file, "vertex", &vertexProps[i] );
-
-    vertices.clear();
-    vertices.reserve( nVertices );
-
-    if( readColors )
-    {
-        colors.clear();
-        colors.reserve( nVertices );
-    }
-
-    // read in the vertices
-    for( int i = 0; i < nVertices; ++i )
-    {
-        ply_get_element( file, static_cast< void* >( &vertex ) );
-        vertices.push_back( Vertex( vertex.x, vertex.y, vertex.z ) );
-        if( readColors )
-            colors.push_back( Color( vertex.r, vertex.g, vertex.b ) );
-    }
-}
-
-
-/*  Read the index data from the open file.  */
-void MeshData::readTriangles( PlyFile* file, const int nFaces )
-{
-    // temporary face structure for ply loading
-    struct _Face
-    {
-        unsigned char   nVertices;
-        int*            vertices;
-    } face;
-
-    PlyProperty faceProps[] =
-    {
-        { "vertex_indices", PLY_INT, PLY_INT, offsetof( _Face, vertices ),
-          1, PLY_UCHAR, PLY_UCHAR, offsetof( _Face, nVertices ) }
-    };
-
-    ply_get_property( file, "face", &faceProps[0] );
-
-    triangles.clear();
-    triangles.reserve( nFaces );
-
-    // read in the faces, asserting that they are only triangles
-    uint8_t ind1 = _invertFaces ? 2 : 0;
-    uint8_t ind3 = _invertFaces ? 0 : 2;
-    for( int i = 0; i < nFaces; ++i )
-    {
-        ply_get_element( file, static_cast< void* >( &face ) );
-        TRIPLYASSERT( face.vertices != 0 );
-        if( face.nVertices != 3 )
-        {
-            free( face.vertices );
-            throw MeshException( "Error reading PLY file. Encountered a "
-                                 "face which does not have three vertices." );
-        }
-        triangles.push_back( Triangle( face.vertices[ind1],
-                                       face.vertices[1],
-                                       face.vertices[ind3] ) );
-
-        // free the memory that was allocated by ply_get_element
-        free( face.vertices );
-    }
-}
-
+/*  Destructor.  */
+MeshData::~MeshData( )
+{ }
 
 /*  Open a PLY file and read vertex, color and index data.  */
 bool MeshData::readPlyFile( const std::string& filename )
@@ -165,6 +77,7 @@ bool MeshData::readPlyFile( const std::string& filename )
     }
     TRIPLYASSERT( elemNames != 0 );
 
+    // Allocate arrays
     for( int i = 0; i < nPlyElems; ++i )
     {
         int nElems;
@@ -176,12 +89,36 @@ bool MeshData::readPlyFile( const std::string& filename )
 
         if( equal_strings( elemNames[i], "vertex" ) )
         {
-            bool hasColors = false;
+            size_t nVertices = static_cast< size_t >( nElems );
+            vertices.resize( nVertices );
+            normals.resize( vertices.size() );
+
             // determine if the file stores vertex colors
             for( int j = 0; j < nProps; ++j )
+            {
                 if( equal_strings( props[j]->name, "red" ) )
-                    hasColors = true;
+                    colors.resize( vertices.size() );
+            }
+        }
+        else if( equal_strings( elemNames[i], "face" ) )
+        {
+            triangles.resize( static_cast< size_t >( nElems ) );
+        }
+    }
 
+    // Read elements
+    for( int i = 0; i < nPlyElems; ++i )
+    {
+        int nElems;
+        int nProps;
+
+        PlyProperty** props = ply_get_element_description( file, elemNames[i],
+                                                           &nElems, &nProps );
+        TRIPLYASSERT( props != 0 );
+
+        if( equal_strings( elemNames[i], "vertex" ) )
+        {
+            bool hasColors = colors.size() > 0;
             readVertices( file, nElems, hasColors );
             TRIPLYASSERT( vertices.size() == static_cast< size_t >( nElems ) );
             if( hasColors )
@@ -228,12 +165,9 @@ void MeshData::calculateNormals()
     int wrongNormals = 0;
 #endif
 
-    normals.clear();
-    normals.reserve( vertices.size() );
-
     // initialize all normals to zero
     for( size_t i = 0; i < vertices.size(); ++i )
-        normals.push_back( Normal( 0, 0, 0 ) );
+        normals[i] = Normal( 0, 0, 0 );
 
     // iterate over all triangles and add their normals to adjacent vertices
 #pragma omp parallel for
@@ -313,6 +247,86 @@ void MeshData::scale( const float baseSize )
             _boundingBox[v][i] -= offset[i];
             _boundingBox[v][i] *= factor;
         }
+}
+
+/*  Read the vertex and (if available/wanted) color data from the open file.  */
+void MeshData::readVertices( PlyFile* file, const int nVertices,
+                             const bool readColors )
+{
+    // temporary vertex structure for ply loading
+    struct _Vertex
+    {
+        float           x;
+        float           y;
+        float           z;
+        unsigned char   r;
+        unsigned char   g;
+        unsigned char   b;
+    } vertex;
+
+    PlyProperty vertexProps[] =
+    {
+        { "x", PLY_FLOAT, PLY_FLOAT, offsetof( _Vertex, x ), 0, 0, 0, 0 },
+        { "y", PLY_FLOAT, PLY_FLOAT, offsetof( _Vertex, y ), 0, 0, 0, 0 },
+        { "z", PLY_FLOAT, PLY_FLOAT, offsetof( _Vertex, z ), 0, 0, 0, 0 },
+        { "red", PLY_UCHAR, PLY_UCHAR, offsetof( _Vertex, r ), 0, 0, 0, 0 },
+        { "green", PLY_UCHAR, PLY_UCHAR, offsetof( _Vertex, g ), 0, 0, 0, 0 },
+        { "blue", PLY_UCHAR, PLY_UCHAR, offsetof( _Vertex, b ), 0, 0, 0, 0 }
+    };
+
+    // use all 6 properties when reading colors, only the first 3 otherwise
+    int limit = readColors ? 6 : 3;
+    for( int i = 0; i < limit; ++i )
+        ply_get_property( file, "vertex", &vertexProps[i] );
+
+    // read in the vertices
+    for( int i = 0; i < nVertices; ++i )
+    {
+        ply_get_element( file, static_cast< void* >( &vertex ) );
+        vertices[i] = Vertex( vertex.x, vertex.y, vertex.z );
+        if( readColors )
+            colors[i] = Color( vertex.r, vertex.g, vertex.b );
+    }
+}
+
+/*  Read the index data from the open file.  */
+void MeshData::readTriangles( PlyFile* file, const int nFaces )
+{
+    // temporary face structure for ply loading
+    struct _Face
+    {
+        unsigned char   nVertices;
+        int*            vertices;
+    } face;
+
+    PlyProperty faceProps[] =
+    {
+        { "vertex_indices", PLY_INT, PLY_INT, offsetof( _Face, vertices ),
+          1, PLY_UCHAR, PLY_UCHAR, offsetof( _Face, nVertices ) }
+    };
+
+    ply_get_property( file, "face", &faceProps[0] );
+
+    // read in the faces, asserting that they are only triangles
+    uint8_t ind1 = _invertFaces ? 2 : 0;
+    uint8_t ind3 = _invertFaces ? 0 : 2;
+    for( int i = 0; i < nFaces; ++i )
+    {
+        ply_get_element( file, static_cast< void* >( &face ) );
+        TRIPLYASSERT( face.vertices != 0 );
+        if( face.nVertices != 3 )
+        {
+            free( face.vertices );
+            throw MeshException( "Error reading PLY file. Encountered a "
+                                 "face which does not have three vertices." );
+        }
+        triangles[i] = Triangle( face.vertices[ind1],
+                                 face.vertices[1],
+                                 face.vertices[ind3] );
+
+        // free the memory that was allocated by ply_get_element
+        free( face.vertices );
+    }
 }
 
 } // namespace triply

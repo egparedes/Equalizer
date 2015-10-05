@@ -60,13 +60,15 @@ protected:
 
 private:
     void setupRendering( RenderState& state, GLuint* data ) const;
+    void loadLeafData( bool useColors,
+                        TreeDataManager *dataManager=0 ) const;
+    void discardLeafData() const;
+
+
     void renderImmediate( RenderState& state ) const;
     void renderDisplayList( RenderState& state ) const;
     void renderBufferObject( RenderState& state ) const;
-
-    void setupLocalData( bool useColors,
-                         TreeDataManager *dataManager=0 ) const;
-    void discardLocalData() const;
+    void renderVAObject( RenderState& state ) const;
 
     const Vertex& getVertex( const size_t i ) const
     {
@@ -90,23 +92,27 @@ private:
 
     friend class ModelTreeDist;
 
-    ModelTreeData&          _treeData;
-    BoundingBox             _boundingBox;
-    Index                   _indexStart;
-    Index                   _indexLength;
-    Index                   _vertexStart;
-    ShortIndex              _vertexLength;
+    ModelTreeData&              _treeData;
+    BoundingBox                 _boundingBox;
+    Index                       _indexStart;
+    Index                       _indexLength;
+    Index                       _vertexStart;
+    ShortIndex                  _vertexLength;
+
+    // Mutable for indirect draw calls
+    mutable bool                _glReady;
 
     // Mutable for out-of-core rendering
-    mutable bool                 _dataReady;
-    mutable TreeDataManager*     _dataManager;
-    mutable SegmentedBuffer      _buffers[4];
+    mutable bool                _dataLoaded;
+    mutable TreeDataManager*    _dataManager;
+    mutable SegmentedBuffer     _buffers[4];
 
-    enum StatsFields
+    enum DrawStatsFields
     {
-        Rendered=0, Uploaded, DataRead, DataDiscard, VSegsUploaded, ISegsUploaded
+        RENDERED=0, UPLOADED, DATA_READ, DATA_DISCARD, VSEGS_UPLOADED, ISEGS_UPLOADED,
+        DRAW_STATS_FIELDS_ALL
     };
-    mutable size_t _stats[ISegsUploaded+1];
+    mutable size_t _drawStats[DRAW_STATS_FIELDS_ALL];
 };
 
 } // namespace

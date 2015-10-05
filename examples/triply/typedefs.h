@@ -89,9 +89,12 @@ class MKDGenerator;
 class ZTreeGenerator;
 class TreeDataManager;
 class RenderState;
+class SegmentedBuffer;
 
 typedef ModelTreeBase* ModelTreeBasePtr;
 typedef const ModelTreeBase* ConstModelTreeBasePtr;
+typedef std::vector< ModelTreeBasePtr > ModelTreeBasePtrs;
+
 typedef lunchbox::RefPtr< TreeDataManager > SharedDataManagerPtr;
 
 // basic type definitions
@@ -114,25 +117,32 @@ private:
 };
 
 // wrapper to enable array use where arrays would not be allowed otherwise
-template< class T, size_t d > struct ArrayWrapper
+template< class T, size_t d >
+struct ArrayWrapper
 {
+    typedef T DataType;
+
     ArrayWrapper() {}
     explicit ArrayWrapper( const T* from ) { memcpy( data, from, sizeof( data )); }
     T& operator[]( const size_t i )
-        {
-            TRIPLYASSERT( i < d );
-            return data[i];
-        }
+    {
+        TRIPLYASSERT( i < d );
+        return data[i];
+    }
 
     const T& operator[]( const size_t i ) const
-        {
-            TRIPLYASSERT( i < d );
-            return data[i];
-        }
+    {
+        TRIPLYASSERT( i < d );
+        return data[i];
+    }
 
 private:
     T data[d];
 };
+
+// Forward declarations
+template < typename T > class DynArrayWrapper;
+template < typename T > class LargeDynArrayWrapper;
 
 // compound type definitions
 typedef vmml::vector< 3, Index >    Triangle;
@@ -167,6 +177,7 @@ struct TreeInfo
     unsigned arity;
 };
 
+
 // maximum triangle count per leaf node (keep in mind that the number of
 // different vertices per leaf must stay below ShortIndex range; usually
 // #vertices ~ #triangles/2, but max #vertices = #triangles * 3)
@@ -182,7 +193,8 @@ enum BufferType
     VERTEX_BUFFER_TYPE = 0,
     NORMAL_BUFFER_TYPE,
     COLOR_BUFFER_TYPE,
-    INDEX_BUFFER_TYPE
+    INDEX_BUFFER_TYPE,
+    BUFFER_TYPE_ALL // must be last
 };
 
 enum BufferElementSizeConstant
@@ -206,6 +218,7 @@ enum RenderMode
     RENDER_MODE_IMMEDIATE = 0,
     RENDER_MODE_DISPLAY_LIST,
     RENDER_MODE_BUFFER_OBJECT,
+    RENDER_MODE_VA_OBJECT,
     RENDER_MODE_ALL // must be last
 };
 inline std::ostream& operator << ( std::ostream& os, const RenderMode mode )
@@ -265,7 +278,6 @@ inline std::string getArchitectureFilename( const std::string& filename,
 }
 
 }
-
 
 #ifdef EQUALIZER
 namespace lunchbox

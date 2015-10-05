@@ -30,6 +30,8 @@
 
 #include "localInitData.h"
 #include "frameData.h"
+#include "fragmentShader.glsl.h"
+#include "vertexShader.glsl.h"
 #include <triply/treeGenerator.h>
 
 #pragma warning( disable: 4275 )
@@ -79,6 +81,8 @@ LocalInitData& LocalInitData::operator = ( const LocalInitData& from )
 
     setWindowSystem( from.getWindowSystem( ));
     setRenderMode( from.getRenderMode( ));
+    setGLSLVertexSource( from.getGLSLVertexSource( ));
+    setGLSLFragmentSource( from.getGLSLFragmentSource( ));
     if( from.useGLSL( ))
         enableGLSL();
     if( from.useInvertedFaces( ))
@@ -115,8 +119,8 @@ void LocalInitData::parseArguments( const int argc, char** argv )
     bool userDefinedBlackWhiteMode( false );
     std::string userDefinedWindowSystem("");
     std::string userDefinedRenderMode("");
+    std::string userDefinedShaderName("");
     std::string showcaseArgs("");
-    bool userDefinedUseGLSL( false );
     bool userDefinedInvertFaces( false );
     bool userDefinedDisableLogo( false );
     bool userDefinedDisableROI( false );
@@ -149,10 +153,10 @@ void LocalInitData::parseArguments( const int argc, char** argv )
         ( "windowSystem,w", po::value<std::string>( &userDefinedWindowSystem ),
           wsHelp.c_str() )
         ( "renderMode,c", po::value<std::string>( &userDefinedRenderMode ),
-          "Rendering Mode (immediate|displayList|VBO)" )
+          "Rendering Mode (immediate|displayList|VBO|VAO)" )
         ( "glsl,g",
-          po::bool_switch(&userDefinedUseGLSL)->default_value( false ),
-          "Enable GLSL shaders" )
+          po::value<std::string>(&userDefinedShaderName)->implicit_value( "default" ),
+          "Enable particular GLSL shader" )
         ( "invertFaces,i"
           , po::bool_switch(&userDefinedInvertFaces)->default_value( false ),
           "Invert faces (valid during binary file creation)" )
@@ -197,7 +201,6 @@ void LocalInitData::parseArguments( const int argc, char** argv )
         ::exit( EXIT_FAILURE );
     }
 
-
     // Evaluate parsed command line options
     if( showHelp )
     {
@@ -230,10 +233,50 @@ void LocalInitData::parseArguments( const int argc, char** argv )
             setRenderMode( triply::RENDER_MODE_DISPLAY_LIST );
         else if( userDefinedRenderMode == "vbo" )
             setRenderMode( triply::RENDER_MODE_BUFFER_OBJECT );
+        else if( userDefinedRenderMode == "vao" )
+            setRenderMode( triply::RENDER_MODE_VA_OBJECT);
     }
 
-    if( userDefinedUseGLSL )
-            enableGLSL();
+    if( userDefinedShaderName.size() > 0 )
+    {
+        enableGLSL();
+        if( userDefinedShaderName == "default" )
+        {
+            setGLSLVertexSource( std::string( vertexShader_glsl ) );
+            setGLSLFragmentSource( std::string( fragmentShader_glsl ) );
+        }
+        else
+        {
+            std::string sourceName = userDefinedShaderName + ".vert.glsl";
+            std::ifstream sourceFile;
+            std::stringstream buffer;
+
+            sourceFile.open( sourceName );
+            if( !sourceFile.is_open() )
+            {
+                LBERROR << "Error loading custom shader sources!" << std::endl;
+                eq::exit(); // cppcheck-suppress unreachableCode
+                ::exit( EXIT_FAILURE );
+            }
+            buffer << sourceFile.rdbuf();
+            sourceFile.close();
+            setGLSLVertexSource( buffer.str() );
+            buffer.str("");
+            buffer.clear();
+
+            sourceName = userDefinedShaderName + ".frag.glsl";
+            sourceFile.open( sourceName );
+            if( !sourceFile.is_open() )
+            {
+                LBERROR << "Error loading custom shader sources!" << std::endl;
+                eq::exit(); // cppcheck-suppress unreachableCode
+                ::exit( EXIT_FAILURE );
+            }
+            buffer << sourceFile.rdbuf();
+            sourceFile.close();
+            setGLSLFragmentSource( buffer.str() );
+        }
+    }
 
     if( userDefinedInvertFaces)
             enableInvertedFaces();

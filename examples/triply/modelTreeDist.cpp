@@ -29,7 +29,7 @@
  */
 
 #include "modelTreeDist.h"
-
+#include "modelTreeData.h"
 #include "modelTreeLeaf.h"
 #include "modelTreeRoot.h"
 
@@ -49,8 +49,8 @@ ModelTreeDist::ModelTreeDist( ModelTreeRoot* treeRoot )
     , _children( 0 )
     , _isRoot( true )
 {
-    allocateChildArray();
-    for( unsigned i=0; i < treeRoot->getArity(); ++i )
+    _children.resize( treeRoot->getArity(), 0 );
+    for( unsigned i=0; i < _children.size(); ++i )
     {
         if( treeRoot->getChild( i ))
         {
@@ -68,8 +68,8 @@ ModelTreeDist::ModelTreeDist( ModelTreeRoot* treeRoot, ModelTreeBase* treeNode )
     if( !treeNode || treeNode->getNumberOfChildren() == 0)
         return;
 
-    allocateChildArray();
-    for( unsigned i=0; i < treeRoot->getArity(); ++i )
+    _children.resize( treeRoot->getArity(), 0 );
+    for( unsigned i=0; i < _children.size(); ++i )
     {
         if( treeNode->getChild( i ) )
         {
@@ -80,7 +80,7 @@ ModelTreeDist::ModelTreeDist( ModelTreeRoot* treeRoot, ModelTreeBase* treeNode )
 
 ModelTreeDist::~ModelTreeDist()
 {
-    deallocateChildArray();
+    clear();
 }
 
 void ModelTreeDist::registerTree(co::LocalNodePtr localNode )
@@ -91,8 +91,8 @@ void ModelTreeDist::registerTree(co::LocalNodePtr localNode )
 
     if( _treeNode->getNumberOfChildren() > 0 ) // if( !_treeNode->isLeaf() )
     {
-        LBASSERT( _children );
-        for( unsigned i=0; i < _treeRoot->getArity(); ++i )
+        LBASSERT( _children.size() > 0 );
+        for( unsigned i=0; i < _children.size(); ++i )
         {
             if( _children[i] != 0 )
             {
@@ -112,8 +112,8 @@ void ModelTreeDist::deregisterTree()
 
     if( _treeNode->getNumberOfChildren() > 0 ) // if( !_treeNode->isLeaf() )
     {
-        LBASSERT( _children );
-        for( unsigned i=0; i < _treeRoot->getArity(); ++i )
+        LBASSERT( _children.size() > 0 );
+        for( unsigned i=0; i < _children.size(); ++i )
         {
             if( _children[i] != 0 )
             {
@@ -128,7 +128,6 @@ ModelTreeRoot* ModelTreeDist::loadModel( co::NodePtr masterNode,
                                          const eq::uint128_t& modelID )
 {
     LBASSERT( !_treeRoot && !_treeNode );
-
     if( !localNode->syncObject( this, masterNode, modelID ))
     {
         LBWARN << "Mapping of model failed" << std::endl;
@@ -137,13 +136,22 @@ ModelTreeRoot* ModelTreeDist::loadModel( co::NodePtr masterNode,
     return _treeRoot;
 }
 
+void ModelTreeDist::clear()
+{
+    LBASSERT( _treeRoot );
+    for( unsigned i=0;  i < _children.size(); ++i )
+    {
+        if( _children[i] != 0 )
+            _children[i]->clear();
+    }
+    _children.clear();
+}
+
 unsigned ModelTreeDist::getNumberOfChildren() const
 {
-    if ( _children == 0 )
-        return 0;
     LBASSERT( _treeRoot );
     unsigned result = 0;
-    for( unsigned i=0; i < _treeRoot->getArity(); ++i )
+    for( unsigned i=0; i < _children.size(); ++i )
     {
         if( _children[i] != 0 )
             result++;
@@ -248,8 +256,8 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
 
         base   = node;
 
-        if ( _children == 0 )
-            allocateChildArray();
+        if ( _children.size() == 0 )
+            _children.resize( arity );
         co::NodePtr remoteNode = is.getRemoteNode();
         co::LocalNodePtr localNode = is.getLocalNode();
         for( unsigned i=0; i < arity; ++i)
@@ -288,35 +296,6 @@ void ModelTreeDist::applyInstanceData( co::DataIStream& is )
     is >> base->_boundingSphere >> base->_range;
 
     _treeNode = base;
-}
-
-void ModelTreeDist::allocateChildArray()
-{
-    LBASSERT( _treeRoot );
-    LBASSERT( !_children );
-    _children = new ModelTreeDist*[ _treeRoot->getArity() ];
-    for( unsigned i=0; i < _treeRoot->getArity(); ++i )
-    {
-        _children[i] = 0;
-    }
-}
-
-void ModelTreeDist::deallocateChildArray()
-{
-    LBASSERT( _treeRoot );
-    if( _children != 0 )
-    {
-        for( unsigned i=0;  i < _treeRoot->getArity(); ++i )
-        {
-            if( _children[i] != 0 )
-            {
-                _children[i]->deallocateChildArray();
-                delete _children[i];
-            }
-        }
-        delete[] _children;
-        _children = 0;
-    }
 }
 
 }

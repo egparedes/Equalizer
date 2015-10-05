@@ -32,6 +32,7 @@
 #define TRIPLY_MODELTREENODE_H
 
 #include "typedefs.h"
+#include "dynArrayWrappers.h"
 #include "modelTreeBase.h"
 #include <triply/api.h>
 
@@ -42,10 +43,10 @@ class ModelTreeNode : public ModelTreeBase
 {
 public:
     ModelTreeNode( )
-        : _arity( 0 ), _children( 0 )
+        : _children( 0 )
     { }
 
-    ModelTreeNode( unsigned arity, ModelTreeBasePtr* children=0 );
+    ModelTreeNode( unsigned arity, ModelTreeBasePtr* childrenPtr=0 );
 
     virtual ~ModelTreeNode();
 
@@ -57,17 +58,17 @@ public:
 
     virtual ConstModelTreeBasePtr getChild( unsigned char childId ) const override
     {
-        return ( _children != 0 && _children[childId] != 0 )? _children[childId]: 0;
+        return _children.at( childId );
     }
 
     virtual ModelTreeBasePtr getChild( unsigned char childId ) override
     {
-        return ( _children != 0 && _children[childId] != 0 )? _children[childId]: 0;
+        return _children.at( childId );
     }
 
     virtual unsigned getNumberOfChildren() const override;
 
-    unsigned getArity() const { return _arity; }
+    unsigned getArity() const { return _children.size(); }
 
 protected:
     virtual void toStream( std::ostream& os ) override;
@@ -80,11 +81,7 @@ private:
     friend class ModelTreeDist;
     friend class ModelTreeRoot;
 
-    void allocateChildArray();
-    void deallocateChildArray();
-
-    unsigned _arity;
-    ModelTreeBasePtr* _children;
+    DynArrayWrapper< ModelTreeBasePtr > _children;
 };
 }
 

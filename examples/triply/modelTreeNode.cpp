@@ -40,25 +40,29 @@
 namespace triply
 {
 
-ModelTreeNode::ModelTreeNode( unsigned arity , ModelTreeBasePtr* children )
-    : _arity( arity ), _children( children )
+ModelTreeNode::ModelTreeNode( unsigned arity, ModelTreeBasePtr* childrenPtr )
 {
-    if ( _children == 0 )
-        allocateChildArray();
+    TRIPLYASSERT( childrenPtr == 0 );
+    if ( childrenPtr != 0 )
+    {
+        _children.init( childrenPtr, arity );
+    }
+    else
+    {
+        _children.resize( arity, 0 );
+    }
 }
 
 /*  Destructor, clears up children as well.  */
 ModelTreeNode::~ModelTreeNode()
 {
-    deallocateChildArray();
+    clear();
+    _children.clear( true );
 }
 
 void ModelTreeNode::clear()
 {
-    if( _children == 0 )
-        return;
-
-    for( unsigned i=0; i < _arity; ++i )
+    for( unsigned i=0; i < _children.size(); ++i )
     {
         if( _children[i] != 0 )
         {
@@ -72,10 +76,10 @@ void ModelTreeNode::clear()
 /*  Draw the node by rendering the children.  */
 void ModelTreeNode::draw(RenderState &state ) const
 {
-    if( state.stopRendering( ) || _children == 0 )
+    if( state.stopRendering( ) || _children.size() == 0 )
         return;
 
-    for( unsigned i=0; i < _arity; ++i )
+    for( unsigned i=0; i < _children.size(); ++i )
     {
         if( _children[i] != 0 )
             _children[i]->draw( state );
@@ -85,13 +89,10 @@ void ModelTreeNode::draw(RenderState &state ) const
 Index ModelTreeNode::getNumberOfVertices() const
 {
     Index result = 0;
-    if ( _children != 0 )
+    for( unsigned i=0; i < _children.size(); ++i )
     {
-        for( unsigned i=0; i < _arity; ++i )
-        {
-            if( _children[i] != 0 )
-                result += _children[i]->getNumberOfVertices();
-        }
+        if( _children[i] != 0 )
+            result += _children[i]->getNumberOfVertices();
     }
     return result;
 }
@@ -99,14 +100,12 @@ Index ModelTreeNode::getNumberOfVertices() const
 unsigned ModelTreeNode::getNumberOfChildren() const
 {
     unsigned result = 0;
-    if ( _children != 0 )
+    for( unsigned i=0; i < _children.size(); ++i )
     {
-        for( unsigned i=0; i < _arity; ++i )
-        {
-            if( _children[i] != 0 )
-                result++;
-        }
+        if( _children[i] != 0 )
+            result++;
     }
+
     return result;
 }
 
@@ -115,10 +114,10 @@ std::vector< std::pair< unsigned, unsigned > > ModelTreeNode::getDescendantsPerL
 {
     std::vector< std::pair< unsigned, unsigned > > nodesPerLevel;
 
-    if ( _children != 0 )
+    if ( _children.size() > 0 )
     {
         nodesPerLevel.push_back( std::make_pair< unsigned, unsigned >( 0, 0 ) );
-        for( unsigned i=0; i < _arity; ++i )
+        for( unsigned i=0; i < _children.size(); ++i )
         {
             if( _children[i] != 0 )
             {
@@ -156,7 +155,7 @@ void ModelTreeNode::toStream( std::ostream& os )
     os.write( reinterpret_cast< char* >( &numberOfChildren ), sizeof( size_t ) );
     if( numberOfChildren > 0 )
     {
-        for( size_t i=0; i < _arity; ++i)
+        for( size_t i=0; i < _children.size(); ++i)
         {
             if( _children[i] != 0 )
             {
@@ -180,8 +179,6 @@ void ModelTreeNode::fromMemory( char** addr, ModelTreeData& treeData )
 
     size_t numberOfChildren;
     memRead( reinterpret_cast< char* >( &numberOfChildren ), addr, sizeof( size_t ) );
-    if( _children == 0 )
-        allocateChildArray();
     for( size_t i=0; i < numberOfChildren; ++i)
     {
         // read child index
@@ -196,7 +193,7 @@ void ModelTreeNode::fromMemory( char** addr, ModelTreeData& treeData )
         *addr -= sizeof( size_t );
         if( nodeType == NODE_TYPE )
         {
-            _children[child] = new ModelTreeNode( _arity );
+            _children[child] = new ModelTreeNode( _children.size() );
         }
         else
         {
@@ -211,11 +208,11 @@ const BoundingSphere& ModelTreeNode::updateBoundingSphere()
 {
     _boundingSphere.w() = 0;
 
-    if ( _children == 0 )
+    if ( _children.size() == 0 )
         return _boundingSphere;
 
     // Merge the bounding spheres returned by the children
-    for( unsigned i=0; i < _arity; ++i )
+    for( unsigned i=0; i < _children.size(); ++i )
     {
         if( _children[i] != 0 )
         {
@@ -273,13 +270,13 @@ const BoundingSphere& ModelTreeNode::updateBoundingSphere()
 /*  Compute the range from the children's ranges.  */
 void ModelTreeNode::updateRange()
 {
-    if ( _children == 0 )
+    if ( _children.size() == 0 )
         return;
 
     _range[0] = FLT_MAX;
     _range[1] = FLT_MIN;
     // update the children's ranges
-    for( unsigned i=0; i < _arity; ++i )
+    for( unsigned i=0; i < _children.size(); ++i )
     {
         if( _children[i] != 0 )
         {
@@ -294,28 +291,6 @@ void ModelTreeNode::updateRange()
     TRIPLYINFO << "updateRange" << "( " << _range[0] << ", " << _range[1]
              << " )." << std::endl;
 #endif
-}
-
-void ModelTreeNode::allocateChildArray()
-{
-    LBASSERT( _arity > 0 );
-    LBASSERT( !_children );
-
-    _children = new ModelTreeBasePtr[_arity];
-    for( unsigned i=0; i < _arity; ++i )
-    {
-        _children[i] = 0;
-    }
-}
-
-void ModelTreeNode::deallocateChildArray()
-{
-    if ( _children == 0 )
-        return;
-
-    clear();
-    delete[] _children;
-    _children = 0;
 }
 
 }

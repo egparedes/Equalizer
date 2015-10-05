@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2007-2011, Stefan Eilemann <eile@equalizergraphics.com> 
+/* Copyright (c) 2015, Enrique g. Paredes <egparedes@ifi.uzh.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,49 +24,50 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- */
+ */ 
+    
+// Vertex shader for sub-surface scatter and procedural noise functions
+// 
+///* --------------------------
+//SubScatter Vertex Shader:
+// 
+//Fake sub-surface scatter lighting shader by InvalidPointer 2008.
+//Found at
+//http://www.gamedev.net/community/forums/topic.asp?topic_id=481494
+// 
+//HLSL > GLSL translation
+//toneburst 2008
+//-------------------------- */
 
-#ifndef EQ_PLY_WINDOW_H
-#define EQ_PLY_WINDOW_H
+// Procedural noise functions from (c) Ashima Arts
+// URL: https://github.com/ashima/webgl-noise
 
-#include <eq/eq.h>
+// Varying variables to be sent to Fragment Shader
+varying vec3 v_texCoord3D;
+varying vec3 worldNormal, eyeVec, lightVec, vertPos, lightPos;
 
-namespace eqPly
+void main()
 {
-    class RenderState;
+    v_texCoord3D = gl_Vertex.xyz;
 
-    /**
-     * A window represent an OpenGL drawable and context
-     *
-     * Manages OpenGL-specific data, i.e., it creates the logo texture during
-     * initialization and holds a state object for GL object creation. It
-     * initializes the OpenGL state and draws the statistics overlay.
-     */
-    class Window : public eq::Window
-    {
-    public:
-        Window( eq::Pipe* parent ) 
-                : eq::Window( parent ), _state( 0 ), _logoTexture( 0 ) {}
-
-        const eq::util::Texture* getLogoTexture() const { return _logoTexture; }
-        RenderState& getState() { return *_state; }
-        
-    protected:
-        virtual ~Window() {}
-        virtual bool configInitSystemWindow( const eq::uint128_t& initID );
-        virtual bool configInitGL( const eq::uint128_t& initID );
-        virtual bool configExitGL();
-        virtual void frameStart( const eq::uint128_t& frameID,
-                                 const uint32_t frameNumber );
-
-    private:
-        RenderState* _state;
-        eq::util::Texture* _logoTexture;
-
-        void _loadLogo();
-        void _loadShaders( const std::string &glslVertexSource,
-                           const std::string &glslFragmentSource );
-    };
+    vec4 ecPos = gl_ModelViewProjectionMatrix * gl_Vertex;
+    vec4 positionEye = normalize( gl_ModelViewMatrix * gl_Vertex );
+     
+    // Set varyings for subscatter FS
+    if( gl_LightSource[0].position.w == 0.0 )
+        // directional light
+        lightPos = normalize( gl_LightSource[0].position ).xyz;
+    else
+        // point light
+        lightPos = normalize( gl_LightSource[0].position - positionEye ).xyz;
+    worldNormal = gl_NormalMatrix * gl_Normal;     
+    eyeVec = -ecPos.xyz;
+    lightVec = lightPos - ecPos.xyz;
+    vertPos = ecPos.xyz;
+     
+    //Transform vertex by modelview and projection matrices
+    gl_Position = ecPos;
+    
+    // pass the vertex colors on to the fragment shader
+    gl_FrontColor = gl_Color;
 }
-
-#endif // EQ_PLY_WINDOW_H

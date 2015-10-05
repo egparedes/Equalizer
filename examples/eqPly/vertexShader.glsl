@@ -42,8 +42,8 @@ void main()
     positionEye = normalize( gl_ModelViewMatrix * gl_Vertex );
     
     // transform position to screen coordinates
-    //gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
-    gl_Position = ftransform();
+    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    //gl_Position = ftransform();
     
     // pass the vertex colors on to the fragment shader
     gl_FrontColor = gl_Color;

@@ -80,7 +80,9 @@ public:
     TRIPLY_API virtual GLuint newDisplayList( const void* key ) = 0;
     TRIPLY_API virtual GLuint getBufferObject( const void* key ) = 0;
     TRIPLY_API virtual GLuint newBufferObject( const void* key ) = 0;
-    TRIPLY_API virtual void deleteAll() = 0;
+    TRIPLY_API virtual GLuint getVertexArray( const void* key ) = 0;
+    TRIPLY_API virtual GLuint newVertexArray( const void* key ) = 0;
+    TRIPLY_API virtual void deleteGlObjects() = 0;
 
     TRIPLY_API const GLEWContext* glewGetContext() const
         { return _glewContext; }
@@ -124,11 +126,14 @@ public:
     TRIPLY_API virtual GLuint newDisplayList( const void* key );
     TRIPLY_API virtual GLuint getBufferObject( const void* key );
     TRIPLY_API virtual GLuint newBufferObject( const void* key );
-    TRIPLY_API virtual void deleteAll();
+    TRIPLY_API virtual GLuint getVertexArray( const void* key );
+    TRIPLY_API virtual GLuint newVertexArray( const void* key );
+    TRIPLY_API virtual void deleteGlObjects();
 
 private:
     GLMap  _displayLists;
     GLMap  _bufferObjects;
+    GLMap  _vertexArrays;
 };
 } // namespace triply
 

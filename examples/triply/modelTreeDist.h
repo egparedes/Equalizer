@@ -32,6 +32,7 @@
 #define TRIPLY_MODELTREEDIST_H
 
 #include "typedefs.h"
+#include "dynArrayWrappers.h"
 #include <triply/api.h>
 
 #include <co/co.h>
@@ -54,21 +55,19 @@ public:
                                                  const eq::uint128_t& modelID );
 
 protected:
-    TRIPLY_API ModelTreeDist( ModelTreeRoot* treeRoot,
+    ModelTreeDist( ModelTreeRoot* treeRoot,
                               ModelTreeBase* treeNode );
 
-    TRIPLY_API unsigned getNumberOfChildren( ) const;
+    void clear( );
+    unsigned getNumberOfChildren( ) const;
 
-    TRIPLY_API virtual void getInstanceData( co::DataOStream& os );
-    TRIPLY_API virtual void applyInstanceData( co::DataIStream& is );
+    virtual void getInstanceData( co::DataOStream& os );
+    virtual void applyInstanceData( co::DataIStream& is );
 
 private:
-    void allocateChildArray();
-    void deallocateChildArray();
-
     ModelTreeRoot*  _treeRoot;
     ModelTreeBase*  _treeNode;
-    ModelTreeDist** _children;
+    DynArrayWrapper< ModelTreeDist* > _children;
     bool _isRoot;
 };
 }

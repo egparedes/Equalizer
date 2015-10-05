@@ -131,6 +131,8 @@ bool Config::init()
         renderModeString = "displaylist";
     else if( _initData.getRenderMode( ) == triply::RENDER_MODE_BUFFER_OBJECT )
         renderModeString = "vbo";
+    else if( _initData.getRenderMode( ) == triply::RENDER_MODE_VA_OBJECT )
+        renderModeString = "VAO";
 
     _setMessage( "Welcome to eqPly [mode = " + renderModeString +
                  "]\nPress F1 for help" );

@@ -28,6 +28,7 @@
 
 
 #include "treeDataManager.h"
+#include "segmentedBuffer.h"
 #include "mmap.h"
 #include <lunchbox/referenced.h>
 #include <lunchbox/scopedMutex.h>
@@ -292,8 +293,10 @@ public:
             if( blockInfo.readersCount == 0)
             {
                 // Move to active list
+#ifndef NDEBUG
                 size_t oldBusySize = _busyBlocks[type].size();
                 size_t oldFreeSize = _freeBlocks[type].size();
+#endif
                 BlockIndexList::iterator nextListIt = blockInfo.listIt;
                 ++nextListIt;
                 _busyBlocks[type].splice( _busyBlocks[type].end(), _freeBlocks[type],
@@ -314,13 +317,12 @@ public:
                 // Truncated last block
                 size_t numElements = std::min( length,
                                                ( start + length ) % BlockElements[type] );
-                result.addTail( _cache.getData( type, blockInfo.id ),
+                result.setEnd( _cache.getData( type, blockInfo.id ),
                                 numElements * BufferElementSizes[type]);
             }
         }
 
-        size_t bufferSize = result.size();
-        TRIPLYASSERT( bufferSize == length * BufferElementSizes[type]);
+        TRIPLYASSERT( result.size() == length * BufferElementSizes[type]);
 
         return result;
     }
@@ -341,8 +343,10 @@ public:
             if( blockInfo.readersCount == 0)
             {
                 // Move to free list
+#ifndef NDEBUG
                 size_t oldBusySize = _busyBlocks[type].size();
                 size_t oldFreeSize = _freeBlocks[type].size();
+#endif
                 BlockIndexList::iterator nextListIt = blockInfo.listIt;
                 ++nextListIt;
                 _freeBlocks[type].splice( _freeBlocks[type].end(), _busyBlocks[type],

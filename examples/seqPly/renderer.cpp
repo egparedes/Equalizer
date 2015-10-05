@@ -51,7 +51,7 @@ bool Renderer::init( co::Object* initData )
 
 bool Renderer::exit()
 {
-    _state->deleteAll();
+    _state->deleteGlObjects();
     delete _state;
     _state = 0;
     return seq::Renderer::exit();

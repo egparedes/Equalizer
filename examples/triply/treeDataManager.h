@@ -31,7 +31,6 @@
 #define TRIPLY_TREEDATAMANAGER_H
 
 #include "typedefs.h"
-#include "segmentedBuffer.h"
 #include <triply/api.h>
 #include <lunchbox/refPtr.h>
 
@@ -64,6 +63,23 @@ public:
     TRIPLY_API void discardVertexData( Index start, Index length );
 
     TRIPLY_API void discardIndexData( Index start, Index length );
+
+//    void toStream( std::ostream& os );
+
+//    void fromMemory( char** addr );
+
+//    void fromMemorySkipData( char** addr );
+
+//    void calculateBoundingBox();
+
+//    size_t getNumVertices() const;
+
+//    size_t getNumIndices() const;
+
+//    size_t getTotalSize() const;
+
+//    BoundingBox getBoundingBox() const;
+
 
 private:   
     typedef lunchbox::RefPtr< detail::TreeDataManager > SharedDataPtr;
