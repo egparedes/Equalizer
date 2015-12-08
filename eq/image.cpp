@@ -2,6 +2,7 @@
 /* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -28,6 +29,7 @@
 #include <eq/util/frameBufferObject.h>
 #include <eq/util/objectManager.h>
 #include <eq/fabric/colorMask.h>
+#include <eq/fabric/range.h>
 
 #include <co/global.h>
 
@@ -177,6 +179,9 @@ public:
 
     /** The rectangle of the current pixel data. */
     PixelViewport pvp;
+
+    /** The database-range of src wrt to destination. */
+    Range range;
 
     /** Zoom factor used for compositing. */
     Zoom zoom;
@@ -514,9 +519,10 @@ bool Image::upload( const Frame::Buffer buffer, util::Texture* texture,
 //---------------------------------------------------------------------------
 #ifndef EQ_2_0_API
 bool Image::readback( const uint32_t buffers, const PixelViewport& pvp,
-                      const Zoom& zoom, util::ObjectManager& glObjects )
+                      const Range& range, const Zoom& zoom,
+                      util::ObjectManager& glObjects )
 {
-    if( startReadback( buffers, pvp, zoom, glObjects ))
+    if( startReadback( buffers, pvp, range, zoom, glObjects ))
         finishReadback( zoom, glObjects.glewGetContext( ));
     return true;
 }
@@ -529,12 +535,14 @@ void Image::finishReadback( const Zoom&, const GLEWContext* context )
 
 // TODO: 2.0 API: rename to readback and return Future
 bool Image::startReadback( const uint32_t buffers, const PixelViewport& pvp,
-                           const Zoom& zoom, util::ObjectManager& glObjects )
+                           const Range& range, const Zoom& zoom,
+                           util::ObjectManager& glObjects )
 {
     LBLOG( LOG_ASSEMBLY ) << "startReadback " << pvp << ", buffers " << buffers
                           << std::endl;
 
     _impl->pvp = pvp;
+    _impl->range = range;
     _impl->color.memory.state = Memory::INVALID;
     _impl->depth.memory.state = Memory::INVALID;
 
@@ -1668,6 +1676,16 @@ Frame::Type Image::getStorageType() const
 const PixelViewport& Image::getPixelViewport() const
 {
     return _impl->pvp;
+}
+
+void Image::setRange( const Range& range )
+{
+    _impl->range = range;
+}
+
+const Range& Image::getRange() const
+{
+    return _impl->range;
 }
 
 void Image::setZoom( const Zoom& zoom )

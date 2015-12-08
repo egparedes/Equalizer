@@ -119,6 +119,7 @@ public:
 
         if( framebufferImage.startReadback( eq::Frame::BUFFER_COLOR,
                                             channel.getPixelViewport(),
+                                            channel.getRange(),
                                             channel.getZoom(),
                                             channel.getObjectManager( )))
         {
@@ -131,6 +132,9 @@ public:
 
     /** A random, unique color for this channel. */
     Vector3ub color;
+
+    enum { ClearTime=0, DrawTime, ReadbackTime, _TimesCount };
+    int64_t framePassTimings[_TimesCount];
 
     typedef std::vector< Statistic > Statistics;
     struct FrameStatistics

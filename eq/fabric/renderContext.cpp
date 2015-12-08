@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -17,6 +18,7 @@
 
 #include "renderContext.h"
 #include "tile.h"
+#include "task.h"
 
 namespace eq
 {
@@ -37,6 +39,7 @@ RenderContext::RenderContext()
         , period( 1 )
         , phase( 0 )
         , eye( EYE_CYCLOP )
+        , tasks( TASK_DEFAULT )
 {
 }
 
@@ -51,7 +54,8 @@ void RenderContext::apply( const Tile& tile )
 std::ostream& operator << ( std::ostream& os, const RenderContext& ctx )
 {
     return os << "ID " << ctx.frameID << " pvp " << ctx.pvp << " vp " << ctx.vp
-              << " " << ctx.range << " " << ctx.eye << " " << ctx.zoom;
+              << " " << ctx.range << " " << ctx.eye << " " << ctx.zoom
+              << " " << ctx.tasks;
 }
 
 }

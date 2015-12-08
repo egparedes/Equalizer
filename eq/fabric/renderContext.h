@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2006-2012, Stefan Eilemann <eile@equalizergraphics.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -68,6 +69,8 @@ namespace fabric
 
         ColorMask      bufferMask;     //!< color mask for anaglyph stereo
         bool           alignDummy[28]; //!< @internal padding
+
+        uint32_t       tasks;          //!< compount tasks (used by framePass())
     };
 
     EQFABRIC_API std::ostream& operator << ( std::ostream& os,
@@ -103,7 +106,7 @@ template<> inline void byteswap( eq::fabric::RenderContext& value )
     byteswap( value.phase );
     byteswap( value.eye );
 
-    byteswap( value.bufferMask );
+    byteswap( value.tasks );
 }
 }
 

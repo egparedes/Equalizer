@@ -1,5 +1,6 @@
 
 /* Copyright (c) 2007-2011, Stefan Eilemann <eile@equalizergraphics.com> 
+ *                    2015, Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -67,6 +68,8 @@ namespace server
 
         void _updateDraw( const Compound* compound,
                           const RenderContext& context );
+        void _updateDrawPass( const Compound* compound,
+                              const RenderContext& context );
         void _updateDrawTiles( const Compound* compound,
                                const RenderContext& context );
         void _updateDrawFinish( const Compound* compound ) const;
@@ -74,6 +77,10 @@ namespace server
 
         uint32_t _getDrawBuffer( const Compound* compound ) const;
         fabric::ColorMask _getDrawBufferMask( const Compound* compound ) const;
+
+        void _getFrameIDs( const Frames& frames,
+                           co::ObjectVersions &frameIDs,
+                           Frames& validFrames ) const;
 
         void _setupRenderContext( const Compound* compound,
                                   RenderContext& context );
