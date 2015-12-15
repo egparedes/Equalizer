@@ -42,7 +42,6 @@ namespace triply
 
 ModelTreeNode::ModelTreeNode( unsigned arity, ModelTreeBasePtr* childrenPtr )
 {
-    TRIPLYASSERT( childrenPtr == 0 );
     if ( childrenPtr != 0 )
     {
         _children.init( childrenPtr, arity );
