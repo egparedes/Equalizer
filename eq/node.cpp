@@ -714,6 +714,7 @@ bool Node::_cmdFrameDataTransmit( co::ICommand& cmd )
     const co::ObjectVersion& frameDataVersion =
                                              command.read< co::ObjectVersion >();
     const PixelViewport& pvp = command.read< PixelViewport >();
+    const Range& range = command.read< Range >();
     const Zoom& zoom = command.read< Zoom >();
     const uint32_t buffers = command.read< uint32_t >();
     const uint32_t frameNumber = command.read< uint32_t >();
@@ -736,7 +737,7 @@ bool Node::_cmdFrameDataTransmit( co::ICommand& cmd )
     // Note on the const_cast: since the PixelData structure stores non-const
     // pointers, we have to go non-const at some point, even though we do not
     // modify the data.
-    LBCHECK( frameData->addImage( frameDataVersion, pvp, zoom, buffers,
+    LBCHECK( frameData->addImage( frameDataVersion, pvp, range, zoom, buffers,
                                   useAlpha, const_cast< uint8_t* >( data )));
     return true;
 }

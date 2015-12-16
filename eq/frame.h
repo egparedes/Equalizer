@@ -2,6 +2,7 @@
 /* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -140,10 +141,12 @@ public:
      *
      * @param glObjects the GL object manager for the current GL context.
      * @param config the configuration of the source frame buffer.
+     * @param range the DB range associated to this image data.
      * @version 1.0
      */
     EQ_API void readback( util::ObjectManager& glObjects,
-                          const DrawableConfig& config );
+                          const DrawableConfig& config,
+                          const Range& range );
 
     /**
      * Read back a set of images.
@@ -153,11 +156,13 @@ public:
      * @param glObjects the GL object manager for the current GL context.
      * @param config the configuration of the source frame buffer.
      * @param regions the areas to read back.
+     * @param range the DB range associated to this image data.
      * @version 1.0
      */
     EQ_API void readback( util::ObjectManager& glObjects,
                           const DrawableConfig& config,
-                          const PixelViewports& regions );
+                          const PixelViewports& regions,
+                          const Range& range );
 
     /**
      * Start reading back a set of images for this frame.
@@ -174,7 +179,8 @@ public:
      */
     EQ_API Images startReadback( util::ObjectManager& glObjects,
                                  const DrawableConfig& config,
-                                 const PixelViewports& regions );
+                                 const PixelViewports& regions,
+                                 const Range& range );
 
     /**
      * Set the frame ready.

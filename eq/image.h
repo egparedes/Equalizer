@@ -2,6 +2,7 @@
 /* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -120,6 +121,20 @@ public:
 
     /** @return the internal pixel viewport. @version 1.0 */
     EQ_API const PixelViewport& getPixelViewport() const;
+
+    /**
+     * Set the internal DB range associated to the image data.
+     *
+     * The DB range used for the rendering of this image contents. It is needed
+     * for the compositing stage in sort-last rendering, specially when using
+     * transparent objects and volumes.
+     *
+     * @param range the DB range.
+     */
+    EQ_API void setRange( const Range& range );
+
+    /** @return the associated DB range. */
+    EQ_API const Range& getRange() const;
 
     /** Sets the zoom factor to be used for compositing. */
     EQ_API void setZoom( const Zoom& zoom );
@@ -291,7 +306,8 @@ public:
      * @deprecated @sa startReadback(), finishReadback()
      */
     EQ_API bool readback( const uint32_t buffers, const PixelViewport& pvp,
-                          const Zoom& zoom, util::ObjectManager& glObjects);
+                          const Range &range, const Zoom& zoom,
+                          util::ObjectManager& glObjects);
 
     /* @deprecated Use finishReadback without Zoom */
     EQ_API void finishReadback( const Zoom&, const GLEWContext* );
@@ -307,8 +323,8 @@ public:
      * @return true when the operation requires a finishReadback().
      * @version 1.3.2
      */
-    EQ_API bool startReadback( const uint32_t buffers,
-                               const PixelViewport& pvp, const Zoom& zoom,
+    EQ_API bool startReadback( const uint32_t buffers, const PixelViewport& pvp,
+                               const Range &range, const Zoom& zoom,
                                util::ObjectManager& glObjects );
 
     /** @internal Start reading back data from a texture. */

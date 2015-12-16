@@ -2,6 +2,7 @@
 /* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -156,6 +157,22 @@ VisitorResult ChannelUpdateVisitor::visitPost( const Compound* compound )
     return TRAVERSE_CONTINUE;
 }
 
+void ChannelUpdateVisitor::_getFrameIDs( const Frames& frames,
+                                         co::ObjectVersions& frameIDs,
+                                         Frames& validFrames ) const
+{
+    for( FramesCIter i = frames.begin(); i != frames.end(); ++i)
+    {
+        Frame* frame = *i;
+
+        if( !frame->hasData( _eye )) // TODO: filter: buffers, vp, eye
+            continue;
+
+        validFrames.push_back( frame );
+        frameIDs.push_back( co::ObjectVersion( frame ));
+    }
+}
+
 void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
                                                 RenderContext& context )
 {
@@ -179,6 +196,7 @@ void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
     context.bufferMask    = _getDrawBufferMask( compound );
     context.view          = destChannel->getViewVersion();
     context.taskID        = compound->getTaskID();
+    context.tasks         = compound->getInheritTasks();
 
     const View* view = destChannel->getView();
     LBASSERT( context.view == co::ObjectVersion( view ));
@@ -212,39 +230,38 @@ void ChannelUpdateVisitor::_updateDraw( const Compound* compound,
     if( compound->hasTiles( ))
     {
         _updateDrawTiles( compound, context );
-        return;
     }
-
-    if( compound->testInheritTask( fabric::TASK_CLEAR ))
-        _sendClear( context );
-
-    if( compound->testInheritTask( fabric::TASK_DRAW ))
+    else if( context.tasks & eq::fabric::TASK_DRAW )
     {
-        const bool finish = _channel->hasListeners(); // finish for eq stats
-        _channel->send( fabric::CMD_CHANNEL_FRAME_DRAW ) << context << finish;
-        _updated = true;
-        LBLOG( LOG_TASKS ) << "TASK draw " << _channel->getName() <<  " "
-                           << finish << std::endl;
+        _updateDrawPass( compound, context );
     }
+    else if( context.tasks & fabric::TASK_CLEAR )
+    {
+        _sendClear( context );
+    }
+}
+
+void ChannelUpdateVisitor::_updateDrawPass( const Compound* compound,
+                                            const RenderContext& context )
+{
+    co::ObjectVersions frameIDs;
+    Frames validFrames;
+    _getFrameIDs( compound->getOutputFrames(), frameIDs, validFrames );
+    const bool finish = _channel->hasListeners(); // finish for eq stats
+
+    _channel->send( fabric::CMD_CHANNEL_FRAME_PASS )
+            << context << frameIDs << finish;
+    _updated = true;
+    LBLOG( LOG_TASKS ) << "TASK pass " << _channel->getName() <<  " "
+                       << finish << std::endl;
 }
 
 void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
                                              const RenderContext& context )
 {
-    Frames frames;
     co::ObjectVersions frameIDs;
-    const Frames& outputFrames = compound->getOutputFrames();
-    for( FramesCIter i = outputFrames.begin(); i != outputFrames.end(); ++i)
-    {
-        Frame* frame = *i;
-
-        if( !frame->hasData( _eye )) // TODO: filter: buffers, vp, eye
-            continue;
-
-        frames.push_back( frame );
-        frameIDs.push_back( co::ObjectVersion( frame ));
-    }
-
+    Frames validFrames;
+    _getFrameIDs( compound->getOutputFrames(), frameIDs, validFrames );
     const Channel* destChannel = compound->getInheritChannel();
     const TileQueues& inputQueues = compound->getInputTileQueues();
     for( TileQueuesCIter i = inputQueues.begin(); i != inputQueues.end(); ++i )
@@ -399,28 +416,21 @@ void ChannelUpdateVisitor::_updateAssemble( const Compound* compound,
     const Frames& inputFrames = compound->getInputFrames();
     LBASSERT( !inputFrames.empty( ));
 
-    co::ObjectVersions frames;
-    for( Frames::const_iterator iter = inputFrames.begin();
-         iter != inputFrames.end(); ++iter )
-    {
-        Frame* frame = *iter;
-
-        if( !frame->hasData( _eye )) // TODO: filter: buffers, vp, eye
-            continue;
-
+    co::ObjectVersions frameIDs;
+    Frames validFrames;
+    _getFrameIDs( inputFrames, frameIDs, validFrames );
+    for( auto frame: validFrames )
         LBLOG( LOG_ASSEMBLY ) << *frame << std::endl;
-        frames.push_back( co::ObjectVersion( frame ));
-    }
 
-    if( frames.empty( ))
+    if( frameIDs.empty( ))
         return;
 
     // assemble task
     LBLOG( LOG_ASSEMBLY | LOG_TASKS )
         << "TASK assemble " << _channel->getName()
-        << " nFrames " << frames.size() << std::endl;
+        << " nFrames " << frameIDs.size() << std::endl;
     _channel->send( fabric::CMD_CHANNEL_FRAME_ASSEMBLE )
-            << context << frames;
+            << context << frameIDs;
     _updated = true;
 }
 
@@ -436,28 +446,22 @@ void ChannelUpdateVisitor::_updateReadback( const Compound* compound,
     const std::vector< Frame* >& outputFrames = compound->getOutputFrames();
     LBASSERT( !outputFrames.empty( ));
 
-    co::ObjectVersions frames;
-    for( FramesCIter i = outputFrames.begin(); i != outputFrames.end(); ++i )
-    {
-        Frame* frame = *i;
-
-        if( !frame->hasData( _eye )) // TODO: filter: buffers, vp, eye
-            continue;
-
-        frames.push_back( co::ObjectVersion( frame ));
+    co::ObjectVersions frameIDs;
+    Frames validFrames;
+    _getFrameIDs( outputFrames, frameIDs, validFrames );
+    for( auto frame: validFrames )
         LBLOG( LOG_ASSEMBLY ) << *frame << std::endl;
-    }
 
-    if( frames.empty() )
+    if( frameIDs.empty() )
         return;
 
     // readback task
     _channel->send( fabric::CMD_CHANNEL_FRAME_READBACK )
-            << context << frames;
+            << context << frameIDs;
     _updated = true;
     LBLOG( LOG_ASSEMBLY | LOG_TASKS )
         << "TASK readback " << _channel->getName()
-        << " nFrames " << frames.size() << std::endl;
+        << " nFrames " << frameIDs.size() << std::endl;
 }
 
 void ChannelUpdateVisitor::_updateViewStart( const Compound* compound,

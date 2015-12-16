@@ -2,6 +2,7 @@
 /* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -265,7 +266,7 @@ class ExitVisitor; //!< @internal
 class FrameVisitor; //!< @internal
 }
 
-namespace dc { class Proxy; }
+namespace deflect { class Proxy; }
 /** @endcond */
 }
 

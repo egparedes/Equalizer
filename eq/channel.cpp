@@ -2,6 +2,7 @@
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
+ *                    2015, Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -77,7 +78,7 @@
 #include "detail/channel.ipp"
 
 #ifdef EQUALIZER_USE_DEFLECT
-#  include "dc/proxy.h"
+#  include "deflect/proxy.h"
 #endif
 
 namespace eq
@@ -139,6 +140,8 @@ void Channel::attach( const uint128_t& id, const uint32_t instanceID )
                      CmdFunc( this, &Channel::_cmdFrameViewFinish ), queue );
     registerCommand( fabric::CMD_CHANNEL_STOP_FRAME,
                      CmdFunc( this, &Channel::_cmdStopFrame ), commandQ );
+    registerCommand( fabric::CMD_CHANNEL_FRAME_PASS,
+                     CmdFunc( this, &Channel::_cmdFramePass ), queue );
     registerCommand( fabric::CMD_CHANNEL_FRAME_TILES,
                      CmdFunc( this, &Channel::_cmdFrameTiles ), queue );
     registerCommand( fabric::CMD_CHANNEL_FINISH_READBACK,
@@ -234,8 +237,8 @@ const GLEWContext* Channel::glewGetContext() const
 bool Channel::configExit()
 {
 #ifdef EQUALIZER_USE_DEFLECT
-    delete _impl->_dcProxy;
-    _impl->_dcProxy = 0;
+    delete _impl->_deflectProxy;
+    _impl->_deflectProxy = 0;
 #endif
     _impl->framebufferImage.flush();
     return true;
@@ -247,8 +250,8 @@ bool Channel::configInit( const uint128_t& )
     if( getView() &&
         !getView()->getSAttribute( View::SATTR_DISPLAYCLUSTER ).empty( ))
     {
-        LBASSERT( !_impl->_dcProxy );
-        _impl->_dcProxy = new dc::Proxy( this );
+        LBASSERT( !_impl->_deflectProxy );
+        _impl->_deflectProxy = new deflect::Proxy( this );
     }
 #endif
     return true;
@@ -369,9 +372,10 @@ void Channel::frameReadback( const uint128_t&, const Frames& frames )
     util::ObjectManager&  glObjects   = getObjectManager();
     const DrawableConfig& drawable    = getDrawableConfig();
     const PixelViewports& regions     = getRegions();
+    const Range& range                = getRange();
 
     for( Frame* frame : frames )
-        frame->startReadback( glObjects, drawable, regions );
+        frame->startReadback( glObjects, drawable, regions, range );
 
     EQ_GL_CALL( resetAssemblyState( ));
 }
@@ -398,9 +402,84 @@ void Channel::frameDrawFinish( const uint128_t&, const uint32_t frameNumber )
 
 void Channel::frameViewStart( const uint128_t& ) { /* nop */ }
 
-void Channel::frameViewFinish( const uint128_t& )
+void Channel::frameViewFinish( const uint128_t& frameID )
 {
+    frameDrawOverlay( frameID );
     _impl->frameViewFinish( *this );
+}
+
+bool Channel::framePass( RenderContext& context, Frames& frames )
+{
+    bool hasAsyncReadback = false;
+
+    const RenderContext& activeContext = getContext();
+    if ( &context != &activeContext )
+        _overrideContext( context );
+
+    if( context.tasks & fabric::TASK_CLEAR )
+    {
+        const int64_t time = getConfig()->getTime();
+        frameClear( context.frameID );
+        _impl->framePassTimings[detail::Channel::ClearTime] +=
+                getConfig()->getTime() - time;
+    }
+
+    if( context.tasks & fabric::TASK_DRAW )
+    {
+        const int64_t time = getConfig()->getTime();
+        frameDraw( context.frameID );
+        _impl->framePassTimings[detail::Channel::DrawTime] +=
+            getConfig()->getTime() - time;
+        // Set to full region if application has declared nothing
+        if( !getRegion().isValid( ))
+            declareRegion( getPixelViewport( ));
+    }
+
+    if( context.tasks & fabric::TASK_READBACK )
+    {
+        const int64_t time = getConfig()->getTime();
+        const size_t nFrames = frames.size();
+
+        std::vector< size_t > nImages( nFrames, 0 );
+        for( size_t i = 0; i < nFrames; ++i )
+        {
+            nImages[i] = frames[i]->getImages().size();
+            frames[i]->getFrameData()->setPixelViewport(
+                getPixelViewport( ));
+        }
+
+        frameReadback( context.frameID, frames );
+        _impl->framePassTimings[detail::Channel::ReadbackTime] +=
+            getConfig()->getTime() - time;
+
+        hasAsyncReadback = _asyncFinishReadback( nImages, frames );
+    }
+
+    resetContext();
+
+    return hasAsyncReadback;
+}
+
+void Channel::frameDrawOverlay( const uint128_t& )
+{
+    applyOverlayState();
+
+#ifdef EQUALIZER_USE_DEFLECT
+    if( _impl->_deflectProxy && _impl->_deflectProxy->isRunning( ))
+    {
+        const eq::PixelViewport& pvp = getPixelViewport();
+        const eq::Viewport& vp = getViewport();
+
+        const float width = pvp.w / vp.w;
+        const float height = pvp.h / vp.h;
+        const float xOffset = vp.x * width;
+
+        glRasterPos3f( 10.f - xOffset, height - 30.f, 0.99f );
+        getWindow()->getMediumFont()->draw( _impl->_deflectProxy->getHelp( ));
+    }
+#endif
+
+    resetOverlayState();
 }
 
 void Channel::setupAssemblyState()
@@ -640,6 +719,33 @@ void Channel::applyOrthoTransform() const
     EQ_GL_CALL( glMultMatrixf( xfm.array ));
 }
 
+void Channel::applyOverlayState()
+{
+    applyBuffer();
+    applyViewport();
+    setupAssemblyState();
+
+    glMatrixMode( GL_PROJECTION );
+    glLoadIdentity();
+    applyScreenFrustum();
+
+    EQ_GL_CALL( glLogicOp( GL_XOR ));
+    EQ_GL_CALL( glEnable( GL_COLOR_LOGIC_OP ));
+    EQ_GL_CALL( glDisable( GL_DEPTH_TEST ));
+    EQ_GL_CALL( glDisable( GL_LIGHTING ));
+    EQ_GL_CALL( glCullFace( GL_BACK ));
+
+    EQ_GL_CALL( glColor3f( 1.f, 1.f, 1.f ));
+}
+
+void Channel::resetOverlayState()
+{
+    EQ_GL_CALL( glDisable( GL_COLOR_LOGIC_OP ));
+    EQ_GL_CALL( glEnable( GL_DEPTH_TEST ));
+    EQ_GL_CALL( glEnable( GL_LIGHTING ));
+    resetAssemblyState();
+}
+
 namespace
 {
 static Vector2f* _lookupJitterTable( const uint32_t size )
@@ -738,7 +844,7 @@ bool _hasOverlap( PixelViewports& regions )
         {
             PixelViewport pv = regions[j];
             pv.intersect( regions[i] );
-            if( pv.hasArea( ))
+            if( pv.hasArea( ) )
                 return true;
         }
     return false;
@@ -752,18 +858,19 @@ bool _removeOverlap( PixelViewports& regions )
         return false;
 
     for( size_t i = 0; i < regions.size()-1; ++i )
+    {
+        PixelViewport pvp = regions[i];
+        if( !pvp.hasArea( ))
+        {
+            std::swap( regions[i], regions.back() );
+            regions.pop_back();
+            return true;
+        }
+
         for( size_t j = i+1; j < regions.size(); ++j )
         {
-            PixelViewport pvp = regions[i];
-            if( !pvp.hasArea( ))
-            {
-                std::swap( regions[i], regions.back() );
-                regions.pop_back();
-                return true;
-            }
-
             pvp.intersect( regions[j] );
-            if( pvp.hasArea( ))
+            if( pvp.hasArea( ) )
             {
                 regions[i].merge( regions[j] );
                 std::swap( regions[j], regions.back() );
@@ -771,6 +878,7 @@ bool _removeOverlap( PixelViewports& regions )
                 return true;
             }
         }
+    }
     return false;
 }
 }
@@ -802,7 +910,6 @@ void Channel::declareRegion( const PixelViewport& region )
     if( regions.empty( )) // set on first declaration of empty ROI
         regions.push_back( PixelViewport( 0, 0, 0, 0 ));
 }
-
 
 PixelViewport Channel::getRegion() const
 {
@@ -878,21 +985,11 @@ void Channel::drawStatistics()
         return;
 
     //----- setup
-    EQ_GL_CALL( applyBuffer( ));
-    EQ_GL_CALL( applyViewport( ));
-    EQ_GL_CALL( setupAssemblyState( ));
+    applyOverlayState();
 
-    EQ_GL_CALL( glMatrixMode( GL_PROJECTION ));
-    EQ_GL_CALL( glLoadIdentity( ));
-    applyScreenFrustum();
-
-    EQ_GL_CALL( glMatrixMode( GL_MODELVIEW ));
-    EQ_GL_CALL( glDisable( GL_LIGHTING ));
-
+    EQ_GL_CALL( glDisable( GL_COLOR_LOGIC_OP ));
     EQ_GL_CALL( glEnable( GL_BLEND ));
     EQ_GL_CALL( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ));
-    EQ_GL_CALL( glDisable( GL_COLOR_LOGIC_OP ));
-    EQ_GL_CALL( glCullFace( GL_BACK ));
 
 #ifdef EQUALIZER_USE_GLSTATS
     const util::BitmapFont* font = window->getSmallFont();
@@ -907,9 +1004,12 @@ void Channel::drawStatistics()
     renderer.draw( data );
 #endif
 
+    EQ_GL_CALL( glEnable( GL_COLOR_LOGIC_OP ));
     EQ_GL_CALL( glColor3f( 1.f, 1.f, 1.f ));
     window->drawFPS();
-    EQ_GL_CALL( resetAssemblyState( ));
+
+    EQ_GL_CALL( glDisable( GL_BLEND ));
+    resetOverlayState();
 }
 
 void Channel::outlineViewport()
@@ -919,8 +1019,7 @@ void Channel::outlineViewport()
     if( coreProfile )
         return;
 
-    setupAssemblyState();
-    glDisable( GL_LIGHTING );
+    applyOverlayState();
 
     const eq::PixelViewport& region = getRegion();
     glColor3f( .5f, .5f, .5f );
@@ -940,7 +1039,7 @@ void Channel::outlineViewport()
         glVertex3f( pvp.x + .5f,         pvp.getYEnd() - .5f, 0.f );
     } glEnd();
 
-    resetAssemblyState();
+    resetOverlayState();
 }
 
 namespace detail
@@ -988,10 +1087,63 @@ private:
 
 typedef lunchbox::RefPtr< detail::RBStat > RBStatPtr;
 
+void Channel::_framePass( RenderContext& context,
+                          const co::ObjectVersions& frameIDs,
+                          bool finish )
+{
+    Frames frames;
+    if( context.tasks & fabric::TASK_READBACK )
+        frames = _getFrames( frameIDs, true );
+
+    _overrideContext( context );
+    bindDrawFrameBuffer();
+
+    int64_t startTime = getConfig()->getTime();
+    _impl->framePassTimings[detail::Channel::ClearTime] = 0;
+    _impl->framePassTimings[detail::Channel::DrawTime] = 0;
+    _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
+
+    bool hasAsyncReadback = framePass( context, frames );
+
+    if( context.tasks & fabric::TASK_CLEAR &&
+            _impl->framePassTimings[detail::Channel::ClearTime] > 0)
+    {
+        ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
+        event.event.data.statistic.startTime = startTime;
+        startTime += _impl->framePassTimings[detail::Channel::ClearTime];
+        event.event.data.statistic.endTime = startTime;
+    }
+
+    if( context.tasks & fabric::TASK_DRAW &&
+            _impl->framePassTimings[detail::Channel::DrawTime] > 0)
+    {
+        ChannelStatistics event( Statistic::CHANNEL_DRAW, this, getCurrentFrame(),
+                                 finish ? NICEST : AUTO );
+        event.event.data.statistic.startTime = startTime;
+        startTime += _impl->framePassTimings[detail::Channel::DrawTime];
+        event.event.data.statistic.endTime = startTime;
+    }
+
+    if( context.tasks & fabric::TASK_READBACK &&
+            _impl->framePassTimings[detail::Channel::ReadbackTime] > 0)
+    {
+        RBStatPtr stat = new detail::RBStat( this );
+        stat->event.event.data.statistic.startTime = startTime;
+        startTime += _impl->framePassTimings[detail::Channel::ReadbackTime];
+        stat->event.event.data.statistic.endTime = startTime;
+
+        _setReady( hasAsyncReadback, stat.get(), frames );
+    }
+
+    resetContext();
+    bindFrameBuffer();
+}
+
 void Channel::_frameTiles( RenderContext& context, const bool isLocal,
                            const uint128_t& queueID, const uint32_t tasks,
                            const co::ObjectVersions& frameIDs )
 {
+    context.tasks = tasks;
     _overrideContext( context );
 
     frameTilesStart( context.frameID );
@@ -1005,11 +1157,14 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
     }
 
     int64_t startTime = getConfig()->getTime();
-    int64_t clearTime = 0;
-    int64_t drawTime = 0;
-    int64_t readbackTime = 0;
+    _impl->framePassTimings[detail::Channel::ClearTime] = 0;
+    _impl->framePassTimings[detail::Channel::DrawTime] = 0;
+    _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
     bool hasAsyncReadback = false;
     const uint32_t timeout = getConfig()->getTimeout();
+
+    const size_t nFrames = frames.size();
+    std::vector< size_t > nImages( nFrames, 0 );
 
     co::QueueSlave* queue = _getQueue( queueID );
     LBASSERT( queue );
@@ -1023,61 +1178,28 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         context.apply( tile );
 
         const PixelViewport tilePVP = context.pvp;
-
         if ( !isLocal )
         {
             context.pvp.x = 0;
             context.pvp.y = 0;
         }
 
-        if( tasks & fabric::TASK_CLEAR )
-        {
-            const int64_t time = getConfig()->getTime();
-            frameClear( context.frameID );
-            clearTime += getConfig()->getTime() - time;
-        }
+        for( size_t i = 0; i < nFrames; ++i )
+            nImages[i] = frames[i]->getImages().size();
 
-        if( tasks & fabric::TASK_DRAW )
-        {
-            const int64_t time = getConfig()->getTime();
-            frameDraw( context.frameID );
-            drawTime += getConfig()->getTime() - time;
-            // Set to full region if application has declared nothing
-            if( !getRegion().isValid( ))
-                declareRegion( getPixelViewport( ));
-        }
+        hasAsyncReadback = framePass( context, frames );
 
-        if( tasks & fabric::TASK_READBACK )
+        for( size_t i = 0; i < nFrames; ++i )
         {
-            const int64_t time = getConfig()->getTime();
-            const size_t nFrames = frames.size();
-
-            std::vector< size_t > nImages( nFrames, 0 );
-            for( size_t i = 0; i < nFrames; ++i )
+            const Frame* frame = frames[i];
+            const Images& images = frame->getImages();
+            for( size_t j = nImages[i]; j < images.size(); ++j )
             {
-                nImages[i] = frames[i]->getImages().size();
-                frames[i]->getFrameData()->setPixelViewport(
-                    getPixelViewport( ));
+                Image* image = images[j];
+                const PixelViewport& pvp = image->getPixelViewport();
+                image->setOffset( pvp.x + tilePVP.x,
+                                  pvp.y + tilePVP.y );
             }
-
-            frameReadback( context.frameID, frames );
-            readbackTime += getConfig()->getTime() - time;
-
-            for( size_t i = 0; i < nFrames; ++i )
-            {
-                const Frame* frame = frames[i];
-                const Images& images = frame->getImages();
-                for( size_t j = nImages[i]; j < images.size(); ++j )
-                {
-                    Image* image = images[j];
-                    const PixelViewport& pvp = image->getPixelViewport();
-                    image->setOffset( pvp.x + tilePVP.x,
-                                      pvp.y + tilePVP.y );
-                }
-            }
-
-            if( _asyncFinishReadback( nImages, frames ))
-                hasAsyncReadback = true;
         }
     }
 
@@ -1085,7 +1207,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
         event.event.data.statistic.startTime = startTime;
-        startTime += clearTime;
+        startTime += _impl->framePassTimings[detail::Channel::ClearTime];
         event.event.data.statistic.endTime = startTime;
     }
 
@@ -1093,14 +1215,14 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
     {
         ChannelStatistics event( Statistic::CHANNEL_DRAW, this );
         event.event.data.statistic.startTime = startTime;
-        startTime += drawTime;
+        startTime += _impl->framePassTimings[detail::Channel::DrawTime];
         event.event.data.statistic.endTime = startTime;
     }
 
     if( tasks & fabric::TASK_READBACK )
     {
         stat->event.event.data.statistic.startTime = startTime;
-        startTime += readbackTime;
+        startTime += _impl->framePassTimings[detail::Channel::ReadbackTime];
         stat->event.event.data.statistic.endTime = startTime;
 
         _setReady( hasAsyncReadback, stat.get(), frames );
@@ -1900,6 +2022,20 @@ bool Channel::_cmdStopFrame( co::ICommand& cmd )
                        << command << std::endl;
 
     notifyStopFrame( command.read< uint32_t >( ));
+    return true;
+}
+
+bool Channel::_cmdFramePass( co::ICommand& cmd )
+{
+    co::ObjectICommand command( cmd );
+    RenderContext context = command.read< RenderContext >();
+    const co::ObjectVersions& frames = command.read< co::ObjectVersions >();
+    const bool finish = command.read< bool >();
+
+    LBLOG( LOG_TASKS ) << "TASK channel frame pass" << getName() <<  " "
+                       << command << " " << context << std::endl;
+
+    _framePass( context, frames, finish );
     return true;
 }
 

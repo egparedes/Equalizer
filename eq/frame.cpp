@@ -1,6 +1,7 @@
 
 /* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                    2015, Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -141,30 +142,32 @@ void Frame::useCompressor( const Buffer buffer, const uint32_t name )
         _impl->frameData->useCompressor( buffer, name );
 }
 
-void Frame::readback( util::ObjectManager& glObjects, const DrawableConfig& config )
+void Frame::readback( util::ObjectManager& glObjects, const DrawableConfig& config,
+                      const Range& range )
 {
     const PixelViewport& pvp = _impl->frameData->getPixelViewport();
     const Images& images =
         _impl->frameData->startReadback( *this, glObjects, config,
-                                         PixelViewports( 1, pvp ));
+                                         PixelViewports( 1, pvp ), range );
     for( ImagesCIter i = images.begin(); i != images.end(); ++i )
         (*i)->finishReadback( glObjects.glewGetContext( ));
 }
 
 void Frame::readback( util::ObjectManager& glObjects, const DrawableConfig& config,
-                      const PixelViewports& regions )
+                      const PixelViewports& regions, const Range& range )
 {
     const Images& images =
-        _impl->frameData->startReadback( *this, glObjects, config, regions );
+        _impl->frameData->startReadback( *this, glObjects, config, regions, range );
     for( ImagesCIter i = images.begin(); i != images.end(); ++i )
         (*i)->finishReadback( glObjects.glewGetContext( ));
 }
 
 Images Frame::startReadback( util::ObjectManager& glObjects,
                              const DrawableConfig& config,
-                             const PixelViewports& regions )
+                             const PixelViewports& regions,
+                             const Range &range )
 {
-    return _impl->frameData->startReadback( *this, glObjects, config, regions );
+    return _impl->frameData->startReadback( *this, glObjects, config, regions, range );
 }
 
 void Frame::setReady()

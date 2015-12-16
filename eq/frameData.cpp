@@ -2,6 +2,7 @@
 /* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
  *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
  *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
+ *                    2015, Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -349,10 +350,12 @@ Image* FrameData::_allocImage( const eq::Frame::Type type,
 #ifndef EQ_2_0_API
 void FrameData::readback( const Frame& frame,
                           util::ObjectManager& glObjects,
-                          const DrawableConfig& config )
+                          const DrawableConfig& config,
+                          const Range& range )
 {
     const Images& images = startReadback( frame, glObjects, config,
-                                       PixelViewports( 1, getPixelViewport( )));
+                                       PixelViewports( 1, getPixelViewport( )),
+                                       range );
 
     for( ImagesCIter i = images.begin(); i != images.end(); ++i )
         (*i)->finishReadback( frame.getZoom(), glObjects.glewGetContext( ));
@@ -362,7 +365,8 @@ void FrameData::readback( const Frame& frame,
 Images FrameData::startReadback( const Frame& frame,
                                  util::ObjectManager& glObjects,
                                  const DrawableConfig& config,
-                                 const PixelViewports& regions )
+                                 const PixelViewports& regions,
+                                 const Range &range )
 {
     if( _impl->data.buffers == Frame::BUFFER_NONE )
         return Images();
@@ -385,7 +389,7 @@ Images FrameData::startReadback( const Frame& frame,
     if( getType() == eq::Frame::TYPE_TEXTURE )
     {
         Image* image = newImage( getType(), config );
-        if( image->startReadback( getBuffers(), absPVP, zoom, glObjects ))
+        if( image->startReadback( getBuffers(), absPVP, range, zoom, glObjects ))
             images.push_back( image );
         image->setOffset( 0, 0 );
         return images;
@@ -414,7 +418,7 @@ Images FrameData::startReadback( const Frame& frame,
             continue;
 
         Image* image = newImage( getType(), config );
-        if( image->startReadback( getBuffers(), pvp, zoom, glObjects ))
+        if( image->startReadback( getBuffers(), pvp, range, zoom, glObjects ))
             images.push_back( image );
 
         pvp -= frame.getOffset();
@@ -500,9 +504,9 @@ void FrameData::removeListener( Listener& listener )
 }
 
 bool FrameData::addImage( const co::ObjectVersion& frameDataVersion,
-                          const PixelViewport& pvp, const Zoom& zoom,
-                          const uint32_t buffers_, const bool useAlpha,
-                          uint8_t* data )
+                          const PixelViewport& pvp, const Range& range,
+                          const Zoom& zoom, const uint32_t buffers_,
+                          const bool useAlpha, uint8_t* data )
 {
     LBASSERT( _impl->readyVersion < frameDataVersion.version.low( ));
     if( _impl->readyVersion >= frameDataVersion.version.low( ))
@@ -512,6 +516,7 @@ bool FrameData::addImage( const co::ObjectVersion& frameDataVersion,
                                 false /* set quality */ );
 
     image->setPixelViewport( pvp );
+    image->setRange( range );
     image->setAlphaUsage( useAlpha );
 
     Frame::Buffer buffers[] = { Frame::BUFFER_COLOR, Frame::BUFFER_DEPTH };
