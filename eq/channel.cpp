@@ -2,7 +2,7 @@
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
- *                    2015, Enrique <egparedes@ifi.uzh.ch>
+ *                          Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -408,13 +408,9 @@ void Channel::frameViewFinish( const uint128_t& frameID )
     _impl->frameViewFinish( *this );
 }
 
-bool Channel::framePass( RenderContext& context, Frames& frames )
+bool Channel::framePass( const RenderContext& context, const Frames& frames )
 {
-    bool hasAsyncReadback = false;
-
-    const RenderContext& activeContext = getContext();
-    if ( &context != &activeContext )
-        _overrideContext( context );
+    _overrideContext( context );
 
     if( context.tasks & fabric::TASK_CLEAR )
     {
@@ -435,6 +431,7 @@ bool Channel::framePass( RenderContext& context, Frames& frames )
             declareRegion( getPixelViewport( ));
     }
 
+    bool hasAsyncReadback = false;
     if( context.tasks & fabric::TASK_READBACK )
     {
         const int64_t time = getConfig()->getTime();
@@ -456,7 +453,6 @@ bool Channel::framePass( RenderContext& context, Frames& frames )
     }
 
     resetContext();
-
     return hasAsyncReadback;
 }
 
@@ -501,7 +497,7 @@ void Channel::resetAssemblyState()
         Compositor::resetAssemblyState();
 }
 
-void Channel::_overrideContext( RenderContext& context )
+void Channel::_overrideContext( const RenderContext& context )
 {
     overrideContext( context );
     Window* window = getWindow();
@@ -1087,15 +1083,14 @@ private:
 
 typedef lunchbox::RefPtr< detail::RBStat > RBStatPtr;
 
-void Channel::_framePass( RenderContext& context,
+void Channel::_framePass( const RenderContext& context,
                           const co::ObjectVersions& frameIDs,
-                          bool finish )
+                          const bool finish )
 {
     Frames frames;
     if( context.tasks & fabric::TASK_READBACK )
         frames = _getFrames( frameIDs, true );
 
-    _overrideContext( context );
     bindDrawFrameBuffer();
 
     int64_t startTime = getConfig()->getTime();
@@ -1103,10 +1098,10 @@ void Channel::_framePass( RenderContext& context,
     _impl->framePassTimings[detail::Channel::DrawTime] = 0;
     _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
 
-    bool hasAsyncReadback = framePass( context, frames );
+    const bool hasAsyncReadback = framePass( context, frames );
 
     if( context.tasks & fabric::TASK_CLEAR &&
-            _impl->framePassTimings[detail::Channel::ClearTime] > 0)
+        _impl->framePassTimings[detail::Channel::ClearTime] > 0 )
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
         event.event.data.statistic.startTime = startTime;
@@ -1115,17 +1110,17 @@ void Channel::_framePass( RenderContext& context,
     }
 
     if( context.tasks & fabric::TASK_DRAW &&
-            _impl->framePassTimings[detail::Channel::DrawTime] > 0)
+        _impl->framePassTimings[detail::Channel::DrawTime] > 0 )
     {
-        ChannelStatistics event( Statistic::CHANNEL_DRAW, this, getCurrentFrame(),
-                                 finish ? NICEST : AUTO );
+        ChannelStatistics event( Statistic::CHANNEL_DRAW, this,
+                                 getCurrentFrame(), finish ? NICEST : AUTO );
         event.event.data.statistic.startTime = startTime;
         startTime += _impl->framePassTimings[detail::Channel::DrawTime];
         event.event.data.statistic.endTime = startTime;
     }
 
     if( context.tasks & fabric::TASK_READBACK &&
-            _impl->framePassTimings[detail::Channel::ReadbackTime] > 0)
+        _impl->framePassTimings[detail::Channel::ReadbackTime] > 0 )
     {
         RBStatPtr stat = new detail::RBStat( this );
         stat->event.event.data.statistic.startTime = startTime;
@@ -1135,7 +1130,6 @@ void Channel::_framePass( RenderContext& context,
         _setReady( hasAsyncReadback, stat.get(), frames );
     }
 
-    resetContext();
     bindFrameBuffer();
 }
 

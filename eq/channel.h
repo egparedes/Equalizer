@@ -531,7 +531,8 @@ protected:
      * @param context the RenderContext used in the pass.
      * @param frames the output frames for readback.
      */
-    EQ_API virtual bool framePass( RenderContext& context, Frames& frames);
+    EQ_API virtual bool framePass( const RenderContext& context,
+                                   const Frames& frames );
 
     /**
      * Assemble all input frames.
@@ -628,14 +629,14 @@ private:
 
     //-------------------- Methods --------------------
     /** Setup the current rendering context. */
-    void _overrideContext( RenderContext& context );
+    void _overrideContext( const RenderContext& context );
 
     /** Initialize the channel's drawable config. */
     void _initDrawableConfig();
 
     /** Regular render loop. */
-    void _framePass( RenderContext& context, const co::ObjectVersions& frames,
-                     bool finish );
+    void _framePass( const RenderContext& context,
+                     const co::ObjectVersions& frames, bool finish );
 
     /** Tile render loop. */
     void _frameTiles( RenderContext& context, const bool isLocal,
