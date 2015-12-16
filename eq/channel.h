@@ -257,6 +257,18 @@ public:
     EQ_API virtual void applyOrthoTransform() const;
 
     /**
+     * Apply the state for pixel-based 2D overlay rendering operations.
+     * @version 1.11
+     */
+    EQ_API void applyOverlayState();
+
+    /**
+     * Reset the overlay state setup by applyOverlayState()
+     * @version 1.11
+     */
+    EQ_API void resetOverlayState();
+
+    /**
      * Rebind the window frame buffer.
      * @version 1.0
      */
@@ -519,7 +531,8 @@ protected:
      * @param context the RenderContext used in the pass.
      * @param frames the output frames for readback.
      */
-    EQ_API virtual bool framePass( RenderContext& context, Frames& frames);
+    EQ_API virtual bool framePass( const RenderContext& context,
+                                   const Frames& frames );
 
     /**
      * Assemble all input frames.
@@ -575,6 +588,16 @@ protected:
      * @version 1.0
      */
     EQ_API virtual void frameViewFinish( const uint128_t& frameID );
+
+    /**
+     * Draw 2D overlay content on a destination channel.
+     *
+     * This is called by frameViewFinish().
+     *
+     * @param frameID the per-frame identifier.
+     * @version 1.11
+     */
+    EQ_API virtual void frameDrawOverlay( const uint128_t& frameID );
     //@}
 
     /** Start a batch of tile rendering operations. @version 1.1.6 */
@@ -606,14 +629,14 @@ private:
 
     //-------------------- Methods --------------------
     /** Setup the current rendering context. */
-    void _overrideContext( RenderContext& context );
+    void _overrideContext( const RenderContext& context );
 
     /** Initialize the channel's drawable config. */
     void _initDrawableConfig();
 
     /** Regular render loop. */
-    void _framePass( RenderContext& context, const co::ObjectVersions& frames,
-                     bool finish );
+    void _framePass( const RenderContext& context,
+                     const co::ObjectVersions& frames, bool finish );
 
     /** Tile render loop. */
     void _frameTiles( RenderContext& context, const bool isLocal,

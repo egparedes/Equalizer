@@ -2,7 +2,7 @@
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
- *                    2015, Enrique <egparedes@ifi.uzh.ch>
+ *                          Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -78,7 +78,7 @@
 #include "detail/channel.ipp"
 
 #ifdef EQUALIZER_USE_DEFLECT
-#  include "dc/proxy.h"
+#  include "deflect/proxy.h"
 #endif
 
 namespace eq
@@ -237,8 +237,8 @@ const GLEWContext* Channel::glewGetContext() const
 bool Channel::configExit()
 {
 #ifdef EQUALIZER_USE_DEFLECT
-    delete _impl->_dcProxy;
-    _impl->_dcProxy = 0;
+    delete _impl->_deflectProxy;
+    _impl->_deflectProxy = 0;
 #endif
     _impl->framebufferImage.flush();
     return true;
@@ -250,8 +250,8 @@ bool Channel::configInit( const uint128_t& )
     if( getView() &&
         !getView()->getSAttribute( View::SATTR_DISPLAYCLUSTER ).empty( ))
     {
-        LBASSERT( !_impl->_dcProxy );
-        _impl->_dcProxy = new dc::Proxy( this );
+        LBASSERT( !_impl->_deflectProxy );
+        _impl->_deflectProxy = new deflect::Proxy( this );
     }
 #endif
     return true;
@@ -402,18 +402,15 @@ void Channel::frameDrawFinish( const uint128_t&, const uint32_t frameNumber )
 
 void Channel::frameViewStart( const uint128_t& ) { /* nop */ }
 
-void Channel::frameViewFinish( const uint128_t& )
+void Channel::frameViewFinish( const uint128_t& frameID )
 {
+    frameDrawOverlay( frameID );
     _impl->frameViewFinish( *this );
 }
 
-bool Channel::framePass( RenderContext& context, Frames& frames )
+bool Channel::framePass( const RenderContext& context, const Frames& frames )
 {
-    bool hasAsyncReadback = false;
-
-    const RenderContext& activeContext = getContext();
-    if ( &context != &activeContext )
-        _overrideContext( context );
+    _overrideContext( context );
 
     if( context.tasks & fabric::TASK_CLEAR )
     {
@@ -434,6 +431,7 @@ bool Channel::framePass( RenderContext& context, Frames& frames )
             declareRegion( getPixelViewport( ));
     }
 
+    bool hasAsyncReadback = false;
     if( context.tasks & fabric::TASK_READBACK )
     {
         const int64_t time = getConfig()->getTime();
@@ -455,8 +453,29 @@ bool Channel::framePass( RenderContext& context, Frames& frames )
     }
 
     resetContext();
-
     return hasAsyncReadback;
+}
+
+void Channel::frameDrawOverlay( const uint128_t& )
+{
+    applyOverlayState();
+
+#ifdef EQUALIZER_USE_DEFLECT
+    if( _impl->_deflectProxy && _impl->_deflectProxy->isRunning( ))
+    {
+        const eq::PixelViewport& pvp = getPixelViewport();
+        const eq::Viewport& vp = getViewport();
+
+        const float width = pvp.w / vp.w;
+        const float height = pvp.h / vp.h;
+        const float xOffset = vp.x * width;
+
+        glRasterPos3f( 10.f - xOffset, height - 30.f, 0.99f );
+        getWindow()->getMediumFont()->draw( _impl->_deflectProxy->getHelp( ));
+    }
+#endif
+
+    resetOverlayState();
 }
 
 void Channel::setupAssemblyState()
@@ -478,7 +497,7 @@ void Channel::resetAssemblyState()
         Compositor::resetAssemblyState();
 }
 
-void Channel::_overrideContext( RenderContext& context )
+void Channel::_overrideContext( const RenderContext& context )
 {
     overrideContext( context );
     Window* window = getWindow();
@@ -694,6 +713,33 @@ void Channel::applyOrthoTransform() const
     LB_TS_THREAD( _pipeThread );
     const Matrix4f& xfm = getOrthoTransform();
     EQ_GL_CALL( glMultMatrixf( xfm.array ));
+}
+
+void Channel::applyOverlayState()
+{
+    applyBuffer();
+    applyViewport();
+    setupAssemblyState();
+
+    glMatrixMode( GL_PROJECTION );
+    glLoadIdentity();
+    applyScreenFrustum();
+
+    EQ_GL_CALL( glLogicOp( GL_XOR ));
+    EQ_GL_CALL( glEnable( GL_COLOR_LOGIC_OP ));
+    EQ_GL_CALL( glDisable( GL_DEPTH_TEST ));
+    EQ_GL_CALL( glDisable( GL_LIGHTING ));
+    EQ_GL_CALL( glCullFace( GL_BACK ));
+
+    EQ_GL_CALL( glColor3f( 1.f, 1.f, 1.f ));
+}
+
+void Channel::resetOverlayState()
+{
+    EQ_GL_CALL( glDisable( GL_COLOR_LOGIC_OP ));
+    EQ_GL_CALL( glEnable( GL_DEPTH_TEST ));
+    EQ_GL_CALL( glEnable( GL_LIGHTING ));
+    resetAssemblyState();
 }
 
 namespace
@@ -935,21 +981,11 @@ void Channel::drawStatistics()
         return;
 
     //----- setup
-    EQ_GL_CALL( applyBuffer( ));
-    EQ_GL_CALL( applyViewport( ));
-    EQ_GL_CALL( setupAssemblyState( ));
+    applyOverlayState();
 
-    EQ_GL_CALL( glMatrixMode( GL_PROJECTION ));
-    EQ_GL_CALL( glLoadIdentity( ));
-    applyScreenFrustum();
-
-    EQ_GL_CALL( glMatrixMode( GL_MODELVIEW ));
-    EQ_GL_CALL( glDisable( GL_LIGHTING ));
-
+    EQ_GL_CALL( glDisable( GL_COLOR_LOGIC_OP ));
     EQ_GL_CALL( glEnable( GL_BLEND ));
     EQ_GL_CALL( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ));
-    EQ_GL_CALL( glDisable( GL_COLOR_LOGIC_OP ));
-    EQ_GL_CALL( glCullFace( GL_BACK ));
 
 #ifdef EQUALIZER_USE_GLSTATS
     const util::BitmapFont* font = window->getSmallFont();
@@ -964,9 +1000,12 @@ void Channel::drawStatistics()
     renderer.draw( data );
 #endif
 
+    EQ_GL_CALL( glEnable( GL_COLOR_LOGIC_OP ));
     EQ_GL_CALL( glColor3f( 1.f, 1.f, 1.f ));
     window->drawFPS();
-    EQ_GL_CALL( resetAssemblyState( ));
+
+    EQ_GL_CALL( glDisable( GL_BLEND ));
+    resetOverlayState();
 }
 
 void Channel::outlineViewport()
@@ -976,8 +1015,7 @@ void Channel::outlineViewport()
     if( coreProfile )
         return;
 
-    setupAssemblyState();
-    glDisable( GL_LIGHTING );
+    applyOverlayState();
 
     const eq::PixelViewport& region = getRegion();
     glColor3f( .5f, .5f, .5f );
@@ -997,7 +1035,7 @@ void Channel::outlineViewport()
         glVertex3f( pvp.x + .5f,         pvp.getYEnd() - .5f, 0.f );
     } glEnd();
 
-    resetAssemblyState();
+    resetOverlayState();
 }
 
 namespace detail
@@ -1045,15 +1083,14 @@ private:
 
 typedef lunchbox::RefPtr< detail::RBStat > RBStatPtr;
 
-void Channel::_framePass( RenderContext& context,
+void Channel::_framePass( const RenderContext& context,
                           const co::ObjectVersions& frameIDs,
-                          bool finish )
+                          const bool finish )
 {
     Frames frames;
     if( context.tasks & fabric::TASK_READBACK )
         frames = _getFrames( frameIDs, true );
 
-    _overrideContext( context );
     bindDrawFrameBuffer();
 
     int64_t startTime = getConfig()->getTime();
@@ -1061,10 +1098,10 @@ void Channel::_framePass( RenderContext& context,
     _impl->framePassTimings[detail::Channel::DrawTime] = 0;
     _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
 
-    bool hasAsyncReadback = framePass( context, frames );
+    const bool hasAsyncReadback = framePass( context, frames );
 
     if( context.tasks & fabric::TASK_CLEAR &&
-            _impl->framePassTimings[detail::Channel::ClearTime] > 0)
+        _impl->framePassTimings[detail::Channel::ClearTime] > 0 )
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
         event.event.data.statistic.startTime = startTime;
@@ -1073,17 +1110,17 @@ void Channel::_framePass( RenderContext& context,
     }
 
     if( context.tasks & fabric::TASK_DRAW &&
-            _impl->framePassTimings[detail::Channel::DrawTime] > 0)
+        _impl->framePassTimings[detail::Channel::DrawTime] > 0 )
     {
-        ChannelStatistics event( Statistic::CHANNEL_DRAW, this, getCurrentFrame(),
-                                 finish ? NICEST : AUTO );
+        ChannelStatistics event( Statistic::CHANNEL_DRAW, this,
+                                 getCurrentFrame(), finish ? NICEST : AUTO );
         event.event.data.statistic.startTime = startTime;
         startTime += _impl->framePassTimings[detail::Channel::DrawTime];
         event.event.data.statistic.endTime = startTime;
     }
 
     if( context.tasks & fabric::TASK_READBACK &&
-            _impl->framePassTimings[detail::Channel::ReadbackTime] > 0)
+        _impl->framePassTimings[detail::Channel::ReadbackTime] > 0 )
     {
         RBStatPtr stat = new detail::RBStat( this );
         stat->event.event.data.statistic.startTime = startTime;
@@ -1093,7 +1130,6 @@ void Channel::_framePass( RenderContext& context,
         _setReady( hasAsyncReadback, stat.get(), frames );
     }
 
-    resetContext();
     bindFrameBuffer();
 }
 

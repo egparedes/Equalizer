@@ -1,8 +1,8 @@
 
-/* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
- *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
- *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+/* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
+ *                           Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -161,11 +161,9 @@ void ChannelUpdateVisitor::_getFrameIDs( const Frames& frames,
                                          co::ObjectVersions& frameIDs,
                                          Frames& validFrames ) const
 {
-    for( FramesCIter i = frames.begin(); i != frames.end(); ++i)
+    for( Frame* frame : frames )
     {
-        Frame* frame = *i;
-
-        if( !frame->hasData( _eye )) // TODO: filter: buffers, vp, eye
+        if( !frame->hasData( _eye ))
             continue;
 
         validFrames.push_back( frame );
