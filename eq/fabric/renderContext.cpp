@@ -1,6 +1,6 @@
 
-/* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -34,12 +34,12 @@ RenderContext::RenderContext()
         , frameID( 0 )
         , overdraw( Vector4i::ZERO )
         , offset( Vector2i::ZERO )
+        , tasks( TASK_DEFAULT )
         , buffer( 0x0405 ) // GL_BACK
         , taskID( 0 )
         , period( 1 )
         , phase( 0 )
         , eye( EYE_CYCLOP )
-        , tasks( TASK_DEFAULT )
 {
 }
 
@@ -54,8 +54,8 @@ void RenderContext::apply( const Tile& tile )
 std::ostream& operator << ( std::ostream& os, const RenderContext& ctx )
 {
     return os << "ID " << ctx.frameID << " pvp " << ctx.pvp << " vp " << ctx.vp
-              << " " << ctx.range << " " << ctx.eye << " " << ctx.zoom
-              << " " << ctx.tasks;
+              << " " << ctx.tasks << " " << ctx.range << " " << ctx.eye << " "
+              << ctx.zoom;
 }
 
 }

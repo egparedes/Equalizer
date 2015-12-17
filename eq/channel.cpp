@@ -1134,17 +1134,15 @@ void Channel::_framePass( const RenderContext& context,
 }
 
 void Channel::_frameTiles( RenderContext& context, const bool isLocal,
-                           const uint128_t& queueID, const uint32_t tasks,
+                           const uint128_t& queueID,
                            const co::ObjectVersions& frameIDs )
 {
-    context.tasks = tasks;
     _overrideContext( context );
-
     frameTilesStart( context.frameID );
 
     RBStatPtr stat;
     Frames frames;
-    if( tasks & fabric::TASK_READBACK )
+    if( context.tasks & fabric::TASK_READBACK )
     {
         frames = _getFrames( frameIDs, true );
         stat = new detail::RBStat( this );
@@ -1197,7 +1195,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         }
     }
 
-    if( tasks & fabric::TASK_CLEAR )
+    if( context.tasks & fabric::TASK_CLEAR )
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
         event.event.data.statistic.startTime = startTime;
@@ -1205,7 +1203,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         event.event.data.statistic.endTime = startTime;
     }
 
-    if( tasks & fabric::TASK_DRAW )
+    if( context.tasks & fabric::TASK_DRAW )
     {
         ChannelStatistics event( Statistic::CHANNEL_DRAW, this );
         event.event.data.statistic.startTime = startTime;
@@ -1213,7 +1211,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         event.event.data.statistic.endTime = startTime;
     }
 
-    if( tasks & fabric::TASK_READBACK )
+    if( context.tasks & fabric::TASK_READBACK )
     {
         stat->event.event.data.statistic.startTime = startTime;
         startTime += _impl->framePassTimings[detail::Channel::ReadbackTime];
@@ -2039,13 +2037,12 @@ bool Channel::_cmdFrameTiles( co::ICommand& cmd )
     RenderContext context = command.read< RenderContext >();
     const bool isLocal = command.read< bool >();
     const uint128_t& queueID = command.read< uint128_t >();
-    const uint32_t tasks = command.read< uint32_t >();
     const co::ObjectVersions& frames = command.read< co::ObjectVersions >();
 
     LBLOG( LOG_TASKS ) << "TASK channel frame tiles " << getName() <<  " "
                        << command << " " << context << std::endl;
 
-    _frameTiles( context, isLocal, queueID, tasks, frames );
+    _frameTiles( context, isLocal, queueID, frames );
     return true;
 }
 

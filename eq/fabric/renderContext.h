@@ -60,6 +60,7 @@ namespace fabric
         SubPixel       subpixel;       //!< subpixel decomposition wrt to dest
         Zoom           zoom;           //!< up/downsampling wrt to dest
 
+        uint32_t       tasks;          //!< channel tasks
         uint32_t       buffer;         //!< buffer as passed to glDrawBuffer()
         uint32_t       taskID;         //!< @internal per-channel task counter
         uint32_t       period;         //!< DPlex period
@@ -69,8 +70,6 @@ namespace fabric
 
         ColorMask      bufferMask;     //!< color mask for anaglyph stereo
         bool           alignDummy[28]; //!< @internal padding
-
-        uint32_t       tasks;          //!< compount tasks (used by framePass())
     };
 
     EQFABRIC_API std::ostream& operator << ( std::ostream& os,
@@ -100,13 +99,12 @@ template<> inline void byteswap( eq::fabric::RenderContext& value )
     byteswap( value.subpixel );
     byteswap( value.zoom );
 
+    byteswap( value.tasks );
     byteswap( value.buffer );
     byteswap( value.taskID );
     byteswap( value.period );
     byteswap( value.phase );
     byteswap( value.eye );
-
-    byteswap( value.tasks );
 }
 }
 

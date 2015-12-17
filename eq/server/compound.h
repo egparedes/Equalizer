@@ -308,7 +308,7 @@ public:
 
     /** @return true if the compound is a tile compound. */
     bool hasTiles() const
-    { return !_outputTileQueues.empty() || !_inputTileQueues.empty(); }
+        { return !_outputTileQueues.empty() || !_inputTileQueues.empty(); }
     //@}
 
     /**

@@ -1,16 +1,16 @@
 
-/* Copyright (c) 2007-2011, Stefan Eilemann <eile@equalizergraphics.com> 
- *                    2015, Enrique <egparedes@ifi.uzh.ch>
+/* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
  * by the Free Software Foundation.
- *  
+ *
  * This library is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
  * details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -36,12 +36,12 @@ namespace server
 {
     class Channel;
     class FrustumData;
-    
+
     /** The compound visitor generating the draw tasks for a channel. */
     class ChannelUpdateVisitor : public CompoundVisitor
     {
     public:
-        ChannelUpdateVisitor( Channel* channel, const uint128_t frameID, 
+        ChannelUpdateVisitor( Channel* channel, const uint128_t frameID,
                               const uint32_t frameNumber );
         virtual ~ChannelUpdateVisitor() {}
 
@@ -78,19 +78,17 @@ namespace server
         uint32_t _getDrawBuffer( const Compound* compound ) const;
         fabric::ColorMask _getDrawBufferMask( const Compound* compound ) const;
 
-        void _getFrameIDs( const Frames& frames,
-                           co::ObjectVersions &frameIDs,
-                           Frames& validFrames ) const;
+        co::ObjectVersions _selectFrames( const Frames& frames ) const;
 
         void _setupRenderContext( const Compound* compound,
                                   RenderContext& context );
 
-        void _updatePostDraw( const Compound* compound, 
+        void _updatePostDraw( const Compound* compound,
                               const fabric::RenderContext& context );
         void _updateAssemble( const Compound* compound,
                               const fabric::RenderContext& context );
         void _updateReadback( const Compound* compound,
-                              const fabric::RenderContext& context );  
+                              const fabric::RenderContext& context );
         void _updateViewStart( const Compound* compound,
                                const fabric::RenderContext& context );
         void _updateViewFinish( const Compound* compound,

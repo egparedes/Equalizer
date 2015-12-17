@@ -639,8 +639,8 @@ private:
                      const co::ObjectVersions& frames, bool finish );
 
     /** Tile render loop. */
-    void _frameTiles( RenderContext& context, const bool isLocal,
-                      const uint128_t& queueID, const uint32_t tasks,
+    void _frameTiles( RenderContext& context, bool isLocal,
+                      const uint128_t& queueID,
                       const co::ObjectVersions& frames );
 
     /** Reference the frame for an async operation. */

@@ -157,18 +157,14 @@ VisitorResult ChannelUpdateVisitor::visitPost( const Compound* compound )
     return TRAVERSE_CONTINUE;
 }
 
-void ChannelUpdateVisitor::_getFrameIDs( const Frames& frames,
-                                         co::ObjectVersions& frameIDs,
-                                         Frames& validFrames ) const
+co::ObjectVersions ChannelUpdateVisitor::_selectFrames( const Frames& frames )
+    const
 {
+    co::ObjectVersions frameIDs;
     for( Frame* frame : frames )
-    {
-        if( !frame->hasData( _eye ))
-            continue;
-
-        validFrames.push_back( frame );
-        frameIDs.push_back( co::ObjectVersion( frame ));
-    }
+        if( frame->hasData( _eye ))
+            frameIDs.push_back( co::ObjectVersion( frame ));
+    return frameIDs;
 }
 
 void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
@@ -226,26 +222,21 @@ void ChannelUpdateVisitor::_updateDraw( const Compound* compound,
                                         const RenderContext& context )
 {
     if( compound->hasTiles( ))
-    {
         _updateDrawTiles( compound, context );
-    }
     else if( context.tasks & eq::fabric::TASK_DRAW )
-    {
         _updateDrawPass( compound, context );
-    }
     else if( context.tasks & fabric::TASK_CLEAR )
-    {
         _sendClear( context );
-    }
 }
 
 void ChannelUpdateVisitor::_updateDrawPass( const Compound* compound,
                                             const RenderContext& context )
 {
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( compound->getOutputFrames(), frameIDs, validFrames );
     const bool finish = _channel->hasListeners(); // finish for eq stats
+    const co::ObjectVersions& frameIDs =
+        (context.tasks & eq::fabric::TASK_READBACK) ?
+            _selectFrames( compound->getOutputFrames( )) :
+            co::ObjectVersions();
 
     _channel->send( fabric::CMD_CHANNEL_FRAME_PASS )
             << context << frameIDs << finish;
@@ -257,9 +248,8 @@ void ChannelUpdateVisitor::_updateDrawPass( const Compound* compound,
 void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
                                              const RenderContext& context )
 {
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( compound->getOutputFrames(), frameIDs, validFrames );
+    const co::ObjectVersions& frameIDs =
+        _selectFrames( compound->getOutputFrames( ));
     const Channel* destChannel = compound->getInheritChannel();
     const TileQueues& inputQueues = compound->getInputTileQueues();
     for( TileQueuesCIter i = inputQueues.begin(); i != inputQueues.end(); ++i )
@@ -270,12 +260,9 @@ void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
         LBASSERT( id != 0 );
 
         const bool isLocal = (_channel == destChannel);
-        const uint32_t tasks = compound->getInheritTasks() &
-                            ( eq::fabric::TASK_CLEAR | eq::fabric::TASK_DRAW |
-                              eq::fabric::TASK_READBACK );
 
         _channel->send( fabric::CMD_CHANNEL_FRAME_TILES )
-                << context << isLocal << id << tasks << frameIDs;
+                << context << isLocal << id << frameIDs;
         _updated = true;
         LBLOG( LOG_TASKS ) << "TASK tiles " << _channel->getName() <<  " "
                            << std::endl;
@@ -412,14 +399,8 @@ void ChannelUpdateVisitor::_updateAssemble( const Compound* compound,
         return;
 
     const Frames& inputFrames = compound->getInputFrames();
+    const co::ObjectVersions& frameIDs = _selectFrames( inputFrames );
     LBASSERT( !inputFrames.empty( ));
-
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( inputFrames, frameIDs, validFrames );
-    for( auto frame: validFrames )
-        LBLOG( LOG_ASSEMBLY ) << *frame << std::endl;
-
     if( frameIDs.empty( ))
         return;
 
@@ -442,14 +423,8 @@ void ChannelUpdateVisitor::_updateReadback( const Compound* compound,
     }
 
     const std::vector< Frame* >& outputFrames = compound->getOutputFrames();
+    const co::ObjectVersions& frameIDs = _selectFrames( outputFrames );
     LBASSERT( !outputFrames.empty( ));
-
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( outputFrames, frameIDs, validFrames );
-    for( auto frame: validFrames )
-        LBLOG( LOG_ASSEMBLY ) << *frame << std::endl;
-
     if( frameIDs.empty() )
         return;
 
