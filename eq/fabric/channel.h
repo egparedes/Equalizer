@@ -136,19 +136,19 @@ public:
      */
     //@{
     /** @return the current draw buffer for glDrawBuffer. @version 1.0 */
-    uint32_t getDrawBuffer() const { return _context.buffer; }
+    uint32_t getDrawBuffer() const { return _context->buffer; }
 
     /** @return the current read buffer for glReadBuffer. @version 1.0 */
-    uint32_t getReadBuffer() const { return _context.buffer; }
+    uint32_t getReadBuffer() const { return _context->buffer; }
 
     /** @return the current color mask for glColorMask. @version 1.0 */
-    const ColorMask& getDrawBufferMask() const { return _context.bufferMask; }
+    const ColorMask& getDrawBufferMask() const { return _context->bufferMask; }
 
     /**
      * @return the current pixel viewport for glViewport and glScissor.
      * @version 1.0
      */
-    const PixelViewport& getPixelViewport() const { return _context.pvp; }
+    const PixelViewport& getPixelViewport() const { return _context->pvp; }
 
     /**
      * Select perspective or orthographic rendering.
@@ -171,13 +171,13 @@ public:
      * @return the current perspective frustum for glFrustum.
      * @version 1.0
      */
-    const Frustumf& getPerspective() const { return _context.frustum; }
+    const Frustumf& getPerspective() const { return _context->frustum; }
 
     /**
      * @return the current orthographic frustum for glOrtho.
      * @version 1.0
      */
-    const Frustumf& getOrtho() const { return _context.ortho; }
+    const Frustumf& getOrtho() const { return _context->ortho; }
 
     /**
      * Return the view matrix.
@@ -201,7 +201,7 @@ public:
      * @version 1.0
      */
     const Matrix4f& getPerspectiveTransform() const
-        { return _context.headTransform; }
+        { return _context->headTransform; }
 
     /**
      * Return the orthographic view matrix.
@@ -212,49 +212,50 @@ public:
      * @return the head transformation matrix
      * @version 1.0
      */
-    const Matrix4f& getOrthoTransform() const { return _context.orthoTransform;}
+    const Matrix4f& getOrthoTransform() const
+        { return _context->orthoTransform; }
 
     /**
      * @return the fractional viewport wrt the destination view.
      * @version 1.0
      */
-    const Viewport& getViewport() const { return _context.vp; }
+    const Viewport& getViewport() const { return _context->vp; }
 
     /**
      * @return the database range for the current rendering task.
      * @version 1.0
      */
-    const Range& getRange() const { return _context.range; }
+    const Range& getRange() const { return _context->range; }
 
     /**
      * @return the pixel decomposition for the current rendering task.
      * @version 1.0
      */
-    const Pixel& getPixel() const { return _context.pixel; }
+    const Pixel& getPixel() const { return _context->pixel; }
 
     /**
      * @return the subpixel decomposition for the current rendering task.
      * @version 1.0
      */
-    const SubPixel& getSubPixel() const { return _context.subpixel; }
+    const SubPixel& getSubPixel() const { return _context->subpixel; }
 
     /**
      * @return the up/downscale zoom factor for the current rendering task.
      * @version 1.0
      */
-    const Zoom& getZoom() const { return _context.zoom; }
+    const Zoom& getZoom() const { return _context->zoom; }
 
     /**
      * @return the DPlex period for the current rendering task.
      * @version 1.0
      */
-    uint32_t getPeriod() const { return _context.period; }
+    uint32_t getPeriod() const { return _context->period; }
 
     /**
      * @return the DPlex phase for the current rendering task.
      * @version 1.0
      */
-    uint32_t getPhase() const { return _context.phase; }
+    uint32_t getPhase() const { return _context->phase; }
 
     /**
      * Get the channel's current position wrt the destination channel.
@@ -266,16 +267,16 @@ public:
      * @return the channel's current position wrt the destination channel.
      * @version 1.0
      */
-    const Vector2i& getPixelOffset() const { return _context.offset; }
+    const Vector2i& getPixelOffset() const { return _context->offset; }
 
     /** @return the currently rendered eye pass. @version 1.0 */
-    Eye getEye() const { return _context.eye; }
+    Eye getEye() const { return _context->eye; }
 
     /** @warning Undocumented - may not be supported in the future */
-    const Vector4i& getOverdraw() const { return _context.overdraw; }
+    const Vector4i& getOverdraw() const { return _context->overdraw; }
 
     /** @warning Undocumented - may not be supported in the future */
-    uint32_t getTaskID() const { return _context.taskID; }
+    uint32_t getTaskID() const { return _context->taskID; }
     //@}
 
     /** @name Attributes */
@@ -342,13 +343,14 @@ protected:
     /** @name Render context access */
     //@{
     /** @internal Override the channel's native render context. */
-    void overrideContext( const RenderContext& context ) { _context = context; }
+    void overrideContext( const RenderContext& context )
+        { _data.overrideContext = context; _context = &_data.overrideContext; }
 
     /** @internal Re-set the channel's native render context. */
-    void resetContext() { _context = _data.nativeContext; }
+    void resetContext() { _context = &_data.nativeContext; }
 
     /** @internal @return the current render context. */
-    const RenderContext& getContext() const { return _context; }
+    const RenderContext& getContext() const { return *_context; }
 
     /** @internal @return the native render context. */
     const RenderContext& getNativeContext() const
@@ -395,6 +397,9 @@ private:
         /** The native render context parameters of this channel. */
         RenderContext nativeContext;
 
+        /** Overridden context data. */
+        RenderContext overrideContext;
+
         /** Bitmask of supported capabilities */
         uint64_t capabilities;
 
@@ -403,8 +408,8 @@ private:
     }
         _data, _backup;
 
-    /** The current rendering context. */
-    RenderContext _context;
+    /** The current rendering context, points to native or override context. */
+    RenderContext* _context;
 
     /** Integer attributes. */
     int32_t _iAttributes[IATTR_ALL];
