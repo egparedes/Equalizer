@@ -441,8 +441,7 @@ bool Channel::framePass( const RenderContext& context, const Frames& frames )
         for( size_t i = 0; i < nFrames; ++i )
         {
             nImages[i] = frames[i]->getImages().size();
-            frames[i]->getFrameData()->setPixelViewport(
-                getPixelViewport( ));
+            frames[i]->getFrameData()->setPixelViewport( getPixelViewport( ));
         }
 
         frameReadback( context.frameID, frames );

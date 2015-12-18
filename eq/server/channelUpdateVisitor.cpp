@@ -134,7 +134,6 @@ VisitorResult ChannelUpdateVisitor::visitLeaf( const Compound* compound )
         return TRAVERSE_CONTINUE;
     }
 
-    // OPT: Send render context once before task commands?
     RenderContext context;
     _setupRenderContext( compound, context );
     _updateFrameRate( compound );
@@ -441,7 +440,7 @@ void ChannelUpdateVisitor::_updateViewStart( const Compound* compound,
                                              const RenderContext& context )
 {
     LBASSERT( !_skipCompound( compound ));
-    if( !compound->testInheritTask( fabric::TASK_VIEW ))
+    if( !(context.tasks & fabric::TASK_VIEW ))
         return;
 
     // view start task
@@ -454,7 +453,7 @@ void ChannelUpdateVisitor::_updateViewFinish( const Compound* compound,
                                               const RenderContext& context )
 {
     LBASSERT( !_skipCompound( compound ));
-    if( !compound->testInheritTask( fabric::TASK_VIEW ))
+    if( !(context.tasks & fabric::TASK_VIEW ))
         return;
 
     // view finish task
