@@ -1,8 +1,8 @@
 
-/* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
- *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -180,7 +180,7 @@ public:
     /** The rectangle of the current pixel data. */
     PixelViewport pvp;
 
-    /** The database-range of src wrt to destination. */
+    /** The data range contained in the image. */
     Range range;
 
     /** Zoom factor used for compositing. */
@@ -244,7 +244,7 @@ public:
 }
 
 Image::Image()
-        : _impl( new detail::Image )
+    : _impl( new detail::Image )
 {
     reset();
 }

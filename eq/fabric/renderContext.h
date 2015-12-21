@@ -66,7 +66,7 @@ namespace fabric
         uint32_t       period;         //!< DPlex period
         uint32_t       phase;          //!< DPlex phase
         Eye            eye;            //!< current eye pass
-        uint32_t       alignToEight;   //!< @internal padding
+        // uint32_t       alignToEight;   //!< @internal padding
 
         ColorMask      bufferMask;     //!< color mask for anaglyph stereo
         bool           alignDummy[28]; //!< @internal padding
@@ -105,6 +105,8 @@ template<> inline void byteswap( eq::fabric::RenderContext& value )
     byteswap( value.period );
     byteswap( value.phase );
     byteswap( value.eye );
+
+    byteswap( value.bufferMask );
 }
 }
 

@@ -416,6 +416,7 @@ void ChannelUpdateVisitor::_updateReadback( const Compound* compound,
                                             const RenderContext& context )
 {
     if( !compound->testInheritTask( fabric::TASK_READBACK ) ||
+        compound->testInheritTask( fabric::TASK_DRAW ) ||
         ( compound->hasTiles() && compound->isLeaf( )))
     {
         return;

@@ -839,7 +839,7 @@ bool _hasOverlap( PixelViewports& regions )
         {
             PixelViewport pv = regions[j];
             pv.intersect( regions[i] );
-            if( pv.hasArea( ) )
+            if( pv.hasArea( ))
                 return true;
         }
     return false;
@@ -865,7 +865,7 @@ bool _removeOverlap( PixelViewports& regions )
         for( size_t j = i+1; j < regions.size(); ++j )
         {
             pvp.intersect( regions[j] );
-            if( pvp.hasArea( ) )
+            if( pvp.hasArea( ))
             {
                 regions[i].merge( regions[j] );
                 std::swap( regions[j], regions.back() );
@@ -1099,8 +1099,7 @@ void Channel::_framePass( const RenderContext& context,
 
     const bool hasAsyncReadback = framePass( context, frames );
 
-    if( context.tasks & fabric::TASK_CLEAR &&
-        _impl->framePassTimings[detail::Channel::ClearTime] > 0 )
+    if( context.tasks & fabric::TASK_CLEAR )
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
         event.event.data.statistic.startTime = startTime;
@@ -1108,8 +1107,7 @@ void Channel::_framePass( const RenderContext& context,
         event.event.data.statistic.endTime = startTime;
     }
 
-    if( context.tasks & fabric::TASK_DRAW &&
-        _impl->framePassTimings[detail::Channel::DrawTime] > 0 )
+    if( context.tasks & fabric::TASK_DRAW )
     {
         ChannelStatistics event( Statistic::CHANNEL_DRAW, this,
                                  getCurrentFrame(), finish ? NICEST : AUTO );
@@ -1118,8 +1116,7 @@ void Channel::_framePass( const RenderContext& context,
         event.event.data.statistic.endTime = startTime;
     }
 
-    if( context.tasks & fabric::TASK_READBACK &&
-        _impl->framePassTimings[detail::Channel::ReadbackTime] > 0 )
+    if( context.tasks & fabric::TASK_READBACK )
     {
         RBStatPtr stat = new detail::RBStat( this );
         stat->event.event.data.statistic.startTime = startTime;
