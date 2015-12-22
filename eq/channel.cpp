@@ -1088,7 +1088,7 @@ void Channel::_framePass( const RenderContext& context,
 {
     Frames frames;
     if( context.tasks & fabric::TASK_READBACK )
-        frames = _getFrames( frameIDs, true );
+        frames = _getFrames( context, frameIDs, true );
 
     bindDrawFrameBuffer();
 
@@ -1140,7 +1140,7 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
     Frames frames;
     if( context.tasks & fabric::TASK_READBACK )
     {
-        frames = _getFrames( frameIDs, true );
+        frames = _getFrames( context, frameIDs, true );
         stat = new detail::RBStat( this );
     }
 
@@ -1243,7 +1243,8 @@ void Channel::_unrefFrame( const uint32_t frameNumber )
     _impl->finishedFrame = frameNumber;
 }
 
-Frames Channel::_getFrames( const co::ObjectVersions& frameIDs,
+Frames Channel::_getFrames( const RenderContext& context,
+                            const co::ObjectVersions& frameIDs,
                             const bool isOutput )
 {
     LB_TS_THREAD( _pipeThread );
@@ -1252,7 +1253,7 @@ Frames Channel::_getFrames( const co::ObjectVersions& frameIDs,
     for( size_t i = 0; i < frameIDs.size(); ++i )
     {
         Pipe*  pipe  = getPipe();
-        Frame* frame = pipe->getFrame( frameIDs[i], getEye(), isOutput );
+        Frame* frame = pipe->getFrame( frameIDs[i], context.eye, isOutput );
         LBASSERTINFO( lunchbox::find( frames, frame ) == frames.end(),
                       "frame " << i << " " << frameIDs[i] );
 
@@ -1271,7 +1272,7 @@ void Channel::_frameReadback( const uint128_t& frameID,
     LB_TS_THREAD( _pipeThread );
 
     RBStatPtr stat = new detail::RBStat( this );
-    const Frames& frames = _getFrames( frameIDs, true );
+    const Frames& frames = _getFrames( getContext(), frameIDs, true );
 
     std::vector< size_t > nImages( frames.size(), 0 );
     for( size_t i = 0; i < frames.size(); ++i )
@@ -1849,7 +1850,7 @@ bool Channel::_cmdFrameAssemble( co::ICommand& cmd )
     _overrideContext( context );
 
     ChannelStatistics event( Statistic::CHANNEL_ASSEMBLE, this );
-    const Frames& frames = _getFrames( frameIDs, false );
+    const Frames& frames = _getFrames( context, frameIDs, false );
     frameAssemble( context.frameID, frames );
 
     resetContext();
@@ -2020,7 +2021,7 @@ bool Channel::_cmdFramePass( co::ICommand& cmd )
     const co::ObjectVersions& frames = command.read< co::ObjectVersions >();
     const bool finish = command.read< bool >();
 
-    LBLOG( LOG_TASKS ) << "TASK channel frame pass" << getName() <<  " "
+    LBLOG( LOG_TASKS ) << "TASK channel frame pass " << getName() <<  " "
                        << command << " " << context << std::endl;
 
     _framePass( context, frames, finish );
