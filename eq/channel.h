@@ -705,7 +705,8 @@ private:
     bool _cmdFrameStart( co::ICommand& command );
     bool _cmdFrameFinish( co::ICommand& command );
     bool _cmdFrameClear( co::ICommand& command );
-    bool _cmdFrameDraw( co::ICommand& command );
+    bool _cmdFramePass( co::ICommand& cmd );
+    bool _cmdFrameTiles( co::ICommand& command );
     bool _cmdFrameDrawFinish( co::ICommand& command );
     bool _cmdFrameAssemble( co::ICommand& command );
     bool _cmdFrameReadback( co::ICommand& command );
@@ -716,8 +717,6 @@ private:
     bool _cmdFrameViewStart( co::ICommand& command );
     bool _cmdFrameViewFinish( co::ICommand& command );
     bool _cmdStopFrame( co::ICommand& command );
-    bool _cmdFramePass( co::ICommand& cmd );
-    bool _cmdFrameTiles( co::ICommand& command );
     bool _cmdDeleteTransferWindow( co::ICommand& command );
 
     LB_TS_VAR( _pipeThread );

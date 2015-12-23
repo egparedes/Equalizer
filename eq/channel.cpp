@@ -120,8 +120,6 @@ void Channel::attach( const uint128_t& id, const uint32_t instanceID )
                      CmdFunc( this, &Channel::_cmdFrameFinish ), queue );
     registerCommand( fabric::CMD_CHANNEL_FRAME_CLEAR,
                      CmdFunc( this, &Channel::_cmdFrameClear ), queue );
-    registerCommand( fabric::CMD_CHANNEL_FRAME_DRAW,
-                     CmdFunc( this, &Channel::_cmdFrameDraw ), queue );
     registerCommand( fabric::CMD_CHANNEL_FRAME_DRAW_FINISH,
                      CmdFunc( this, &Channel::_cmdFrameDrawFinish ), queue );
     registerCommand( fabric::CMD_CHANNEL_FRAME_ASSEMBLE,
@@ -1761,33 +1759,6 @@ bool Channel::_cmdFrameClear( co::ICommand& cmd )
     _overrideContext( context );
     ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
     frameClear( context.frameID );
-    resetContext();
-    bindFrameBuffer();
-
-    return true;
-}
-
-bool Channel::_cmdFrameDraw( co::ICommand& cmd )
-{
-    co::ObjectICommand command( cmd );
-    RenderContext context  = command.read< RenderContext >();
-
-    LBLOG( LOG_TASKS ) << "TASK draw " << getName() <<  " " << command
-                       << " " << context << std::endl;
-
-    bindDrawFrameBuffer();
-    _overrideContext( context );
-    const uint32_t frameNumber = getCurrentFrame();
-    ChannelStatistics event( Statistic::CHANNEL_DRAW, this, frameNumber,
-                             context.finishDraw ? NICEST : AUTO );
-
-    frameDraw( context.frameID );
-    // Set to full region if application has declared nothing
-    if( !getRegion().isValid( ))
-        declareRegion( getPixelViewport( ));
-    const size_t index = frameNumber % _impl->statistics->size();
-    _impl->statistics.data[ index ].region = getRegion() / getPixelViewport();
-
     resetContext();
     bindFrameBuffer();
 
