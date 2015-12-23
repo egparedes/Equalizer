@@ -1163,6 +1163,7 @@ void Channel::_finishFramePass( const RenderContext& context, int64_t startTime,
                                 const bool hasAsyncReadback,
                                 const Frames& frames )
 {
+    overrideContext( context );
     if( context.tasks & fabric::TASK_CLEAR )
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
@@ -1190,6 +1191,7 @@ void Channel::_finishFramePass( const RenderContext& context, int64_t startTime,
 
         _setReady( hasAsyncReadback, stat.get(), frames );
     }
+    resetContext();
 }
 
 void Channel::_refFrame( const uint32_t frameNumber )
