@@ -853,17 +853,16 @@ bool _removeOverlap( PixelViewports& regions )
         return false;
 
     for( size_t i = 0; i < regions.size()-1; ++i )
-    {
-        PixelViewport pvp = regions[i];
-        if( !pvp.hasArea( ))
-        {
-            std::swap( regions[i], regions.back() );
-            regions.pop_back();
-            return true;
-        }
-
         for( size_t j = i+1; j < regions.size(); ++j )
         {
+            PixelViewport pvp = regions[i];
+            if( !pvp.hasArea( ))
+            {
+                std::swap( regions[i], regions.back() );
+                regions.pop_back();
+                return true;
+            }
+
             pvp.intersect( regions[j] );
             if( pvp.hasArea( ))
             {
@@ -873,7 +872,6 @@ bool _removeOverlap( PixelViewports& regions )
                 return true;
             }
         }
-    }
     return false;
 }
 }
