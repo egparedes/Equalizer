@@ -1081,8 +1081,7 @@ private:
 typedef lunchbox::RefPtr< detail::RBStat > RBStatPtr;
 
 void Channel::_framePass( const RenderContext& context,
-                          const co::ObjectVersions& frameIDs,
-                          const bool finish )
+                          const co::ObjectVersions& frameIDs )
 {
     Frames frames;
     if( context.tasks & fabric::TASK_READBACK )
@@ -1096,34 +1095,7 @@ void Channel::_framePass( const RenderContext& context,
     _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
 
     const bool hasAsyncReadback = framePass( context, frames );
-
-    if( context.tasks & fabric::TASK_CLEAR )
-    {
-        ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
-        event.event.data.statistic.startTime = startTime;
-        startTime += _impl->framePassTimings[detail::Channel::ClearTime];
-        event.event.data.statistic.endTime = startTime;
-    }
-
-    if( context.tasks & fabric::TASK_DRAW )
-    {
-        ChannelStatistics event( Statistic::CHANNEL_DRAW, this,
-                                 getCurrentFrame(), finish ? NICEST : AUTO );
-        event.event.data.statistic.startTime = startTime;
-        startTime += _impl->framePassTimings[detail::Channel::DrawTime];
-        event.event.data.statistic.endTime = startTime;
-    }
-
-    if( context.tasks & fabric::TASK_READBACK )
-    {
-        RBStatPtr stat = new detail::RBStat( this );
-        stat->event.event.data.statistic.startTime = startTime;
-        startTime += _impl->framePassTimings[detail::Channel::ReadbackTime];
-        stat->event.event.data.statistic.endTime = startTime;
-
-        _setReady( hasAsyncReadback, stat.get(), frames );
-    }
-
+    _finishFramePass( context, startTime, hasAsyncReadback, frames );
     bindFrameBuffer();
 }
 
@@ -1131,23 +1103,18 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
                            const uint128_t& queueID,
                            const co::ObjectVersions& frameIDs )
 {
-    _overrideContext( context );
     frameTilesStart( context.frameID );
 
-    RBStatPtr stat;
     Frames frames;
     if( context.tasks & fabric::TASK_READBACK )
-    {
         frames = _getFrames( context, frameIDs, true );
-        stat = new detail::RBStat( this );
-    }
 
-    int64_t startTime = getConfig()->getTime();
     _impl->framePassTimings[detail::Channel::ClearTime] = 0;
     _impl->framePassTimings[detail::Channel::DrawTime] = 0;
     _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
-    bool hasAsyncReadback = false;
+    const int64_t startTime = getConfig()->getTime();
     const uint32_t timeout = getConfig()->getTimeout();
+    bool hasAsyncReadback = false;
 
     const size_t nFrames = frames.size();
     std::vector< size_t > nImages( nFrames, 0 );
@@ -1173,7 +1140,8 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         for( size_t i = 0; i < nFrames; ++i )
             nImages[i] = frames[i]->getImages().size();
 
-        hasAsyncReadback = framePass( context, frames );
+        if( framePass( context, frames ))
+            hasAsyncReadback = true;
 
         for( size_t i = 0; i < nFrames; ++i )
         {
@@ -1183,12 +1151,20 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
             {
                 Image* image = images[j];
                 const PixelViewport& pvp = image->getPixelViewport();
-                image->setOffset( pvp.x + tilePVP.x,
-                                  pvp.y + tilePVP.y );
+                image->setOffset( pvp.x + tilePVP.x, pvp.y + tilePVP.y );
             }
         }
     }
 
+    _finishFramePass( context, startTime, hasAsyncReadback, frames );
+    frameTilesFinish( context.frameID );
+    resetContext();
+}
+
+void Channel::_finishFramePass( const RenderContext& context, int64_t startTime,
+                                const bool hasAsyncReadback,
+                                const Frames& frames )
+{
     if( context.tasks & fabric::TASK_CLEAR )
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
@@ -1199,7 +1175,9 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
 
     if( context.tasks & fabric::TASK_DRAW )
     {
-        ChannelStatistics event( Statistic::CHANNEL_DRAW, this );
+        ChannelStatistics event( Statistic::CHANNEL_DRAW, this,
+                                 getCurrentFrame(),
+                                 context.finishDraw ? NICEST : AUTO );
         event.event.data.statistic.startTime = startTime;
         startTime += _impl->framePassTimings[detail::Channel::DrawTime];
         event.event.data.statistic.endTime = startTime;
@@ -1207,15 +1185,13 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
 
     if( context.tasks & fabric::TASK_READBACK )
     {
+        RBStatPtr stat = new detail::RBStat( this );
         stat->event.event.data.statistic.startTime = startTime;
         startTime += _impl->framePassTimings[detail::Channel::ReadbackTime];
         stat->event.event.data.statistic.endTime = startTime;
 
         _setReady( hasAsyncReadback, stat.get(), frames );
     }
-
-    frameTilesFinish( context.frameID );
-    resetContext();
 }
 
 void Channel::_refFrame( const uint32_t frameNumber )
@@ -1795,7 +1771,6 @@ bool Channel::_cmdFrameDraw( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
     RenderContext context  = command.read< RenderContext >();
-    const bool finish = command.read< bool >();
 
     LBLOG( LOG_TASKS ) << "TASK draw " << getName() <<  " " << command
                        << " " << context << std::endl;
@@ -1804,7 +1779,7 @@ bool Channel::_cmdFrameDraw( co::ICommand& cmd )
     _overrideContext( context );
     const uint32_t frameNumber = getCurrentFrame();
     ChannelStatistics event( Statistic::CHANNEL_DRAW, this, frameNumber,
-                             finish ? NICEST : AUTO );
+                             context.finishDraw ? NICEST : AUTO );
 
     frameDraw( context.frameID );
     // Set to full region if application has declared nothing
@@ -2017,12 +1992,11 @@ bool Channel::_cmdFramePass( co::ICommand& cmd )
     co::ObjectICommand command( cmd );
     RenderContext context = command.read< RenderContext >();
     const co::ObjectVersions& frames = command.read< co::ObjectVersions >();
-    const bool finish = command.read< bool >();
 
     LBLOG( LOG_TASKS ) << "TASK channel frame pass " << getName() <<  " "
                        << command << " " << context << std::endl;
 
-    _framePass( context, frames, finish );
+    _framePass( context, frames );
     return true;
 }
 

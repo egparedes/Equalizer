@@ -190,6 +190,7 @@ void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
     context.view          = destChannel->getViewVersion();
     context.taskID        = compound->getTaskID();
     context.tasks         = compound->getInheritTasks();
+    context.finishDraw    = _channel->hasListeners(); // finish for eq stats
 
     const View* view = destChannel->getView();
     LBASSERT( context.view == co::ObjectVersion( view ));
@@ -231,17 +232,15 @@ void ChannelUpdateVisitor::_updateDraw( const Compound* compound,
 void ChannelUpdateVisitor::_updateDrawPass( const Compound* compound,
                                             const RenderContext& context )
 {
-    const bool finish = _channel->hasListeners(); // finish for eq stats
     const co::ObjectVersions& frameIDs =
         (context.tasks & eq::fabric::TASK_READBACK) ?
             _selectFrames( compound->getOutputFrames( )) :
             co::ObjectVersions();
 
-    _channel->send( fabric::CMD_CHANNEL_FRAME_PASS )
-            << context << frameIDs << finish;
+    _channel->send( fabric::CMD_CHANNEL_FRAME_PASS ) << context << frameIDs;
     _updated = true;
     LBLOG( LOG_TASKS ) << "TASK pass " << _channel->getName() <<  " "
-                       << finish << std::endl;
+                       << std::endl;
 }
 
 void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,

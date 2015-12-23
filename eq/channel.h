@@ -636,12 +636,16 @@ private:
 
     /** Regular render loop. */
     void _framePass( const RenderContext& context,
-                     const co::ObjectVersions& frames, bool finish );
+                     const co::ObjectVersions& frames );
 
     /** Tile render loop. */
     void _frameTiles( RenderContext& context, bool isLocal,
                       const uint128_t& queueID,
                       const co::ObjectVersions& frames );
+
+    /** Emit events and set ready output */
+    void _finishFramePass( const RenderContext& context, int64_t startTime,
+                           bool hasAsyncReadback, const Frames& frames );
 
     /** Reference the frame for an async operation. */
     void _refFrame( const uint32_t frameNumber );

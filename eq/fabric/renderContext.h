@@ -69,7 +69,8 @@ namespace fabric
         // uint32_t       alignToEight;   //!< @internal padding
 
         ColorMask      bufferMask;     //!< color mask for anaglyph stereo
-        bool           alignDummy[28]; //!< @internal padding
+        bool           finishDraw;     //!< Precise draw statistics needed
+        bool           alignDummy[27]; //!< @internal padding
     };
 
     EQFABRIC_API std::ostream& operator << ( std::ostream& os,
