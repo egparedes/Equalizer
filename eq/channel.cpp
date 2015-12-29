@@ -120,8 +120,6 @@ void Channel::attach( const uint128_t& id, const uint32_t instanceID )
                      CmdFunc( this, &Channel::_cmdFrameFinish ), queue );
     registerCommand( fabric::CMD_CHANNEL_FRAME_CLEAR,
                      CmdFunc( this, &Channel::_cmdFrameClear ), queue );
-    registerCommand( fabric::CMD_CHANNEL_FRAME_DRAW,
-                     CmdFunc( this, &Channel::_cmdFrameDraw ), queue );
     registerCommand( fabric::CMD_CHANNEL_FRAME_DRAW_FINISH,
                      CmdFunc( this, &Channel::_cmdFrameDrawFinish ), queue );
     registerCommand( fabric::CMD_CHANNEL_FRAME_ASSEMBLE,
@@ -441,8 +439,7 @@ bool Channel::framePass( const RenderContext& context, const Frames& frames )
         for( size_t i = 0; i < nFrames; ++i )
         {
             nImages[i] = frames[i]->getImages().size();
-            frames[i]->getFrameData()->setPixelViewport(
-                getPixelViewport( ));
+            frames[i]->getFrameData()->setPixelViewport( getPixelViewport( ));
         }
 
         frameReadback( context.frameID, frames );
@@ -840,7 +837,7 @@ bool _hasOverlap( PixelViewports& regions )
         {
             PixelViewport pv = regions[j];
             pv.intersect( regions[i] );
-            if( pv.hasArea( ) )
+            if( pv.hasArea( ))
                 return true;
         }
     return false;
@@ -854,19 +851,18 @@ bool _removeOverlap( PixelViewports& regions )
         return false;
 
     for( size_t i = 0; i < regions.size()-1; ++i )
-    {
-        PixelViewport pvp = regions[i];
-        if( !pvp.hasArea( ))
-        {
-            std::swap( regions[i], regions.back() );
-            regions.pop_back();
-            return true;
-        }
-
         for( size_t j = i+1; j < regions.size(); ++j )
         {
+            PixelViewport pvp = regions[i];
+            if( !pvp.hasArea( ))
+            {
+                std::swap( regions[i], regions.back() );
+                regions.pop_back();
+                return true;
+            }
+
             pvp.intersect( regions[j] );
-            if( pvp.hasArea( ) )
+            if( pvp.hasArea( ))
             {
                 regions[i].merge( regions[j] );
                 std::swap( regions[j], regions.back() );
@@ -874,7 +870,6 @@ bool _removeOverlap( PixelViewports& regions )
                 return true;
             }
         }
-    }
     return false;
 }
 }
@@ -1084,12 +1079,11 @@ private:
 typedef lunchbox::RefPtr< detail::RBStat > RBStatPtr;
 
 void Channel::_framePass( const RenderContext& context,
-                          const co::ObjectVersions& frameIDs,
-                          const bool finish )
+                          const co::ObjectVersions& frameIDs )
 {
     Frames frames;
     if( context.tasks & fabric::TASK_READBACK )
-        frames = _getFrames( frameIDs, true );
+        frames = _getFrames( context, frameIDs, true );
 
     bindDrawFrameBuffer();
 
@@ -1099,63 +1093,26 @@ void Channel::_framePass( const RenderContext& context,
     _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
 
     const bool hasAsyncReadback = framePass( context, frames );
-
-    if( context.tasks & fabric::TASK_CLEAR &&
-        _impl->framePassTimings[detail::Channel::ClearTime] > 0 )
-    {
-        ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
-        event.event.data.statistic.startTime = startTime;
-        startTime += _impl->framePassTimings[detail::Channel::ClearTime];
-        event.event.data.statistic.endTime = startTime;
-    }
-
-    if( context.tasks & fabric::TASK_DRAW &&
-        _impl->framePassTimings[detail::Channel::DrawTime] > 0 )
-    {
-        ChannelStatistics event( Statistic::CHANNEL_DRAW, this,
-                                 getCurrentFrame(), finish ? NICEST : AUTO );
-        event.event.data.statistic.startTime = startTime;
-        startTime += _impl->framePassTimings[detail::Channel::DrawTime];
-        event.event.data.statistic.endTime = startTime;
-    }
-
-    if( context.tasks & fabric::TASK_READBACK &&
-        _impl->framePassTimings[detail::Channel::ReadbackTime] > 0 )
-    {
-        RBStatPtr stat = new detail::RBStat( this );
-        stat->event.event.data.statistic.startTime = startTime;
-        startTime += _impl->framePassTimings[detail::Channel::ReadbackTime];
-        stat->event.event.data.statistic.endTime = startTime;
-
-        _setReady( hasAsyncReadback, stat.get(), frames );
-    }
-
+    _finishFramePass( context, startTime, hasAsyncReadback, frames );
     bindFrameBuffer();
 }
 
 void Channel::_frameTiles( RenderContext& context, const bool isLocal,
-                           const uint128_t& queueID, const uint32_t tasks,
+                           const uint128_t& queueID,
                            const co::ObjectVersions& frameIDs )
 {
-    context.tasks = tasks;
-    _overrideContext( context );
-
     frameTilesStart( context.frameID );
 
-    RBStatPtr stat;
     Frames frames;
-    if( tasks & fabric::TASK_READBACK )
-    {
-        frames = _getFrames( frameIDs, true );
-        stat = new detail::RBStat( this );
-    }
+    if( context.tasks & fabric::TASK_READBACK )
+        frames = _getFrames( context, frameIDs, true );
 
-    int64_t startTime = getConfig()->getTime();
     _impl->framePassTimings[detail::Channel::ClearTime] = 0;
     _impl->framePassTimings[detail::Channel::DrawTime] = 0;
     _impl->framePassTimings[detail::Channel::ReadbackTime] = 0;
-    bool hasAsyncReadback = false;
+    const int64_t startTime = getConfig()->getTime();
     const uint32_t timeout = getConfig()->getTimeout();
+    bool hasAsyncReadback = false;
 
     const size_t nFrames = frames.size();
     std::vector< size_t > nImages( nFrames, 0 );
@@ -1181,7 +1138,8 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         for( size_t i = 0; i < nFrames; ++i )
             nImages[i] = frames[i]->getImages().size();
 
-        hasAsyncReadback = framePass( context, frames );
+        if( framePass( context, frames ))
+            hasAsyncReadback = true;
 
         for( size_t i = 0; i < nFrames; ++i )
         {
@@ -1191,13 +1149,22 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
             {
                 Image* image = images[j];
                 const PixelViewport& pvp = image->getPixelViewport();
-                image->setOffset( pvp.x + tilePVP.x,
-                                  pvp.y + tilePVP.y );
+                image->setOffset( pvp.x + tilePVP.x, pvp.y + tilePVP.y );
             }
         }
     }
 
-    if( tasks & fabric::TASK_CLEAR )
+    _finishFramePass( context, startTime, hasAsyncReadback, frames );
+    frameTilesFinish( context.frameID );
+    resetContext();
+}
+
+void Channel::_finishFramePass( const RenderContext& context, int64_t startTime,
+                                const bool hasAsyncReadback,
+                                const Frames& frames )
+{
+    overrideContext( context );
+    if( context.tasks & fabric::TASK_CLEAR )
     {
         ChannelStatistics event( Statistic::CHANNEL_CLEAR, this );
         event.event.data.statistic.startTime = startTime;
@@ -1205,24 +1172,25 @@ void Channel::_frameTiles( RenderContext& context, const bool isLocal,
         event.event.data.statistic.endTime = startTime;
     }
 
-    if( tasks & fabric::TASK_DRAW )
+    if( context.tasks & fabric::TASK_DRAW )
     {
-        ChannelStatistics event( Statistic::CHANNEL_DRAW, this );
+        ChannelStatistics event( Statistic::CHANNEL_DRAW, this,
+                                 getCurrentFrame(),
+                                 context.finishDraw ? NICEST : AUTO );
         event.event.data.statistic.startTime = startTime;
         startTime += _impl->framePassTimings[detail::Channel::DrawTime];
         event.event.data.statistic.endTime = startTime;
     }
 
-    if( tasks & fabric::TASK_READBACK )
+    if( context.tasks & fabric::TASK_READBACK )
     {
+        RBStatPtr stat = new detail::RBStat( this );
         stat->event.event.data.statistic.startTime = startTime;
         startTime += _impl->framePassTimings[detail::Channel::ReadbackTime];
         stat->event.event.data.statistic.endTime = startTime;
 
         _setReady( hasAsyncReadback, stat.get(), frames );
     }
-
-    frameTilesFinish( context.frameID );
     resetContext();
 }
 
@@ -1249,7 +1217,8 @@ void Channel::_unrefFrame( const uint32_t frameNumber )
     _impl->finishedFrame = frameNumber;
 }
 
-Frames Channel::_getFrames( const co::ObjectVersions& frameIDs,
+Frames Channel::_getFrames( const RenderContext& context,
+                            const co::ObjectVersions& frameIDs,
                             const bool isOutput )
 {
     LB_TS_THREAD( _pipeThread );
@@ -1258,7 +1227,7 @@ Frames Channel::_getFrames( const co::ObjectVersions& frameIDs,
     for( size_t i = 0; i < frameIDs.size(); ++i )
     {
         Pipe*  pipe  = getPipe();
-        Frame* frame = pipe->getFrame( frameIDs[i], getEye(), isOutput );
+        Frame* frame = pipe->getFrame( frameIDs[i], context.eye, isOutput );
         LBASSERTINFO( lunchbox::find( frames, frame ) == frames.end(),
                       "frame " << i << " " << frameIDs[i] );
 
@@ -1277,7 +1246,7 @@ void Channel::_frameReadback( const uint128_t& frameID,
     LB_TS_THREAD( _pipeThread );
 
     RBStatPtr stat = new detail::RBStat( this );
-    const Frames& frames = _getFrames( frameIDs, true );
+    const Frames& frames = _getFrames( getContext(), frameIDs, true );
 
     std::vector< size_t > nImages( frames.size(), 0 );
     for( size_t i = 0; i < frames.size(); ++i )
@@ -1798,34 +1767,6 @@ bool Channel::_cmdFrameClear( co::ICommand& cmd )
     return true;
 }
 
-bool Channel::_cmdFrameDraw( co::ICommand& cmd )
-{
-    co::ObjectICommand command( cmd );
-    RenderContext context  = command.read< RenderContext >();
-    const bool finish = command.read< bool >();
-
-    LBLOG( LOG_TASKS ) << "TASK draw " << getName() <<  " " << command
-                       << " " << context << std::endl;
-
-    bindDrawFrameBuffer();
-    _overrideContext( context );
-    const uint32_t frameNumber = getCurrentFrame();
-    ChannelStatistics event( Statistic::CHANNEL_DRAW, this, frameNumber,
-                             finish ? NICEST : AUTO );
-
-    frameDraw( context.frameID );
-    // Set to full region if application has declared nothing
-    if( !getRegion().isValid( ))
-        declareRegion( getPixelViewport( ));
-    const size_t index = frameNumber % _impl->statistics->size();
-    _impl->statistics.data[ index ].region = getRegion() / getPixelViewport();
-
-    resetContext();
-    bindFrameBuffer();
-
-    return true;
-}
-
 bool Channel::_cmdFrameDrawFinish( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
@@ -1855,7 +1796,7 @@ bool Channel::_cmdFrameAssemble( co::ICommand& cmd )
     _overrideContext( context );
 
     ChannelStatistics event( Statistic::CHANNEL_ASSEMBLE, this );
-    const Frames& frames = _getFrames( frameIDs, false );
+    const Frames& frames = _getFrames( context, frameIDs, false );
     frameAssemble( context.frameID, frames );
 
     resetContext();
@@ -2024,12 +1965,11 @@ bool Channel::_cmdFramePass( co::ICommand& cmd )
     co::ObjectICommand command( cmd );
     RenderContext context = command.read< RenderContext >();
     const co::ObjectVersions& frames = command.read< co::ObjectVersions >();
-    const bool finish = command.read< bool >();
 
-    LBLOG( LOG_TASKS ) << "TASK channel frame pass" << getName() <<  " "
+    LBLOG( LOG_TASKS ) << "TASK channel frame pass " << getName() <<  " "
                        << command << " " << context << std::endl;
 
-    _framePass( context, frames, finish );
+    _framePass( context, frames );
     return true;
 }
 
@@ -2039,13 +1979,12 @@ bool Channel::_cmdFrameTiles( co::ICommand& cmd )
     RenderContext context = command.read< RenderContext >();
     const bool isLocal = command.read< bool >();
     const uint128_t& queueID = command.read< uint128_t >();
-    const uint32_t tasks = command.read< uint32_t >();
     const co::ObjectVersions& frames = command.read< co::ObjectVersions >();
 
     LBLOG( LOG_TASKS ) << "TASK channel frame tiles " << getName() <<  " "
                        << command << " " << context << std::endl;
 
-    _frameTiles( context, isLocal, queueID, tasks, frames );
+    _frameTiles( context, isLocal, queueID, frames );
     return true;
 }
 

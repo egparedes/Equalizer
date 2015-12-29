@@ -2,7 +2,7 @@
 /* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
- *                    2015, Enrique <egparedes@ifi.uzh.ch>
+ *                          Enrique <egparedes@ifi.uzh.ch>
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
  * by the Free Software Foundation.
@@ -636,12 +636,16 @@ private:
 
     /** Regular render loop. */
     void _framePass( const RenderContext& context,
-                     const co::ObjectVersions& frames, bool finish );
+                     const co::ObjectVersions& frames );
 
     /** Tile render loop. */
-    void _frameTiles( RenderContext& context, const bool isLocal,
-                      const uint128_t& queueID, const uint32_t tasks,
+    void _frameTiles( RenderContext& context, bool isLocal,
+                      const uint128_t& queueID,
                       const co::ObjectVersions& frames );
+
+    /** Emit events and set ready output */
+    void _finishFramePass( const RenderContext& context, int64_t startTime,
+                           bool hasAsyncReadback, const Frames& frames );
 
     /** Reference the frame for an async operation. */
     void _refFrame( const uint32_t frameNumber );
@@ -688,7 +692,8 @@ private:
     /** Getsthe channel's current input queue. */
     co::QueueSlave* _getQueue( const uint128_t& queueID );
 
-    Frames _getFrames( const co::ObjectVersions& frameIDs,
+    Frames _getFrames( const RenderContext& context,
+                       const co::ObjectVersions& frameIDs,
                        const bool isOutput );
 
     void _createTransferWindow();
@@ -700,7 +705,8 @@ private:
     bool _cmdFrameStart( co::ICommand& command );
     bool _cmdFrameFinish( co::ICommand& command );
     bool _cmdFrameClear( co::ICommand& command );
-    bool _cmdFrameDraw( co::ICommand& command );
+    bool _cmdFramePass( co::ICommand& cmd );
+    bool _cmdFrameTiles( co::ICommand& command );
     bool _cmdFrameDrawFinish( co::ICommand& command );
     bool _cmdFrameAssemble( co::ICommand& command );
     bool _cmdFrameReadback( co::ICommand& command );
@@ -711,8 +717,6 @@ private:
     bool _cmdFrameViewStart( co::ICommand& command );
     bool _cmdFrameViewFinish( co::ICommand& command );
     bool _cmdStopFrame( co::ICommand& command );
-    bool _cmdFramePass( co::ICommand& cmd );
-    bool _cmdFrameTiles( co::ICommand& command );
     bool _cmdDeleteTransferWindow( co::ICommand& command );
 
     LB_TS_VAR( _pipeThread );

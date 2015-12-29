@@ -1,7 +1,7 @@
 
-/* Copyright (c) 2006-2014, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
- *                    2015, Enrique <egparedes@ifi.uzh.ch>
+/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                          Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -302,7 +302,7 @@ public:
 
     /** @internal */
     bool addImage( const co::ObjectVersion& frameDataVersion,
-                   const PixelViewport& pvp, const Range &range,
+                   const PixelViewport& pvp, const Range& range,
                    const Zoom& zoom, const uint32_t buffers,
                    const bool useAlpha, uint8_t* data );
     void setReady( const co::ObjectVersion& frameData,
@@ -335,4 +335,3 @@ EQ_API std::ostream& operator << ( std::ostream&, const FrameData& );
 }
 
 #endif // EQ_FRAMEDATA_H
-

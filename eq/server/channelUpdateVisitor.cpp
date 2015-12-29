@@ -134,7 +134,6 @@ VisitorResult ChannelUpdateVisitor::visitLeaf( const Compound* compound )
         return TRAVERSE_CONTINUE;
     }
 
-    // OPT: Send render context once before task commands?
     RenderContext context;
     _setupRenderContext( compound, context );
     _updateFrameRate( compound );
@@ -157,18 +156,14 @@ VisitorResult ChannelUpdateVisitor::visitPost( const Compound* compound )
     return TRAVERSE_CONTINUE;
 }
 
-void ChannelUpdateVisitor::_getFrameIDs( const Frames& frames,
-                                         co::ObjectVersions& frameIDs,
-                                         Frames& validFrames ) const
+co::ObjectVersions ChannelUpdateVisitor::_selectFrames( const Frames& frames )
+    const
 {
+    co::ObjectVersions frameIDs;
     for( Frame* frame : frames )
-    {
-        if( !frame->hasData( _eye ))
-            continue;
-
-        validFrames.push_back( frame );
-        frameIDs.push_back( co::ObjectVersion( frame ));
-    }
+        if( frame->hasData( _eye ))
+            frameIDs.push_back( co::ObjectVersion( frame ));
+    return frameIDs;
 }
 
 void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
@@ -195,6 +190,7 @@ void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
     context.view          = destChannel->getViewVersion();
     context.taskID        = compound->getTaskID();
     context.tasks         = compound->getInheritTasks();
+    context.finishDraw    = _channel->hasListeners(); // finish for eq stats
 
     const View* view = destChannel->getView();
     LBASSERT( context.view == co::ObjectVersion( view ));
@@ -226,40 +222,32 @@ void ChannelUpdateVisitor::_updateDraw( const Compound* compound,
                                         const RenderContext& context )
 {
     if( compound->hasTiles( ))
-    {
         _updateDrawTiles( compound, context );
-    }
     else if( context.tasks & eq::fabric::TASK_DRAW )
-    {
         _updateDrawPass( compound, context );
-    }
     else if( context.tasks & fabric::TASK_CLEAR )
-    {
         _sendClear( context );
-    }
 }
 
 void ChannelUpdateVisitor::_updateDrawPass( const Compound* compound,
                                             const RenderContext& context )
 {
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( compound->getOutputFrames(), frameIDs, validFrames );
-    const bool finish = _channel->hasListeners(); // finish for eq stats
+    const co::ObjectVersions& frameIDs =
+        (context.tasks & eq::fabric::TASK_READBACK) ?
+            _selectFrames( compound->getOutputFrames( )) :
+            co::ObjectVersions();
 
-    _channel->send( fabric::CMD_CHANNEL_FRAME_PASS )
-            << context << frameIDs << finish;
+    _channel->send( fabric::CMD_CHANNEL_FRAME_PASS ) << context << frameIDs;
     _updated = true;
     LBLOG( LOG_TASKS ) << "TASK pass " << _channel->getName() <<  " "
-                       << finish << std::endl;
+                       << std::endl;
 }
 
 void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
                                              const RenderContext& context )
 {
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( compound->getOutputFrames(), frameIDs, validFrames );
+    const co::ObjectVersions& frameIDs =
+        _selectFrames( compound->getOutputFrames( ));
     const Channel* destChannel = compound->getInheritChannel();
     const TileQueues& inputQueues = compound->getInputTileQueues();
     for( TileQueuesCIter i = inputQueues.begin(); i != inputQueues.end(); ++i )
@@ -270,12 +258,9 @@ void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
         LBASSERT( id != 0 );
 
         const bool isLocal = (_channel == destChannel);
-        const uint32_t tasks = compound->getInheritTasks() &
-                            ( eq::fabric::TASK_CLEAR | eq::fabric::TASK_DRAW |
-                              eq::fabric::TASK_READBACK );
 
         _channel->send( fabric::CMD_CHANNEL_FRAME_TILES )
-                << context << isLocal << id << tasks << frameIDs;
+                << context << isLocal << id << frameIDs;
         _updated = true;
         LBLOG( LOG_TASKS ) << "TASK tiles " << _channel->getName() <<  " "
                            << std::endl;
@@ -412,14 +397,8 @@ void ChannelUpdateVisitor::_updateAssemble( const Compound* compound,
         return;
 
     const Frames& inputFrames = compound->getInputFrames();
+    const co::ObjectVersions& frameIDs = _selectFrames( inputFrames );
     LBASSERT( !inputFrames.empty( ));
-
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( inputFrames, frameIDs, validFrames );
-    for( auto frame: validFrames )
-        LBLOG( LOG_ASSEMBLY ) << *frame << std::endl;
-
     if( frameIDs.empty( ))
         return;
 
@@ -436,20 +415,15 @@ void ChannelUpdateVisitor::_updateReadback( const Compound* compound,
                                             const RenderContext& context )
 {
     if( !compound->testInheritTask( fabric::TASK_READBACK ) ||
+        compound->testInheritTask( fabric::TASK_DRAW ) ||
         ( compound->hasTiles() && compound->isLeaf( )))
     {
         return;
     }
 
     const std::vector< Frame* >& outputFrames = compound->getOutputFrames();
+    const co::ObjectVersions& frameIDs = _selectFrames( outputFrames );
     LBASSERT( !outputFrames.empty( ));
-
-    co::ObjectVersions frameIDs;
-    Frames validFrames;
-    _getFrameIDs( outputFrames, frameIDs, validFrames );
-    for( auto frame: validFrames )
-        LBLOG( LOG_ASSEMBLY ) << *frame << std::endl;
-
     if( frameIDs.empty() )
         return;
 
@@ -466,7 +440,7 @@ void ChannelUpdateVisitor::_updateViewStart( const Compound* compound,
                                              const RenderContext& context )
 {
     LBASSERT( !_skipCompound( compound ));
-    if( !compound->testInheritTask( fabric::TASK_VIEW ))
+    if( !(context.tasks & fabric::TASK_VIEW ))
         return;
 
     // view start task
@@ -479,7 +453,7 @@ void ChannelUpdateVisitor::_updateViewFinish( const Compound* compound,
                                               const RenderContext& context )
 {
     LBASSERT( !_skipCompound( compound ));
-    if( !compound->testInheritTask( fabric::TASK_VIEW ))
+    if( !(context.tasks & fabric::TASK_VIEW ))
         return;
 
     // view finish task

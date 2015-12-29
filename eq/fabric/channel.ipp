@@ -46,6 +46,7 @@ static std::string _sAttributeStrings[] = {
 
 template< class W, class C > Channel< W, C >::Channel( W* parent )
     : _window( parent )
+    , _context( &_data.nativeContext )
     , _maxSize( Vector2i::ZERO )
 {
     memset( _iAttributes, 0xff, IATTR_ALL * sizeof( int32_t ));
@@ -57,6 +58,7 @@ template< class W, class C > Channel< W, C >::Channel( const Channel& from )
         : Object( from )
         , _window( from._window )
         , _data( from._data )
+        , _context( &_data.nativeContext )
         , _maxSize( from._maxSize )
 {
     _window->_addChannel( static_cast< C* >( this ));
@@ -243,6 +245,7 @@ void Channel< W, C >::notifyViewportChanged()
 template< class W, class C >
 void Channel< W, C >::setNearFar( const float nearPlane, const float farPlane )
 {
+    LBASSERT( _context );
     if( _data.nativeContext.frustum.near_plane() != nearPlane ||
         _data.nativeContext.frustum.far_plane() != farPlane )
     {
@@ -253,13 +256,16 @@ void Channel< W, C >::setNearFar( const float nearPlane, const float farPlane )
         setDirty( DIRTY_FRUSTUM );
     }
 
-    if( _context.frustum.near_plane() != nearPlane ||
-        _context.frustum.far_plane() != farPlane )
+    if( _context == &_data.nativeContext )
+        return;
+
+    if( _context->frustum.near_plane() != nearPlane ||
+        _context->frustum.far_plane() != farPlane )
     {
-        _context.frustum.adjust_near( nearPlane );
-        _context.frustum.far_plane() = farPlane;
-        _context.ortho.near_plane() = nearPlane;
-        _context.ortho.far_plane()  = farPlane;
+        _context->frustum.adjust_near( nearPlane );
+        _context->frustum.far_plane() = farPlane;
+        _context->ortho.near_plane() = nearPlane;
+        _context->ortho.far_plane()  = farPlane;
     }
 }
 
