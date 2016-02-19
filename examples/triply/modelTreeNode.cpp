@@ -108,6 +108,23 @@ unsigned ModelTreeNode::getNumberOfChildren() const
     return result;
 }
 
+unsigned ModelTreeNode::getNumberOfDescendants( ) const
+{
+    unsigned result = 0;
+    if ( _children.size() > 0 )
+    {
+        for( unsigned i=0; i < _children.size(); ++i )
+        {
+            if( _children[i] != 0 )
+            {
+                result += 1 + _children[i]->getNumberOfDescendants();
+            }
+        }
+    }
+
+    return result;
+}
+
 // A pair of numbers per sublevel: (#totalnodes, #leaves)
 std::vector< std::pair< unsigned, unsigned > > ModelTreeNode::getDescendantsPerLevel( ) const
 {

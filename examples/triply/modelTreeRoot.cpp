@@ -340,6 +340,8 @@ void ModelTreeRoot::toStream( std:: ostream& os )
     os.write( _partition.c_str(), partitionLength  * sizeof( char ) );
     size_t treeArity = ModelTreeNode::getArity();
     os.write( reinterpret_cast< char* >( &treeArity ), sizeof( size_t ) );
+    size_t totalTreeNodes = getNumberOfDescendants();
+    os.write( reinterpret_cast< char* >( &totalTreeNodes ), sizeof( size_t ) );
     size_t nodeType = ROOT_TYPE;
     os.write( reinterpret_cast< char* >( &nodeType ), sizeof( size_t ) );
     _treeData.toStream( os );
@@ -367,6 +369,8 @@ void ModelTreeRoot::fromMemory( char* start )
     if( _partition != partition || ModelTreeNode::getArity() != treeArity)
         throw MeshException( "Error reading binary file. Invalid tree specification." );
 
+    size_t totalTreeNodes;
+    memRead( reinterpret_cast< char* >( &totalTreeNodes ), addr, sizeof( size_t ) );
     size_t nodeType;
     memRead( reinterpret_cast< char* >( &nodeType ), addr, sizeof( size_t ) );
     if( nodeType != ROOT_TYPE )

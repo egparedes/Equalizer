@@ -54,6 +54,8 @@ public:
 
     virtual void draw( RenderState& state ) const override;
     virtual Index getNumberOfVertices() const override;
+
+    virtual unsigned getNumberOfDescendants( ) const override;
     virtual std::vector< std::pair< unsigned, unsigned > > getDescendantsPerLevel( ) const override;
 
     virtual ConstModelTreeBasePtr getChild( unsigned char childId ) const override

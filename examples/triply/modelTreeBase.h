@@ -65,6 +65,8 @@ public:
     virtual ModelTreeBasePtr getChild( unsigned char /*childId*/ ) { return 0; }
 
     virtual unsigned getNumberOfChildren( ) const { return 0; }
+    virtual unsigned getNumberOfDescendants( ) const { return 0; }
+
     // A pair of numbers per sublevel: (#totalnodes, #leaves)
     virtual std::vector< std::pair< unsigned, unsigned > > getDescendantsPerLevel( ) const
         { return std::vector< std::pair< unsigned, unsigned > >(); }

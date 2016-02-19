@@ -215,7 +215,7 @@ ModelTreeLeaf* ZTreeGenerator::generateLeaf( void* state )
     }
 
 #ifndef NDEBUG
-    TRIPLYINFO << "MKDGenerator::generateLeaf" << "( " << indexStart << ", " << indexLength
+    TRIPLYINFO << "ZTreeGenerator::generateLeaf" << "( " << indexStart << ", " << indexLength
              << "/ start " << vertexStart << ", " << vertexLength
              << " vertices)." << std::endl;
 #endif

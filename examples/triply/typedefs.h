@@ -184,7 +184,7 @@ struct TreeInfo
 const Index             LEAF_SIZE( 21845 );
 
 // binary mesh file version, increment if changing the file format
-const unsigned short    FILE_VERSION( 0x011B );
+const unsigned short    FILE_VERSION( 0x011C );
 
 // enumerations for the buffer objects
 enum BufferType

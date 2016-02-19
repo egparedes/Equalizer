@@ -403,6 +403,8 @@ private:
                 if( partitionLength < 1 || treeArity < 2 )
                     throw MeshException( "Error reading binary file. Invalid tree specification." );
 
+                size_t totalTreeNodes;
+                memRead( reinterpret_cast< char* >( &totalTreeNodes ), &dataAddr, sizeof( size_t ) );
                 size_t nodeType;
                 memRead( reinterpret_cast< char* >( &nodeType ), &dataAddr, sizeof( size_t ) );
                 if( nodeType != ROOT_TYPE )
