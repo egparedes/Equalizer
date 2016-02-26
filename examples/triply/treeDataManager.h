@@ -41,7 +41,7 @@ namespace detail { class TreeDataManager; }
 class TreeDataManager
 {
 public:
-    static const size_t DefaultMaxMemoryHint = 512*1024*1024; // 512 MiB
+    static const size_t DefaultMaxMemoryHint = 4*1024*1024*1024ull; // 4 GiB
 
     TRIPLY_API explicit TreeDataManager();
     TRIPLY_API ~TreeDataManager();
@@ -56,30 +56,25 @@ public:
                                    SegmentedBuffer& vertices,
                                    SegmentedBuffer& normals,
                                    SegmentedBuffer& colors );
-
     TRIPLY_API void getIndexData( Index start, Index length,
                                   SegmentedBuffer& indices );
 
     TRIPLY_API void discardVertexData( Index start, Index length );
-
     TRIPLY_API void discardIndexData( Index start, Index length );
 
+    TRIPLY_API size_t getFreeVertexBlocks();
+    TRIPLY_API size_t getFreeIndexBlocks();
+    TRIPLY_API size_t getUsedVertexBlocks();
+    TRIPLY_API size_t getUsedIndexBlocks();
+
 //    void toStream( std::ostream& os );
-
 //    void fromMemory( char** addr );
-
 //    void fromMemorySkipData( char** addr );
-
 //    void calculateBoundingBox();
-
 //    size_t getNumVertices() const;
-
 //    size_t getNumIndices() const;
-
 //    size_t getTotalSize() const;
-
 //    BoundingBox getBoundingBox() const;
-
 
 private:   
     typedef lunchbox::RefPtr< detail::TreeDataManager > SharedDataPtr;

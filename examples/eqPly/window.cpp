@@ -93,6 +93,7 @@ bool Window::configInitGL( const eq::uint128_t& initID )
                       initData.getGLSLFragmentSource() );
 
     _state->setOutOfCore( initData.useOutOfCore() );
+    _state->setMaxGlObjects( initData.getMaxGlObjects() );
 
     return true;
 }

@@ -72,22 +72,22 @@ private:
 
     const Vertex& getVertex( const size_t i ) const
     {
-        return _buffers[VERTEX_BUFFER_TYPE].at< Vertex >( i );
+        return _dataBuffers[VERTEX_BUFFER_TYPE].at< Vertex >( i );
     }
 
     const Color& getColor( const size_t i ) const
     {
-        return _buffers[COLOR_BUFFER_TYPE].at< Color >( i );
+        return _dataBuffers[COLOR_BUFFER_TYPE].at< Color >( i );
     }
 
     const Normal& getNormal( const size_t i ) const
     {
-        return _buffers[NORMAL_BUFFER_TYPE].at< Normal >( i );
+        return _dataBuffers[NORMAL_BUFFER_TYPE].at< Normal >( i );
     }
 
     const ShortIndex& getIndex( const size_t i ) const
     {
-        return _buffers[INDEX_BUFFER_TYPE].at< ShortIndex >( i );
+        return _dataBuffers[INDEX_BUFFER_TYPE].at< ShortIndex >( i );
     }
 
     friend class ModelTreeDist;
@@ -99,13 +99,10 @@ private:
     Index                       _vertexStart;
     ShortIndex                  _vertexLength;
 
-    // Mutable for indirect draw calls
-    mutable bool                _glReady;
-
     // Mutable for out-of-core rendering
     mutable bool                _dataLoaded;
     mutable TreeDataManager*    _dataManager;
-    mutable SegmentedBuffer     _buffers[4];
+    mutable SegmentedBuffer     _dataBuffers[4];
 
     enum DrawStatsFields
     {

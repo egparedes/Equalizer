@@ -53,6 +53,8 @@ namespace eqPly
             { return _glslVertexSource; }
         const std::string& getGLSLFragmentSource() const
             { return _glslFragmentSource; }
+        const uint32_t getMaxGlObjects() const
+            { return _maxGlObjects; }
         bool               useInvertedFaces() const { return _invFaces; }
         bool               showLogo() const         { return _logo; }
         bool               useROI() const           { return _roi; }
@@ -70,6 +72,8 @@ namespace eqPly
             { _glslVertexSource = glslVertexSource; }
         void setGLSLFragmentSource( const std::string& glslFragmentSource )
             { _glslFragmentSource = glslFragmentSource; }
+        void setMaxGlObjects( uint32_t maxGlObjects )
+            { _maxGlObjects = maxGlObjects; }
         void enableGLSL()          { _useGLSL  = true; }
         void enableInvertedFaces() { _invFaces = true; }
         void disableLogo()         { _logo     = false; }
@@ -82,6 +86,7 @@ namespace eqPly
         triply::RenderMode _renderMode;
         std::string        _glslVertexSource;
         std::string        _glslFragmentSource;
+        uint32_t           _maxGlObjects;
         bool               _useGLSL;
         bool               _invFaces;
         bool               _logo;

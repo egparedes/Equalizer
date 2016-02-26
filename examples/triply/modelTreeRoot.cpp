@@ -382,7 +382,7 @@ void ModelTreeRoot::fromMemory( char* start )
     else
         _treeData.fromMemorySkipData( addr );
 
-    ModelTreeNode::fromMemory( addr, _treeData );
+        ModelTreeNode::fromMemory( addr, _treeData );
 }
 
 /*  Functions extracted out of readFromFile to enhance readability.  */

@@ -63,7 +63,7 @@ struct DrawElementsIndirectCommand
 ModelTreeLeaf::ModelTreeLeaf( ModelTreeData &treeData )
     : _treeData( treeData ),
       _indexStart( 0 ), _indexLength( 0 ), _vertexStart( 0 ), _vertexLength( 0 ),
-      _glReady( false ), _dataLoaded( false ), _dataManager( 0 )
+      _dataLoaded( false ), _dataManager( 0 )
 {
 #ifdef LOGDRAW
     for( size_t i=0; i < DRAW_STATS_FIELDS_ALL; ++i)
@@ -79,7 +79,7 @@ ModelTreeLeaf::ModelTreeLeaf( ModelTreeData& treeData,
     : _treeData( treeData ),
       _indexStart( indexStart ), _indexLength( indexLength ),
       _vertexStart( vertexStart ), _vertexLength( vertexLength ),
-      _glReady( false ), _dataLoaded( false ), _dataManager( 0 )
+      _dataLoaded( false ), _dataManager( 0 )
 {
 #ifdef LOGDRAW
     for( size_t i=0; i <= ISEGS_UPLOADED; ++i)
@@ -93,18 +93,18 @@ void ModelTreeLeaf::clear()
 {
 #ifdef LOGDRAW
     TRIPLYINFO << "Draw stats [LEAF v-" << _vertexStart << "] 0-Rendered   : \t"
-               << _stats[Rendered] << std::endl;
+               << _drawStats[RENDERED] << std::endl;
     TRIPLYINFO << "Draw stats [LEAF v-" << _vertexStart << "] 1-Uploaded   : \t"
-               << _stats[Uploaded] << std::endl;
+               << _drawStats[UPLOADED] << std::endl;
     TRIPLYINFO << "Draw stats [LEAF v-" << _vertexStart << "] 2-DataRead   : \t"
-               << _stats[DataRead] << std::endl;
+               << _drawStats[DATA_READ] << std::endl;
     TRIPLYINFO << "Draw stats [LEAF v-" << _vertexStart << "] 3-DataDiscard: \t"
-               << _stats[DataDiscard] << std::endl;
+               << _drawStats[DATA_DISCARD] << std::endl;
     TRIPLYINFO << "Draw stats [LEAF v-" << _vertexStart << "] 4-VSegsUpload: \t"
-               << _stats[VSegsUploaded] << std::endl;
+               << _drawStats[VSEGS_UPLOADED] << std::endl;
     TRIPLYINFO << "Draw stats [LEAF v-" << _vertexStart << "] 5-ISegsUpload: \t"
-               << _stats[ISegsUploaded] << std::endl;
-    TRIPLYASSERT( _stats[DataRead] == _stats[DataDiscard] );
+               << _drawStats[ISEGS_UPLOADED] << std::endl;
+    TRIPLYASSERT( _drawStats[DATA_READ] == _drawStats[DATA_DISCARD] );
 #endif
 
     discardLeafData();
@@ -253,7 +253,6 @@ void ModelTreeLeaf::setupRendering( RenderState& state,
 
     case RENDER_MODE_BUFFER_OBJECT:
     case RENDER_MODE_VA_OBJECT:
-    default:
     {
         // Allocate GL objects
         const char* charThis = reinterpret_cast< const char* >( this );
@@ -295,16 +294,16 @@ void ModelTreeLeaf::setupRendering( RenderState& state,
                       GL_STATIC_DRAW );
 
         // Upload data to VBOs
-        TRIPLYASSERT( _buffers[VERTEX_BUFFER_TYPE].numSegments() ==
-                            _buffers[NORMAL_BUFFER_TYPE].numSegments() );
-        TRIPLYASSERT( _buffers[VERTEX_BUFFER_TYPE].numSegments() ==
-                            _buffers[COLOR_BUFFER_TYPE].numSegments()
+        TRIPLYASSERT( _dataBuffers[VERTEX_BUFFER_TYPE].numSegments() ==
+                            _dataBuffers[NORMAL_BUFFER_TYPE].numSegments() );
+        TRIPLYASSERT( _dataBuffers[VERTEX_BUFFER_TYPE].numSegments() ==
+                            _dataBuffers[COLOR_BUFFER_TYPE].numSegments()
                        || ! state.useColors() );
 
         size_t offset[3];
         for( unsigned int i=0; i < 3; ++i)
             offset[i] = 0;
-        for( unsigned int i=0; i < _buffers[VERTEX_BUFFER_TYPE].numSegments(); ++i )
+        for( unsigned int i=0; i < _dataBuffers[VERTEX_BUFFER_TYPE].numSegments(); ++i )
         {            
 #ifdef LOGDRAW
             _drawStats[VSEGS_UPLOADED]++;
@@ -314,7 +313,8 @@ void ModelTreeLeaf::setupRendering( RenderState& state,
             {
                 if( bufferType != COLOR_BUFFER_TYPE || state.useColors() )
                 {
-                    SegmentedBuffer::Segment segment = _buffers[bufferType].getSegment( i );
+                    TRIPLYASSERT( _dataBuffers[bufferType].isValid( ));
+                    SegmentedBuffer::Segment segment = _dataBuffers[bufferType].getSegment( i );
                     glBindBuffer( GL_ARRAY_BUFFER, data[bufferType] );
                     glBufferSubData( GL_ARRAY_BUFFER, offset[bufferType],
                                      segment.size, segment.ptr );
@@ -324,13 +324,14 @@ void ModelTreeLeaf::setupRendering( RenderState& state,
         }
 
         size_t idxOffset = 0;
-        for( unsigned int i=0; i < _buffers[INDEX_BUFFER_TYPE].numSegments(); ++i )
+        for( unsigned int i=0; i < _dataBuffers[INDEX_BUFFER_TYPE].numSegments(); ++i )
         {
+            TRIPLYASSERT( _dataBuffers[INDEX_BUFFER_TYPE].isValid( ));
 #ifdef LOGDRAW
             _drawStats[ISEGS_UPLOADED]++;
 #endif
             SegmentedBuffer::Segment segment =
-                    _buffers[INDEX_BUFFER_TYPE].getSegment( i );
+                    _dataBuffers[INDEX_BUFFER_TYPE].getSegment( i );
             glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, data[INDEX_BUFFER_TYPE] );
             glBufferSubData( GL_ELEMENT_ARRAY_BUFFER, idxOffset, segment.size, segment.ptr );
             idxOffset += segment.size;
@@ -358,7 +359,10 @@ void ModelTreeLeaf::setupRendering( RenderState& state,
 
             glBindVertexArray( 0 ); // VAO definition -- end
         }
+        break;
     }
+    default:
+        TRIPLYASSERT( false );
     }
 }
 
@@ -374,16 +378,16 @@ void ModelTreeLeaf::loadLeafData( bool useColors,
     if( dataManager == 0 )
     {
         // In-core rendering: use single segment buffers
-        _buffers[VERTEX_BUFFER_TYPE].set( &_treeData.vertices[_vertexStart][0],
+        _dataBuffers[VERTEX_BUFFER_TYPE].set( &_treeData.vertices[_vertexStart][0],
                                           _vertexLength * sizeof( Vertex ));
-        _buffers[NORMAL_BUFFER_TYPE].set( &_treeData.normals[_vertexStart][0],
+        _dataBuffers[NORMAL_BUFFER_TYPE].set( &_treeData.normals[_vertexStart][0],
                                           _vertexLength * sizeof( Normal ));
         if( useColors )
         {
-            _buffers[COLOR_BUFFER_TYPE].set( &_treeData.colors[_vertexStart][0],
+            _dataBuffers[COLOR_BUFFER_TYPE].set( &_treeData.colors[_vertexStart][0],
                                              _vertexLength * sizeof( Color ));
         }
-        _buffers[INDEX_BUFFER_TYPE].set( &_treeData.indices[_indexStart],
+        _dataBuffers[INDEX_BUFFER_TYPE].set( &_treeData.indices[_indexStart],
                                          _indexLength * sizeof( ShortIndex ) );
     }
     else
@@ -401,18 +405,18 @@ void ModelTreeLeaf::loadLeafData( bool useColors,
         if( useColors )
         {
             _dataManager->getVertexData( _vertexStart, _vertexLength,
-                                         _buffers[VERTEX_BUFFER_TYPE],
-                                         _buffers[NORMAL_BUFFER_TYPE],
-                                         _buffers[COLOR_BUFFER_TYPE] );
+                                         _dataBuffers[VERTEX_BUFFER_TYPE],
+                                         _dataBuffers[NORMAL_BUFFER_TYPE],
+                                         _dataBuffers[COLOR_BUFFER_TYPE] );
         }
         else
         {
             _dataManager->getVertexData( _vertexStart, _vertexLength,
-                                         _buffers[VERTEX_BUFFER_TYPE],
-                                         _buffers[NORMAL_BUFFER_TYPE] );
+                                         _dataBuffers[VERTEX_BUFFER_TYPE],
+                                         _dataBuffers[NORMAL_BUFFER_TYPE] );
         }
         _dataManager->getIndexData( _indexStart, _indexLength,
-                                    _buffers[INDEX_BUFFER_TYPE] );
+                                    _dataBuffers[INDEX_BUFFER_TYPE] );
     }
 
     _dataLoaded =  true;
@@ -433,7 +437,7 @@ void ModelTreeLeaf::discardLeafData() const
     }
 
     for( unsigned i=0; i < 4; ++i)
-        _buffers[i].reset();
+        _dataBuffers[i].reset();
 
     _dataLoaded = false;
 }
@@ -449,6 +453,7 @@ void ModelTreeLeaf::draw( RenderState& state ) const
     {
       case RENDER_MODE_IMMEDIATE:
           renderImmediate( state );
+          discardLeafData();
           return;
       case RENDER_MODE_DISPLAY_LIST:
           renderDisplayList( state );
@@ -472,9 +477,15 @@ void ModelTreeLeaf::renderImmediate( RenderState& state ) const
 {
     setupRendering( state, NULL );
     glBegin( GL_TRIANGLES );
+
+    TRIPLYASSERT( _indexLength <= _dataBuffers[INDEX_BUFFER_TYPE].size() );
+
     for( Index i = 0; i < _indexLength; ++i )
     {
         const ShortIndex idx = getIndex( i );
+
+        TRIPLYASSERT( idx < _dataBuffers[VERTEX_BUFFER_TYPE].size() );
+
         if( state.useColors() )
             glColor3ubv( &(getColor( idx )[0]) );
         glNormal3fv( &(getNormal( idx )[0]) );

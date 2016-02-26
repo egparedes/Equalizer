@@ -59,7 +59,6 @@ public:
     inline bool isValid() const
     {
         return _segmentPtrs.size() > 0 &&
-               _startOffset < _endOffset &&
                _endOffset <= _segmentSize;
     }
 
@@ -70,7 +69,10 @@ public:
 
     inline size_t size() const
     {
-        return _segmentSize * ( _segmentPtrs.size() - 1 ) - _startOffset + _endOffset;
+        if( _segmentPtrs.size() == 0 )
+            return 0;
+        else
+            return _segmentSize * ( _segmentPtrs.size() - 1 ) - _startOffset + _endOffset;
     }
 
     inline iterator begin() const { return 0; }
@@ -94,16 +96,20 @@ public:
 
         Segment result( 0, 0 );
         result.ptr = _segmentPtrs[idx];
-        result.size = _segmentSize;
+
+        if( idx == _segmentPtrs.size() - 1 )
+        {
+            result.size = _endOffset;
+        }
+        else
+        {
+            result.size = _segmentSize;
+        }
 
         if( idx == 0 )
         {
             result.ptr += _startOffset;
             result.size -= _startOffset;
-        }
-        if( idx == _segmentPtrs.size() - 1 )
-        {
-            result.size -= ( _segmentSize - _endOffset );
         }
 
         return result;
@@ -152,12 +158,17 @@ public:
     }
 
     template < typename T >
-    inline void setEnd( T* segmentPtr, size_t endSegmentSize )
+    inline void setLast( T* segmentPtr, size_t lastSegmentSize )
     {
         TRIPLYASSERT( !_closed );
-        TRIPLYASSERT( endSegmentSize <= _segmentSize );
+        TRIPLYASSERT( lastSegmentSize <= _segmentSize );
 
-        _endOffset = endSegmentSize + ( ( _segmentPtrs.size() == 0 ) ? _startOffset : 0);
+        _endOffset = lastSegmentSize;
+        if( _segmentPtrs.size() == 0 )
+        {
+            _endOffset += _startOffset;
+            TRIPLYASSERT( _endOffset <= _segmentSize );
+        }
         _segmentPtrs.push_back( reinterpret_cast< char* >( segmentPtr ));
         _closed = true;
     }

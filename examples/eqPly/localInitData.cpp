@@ -83,6 +83,7 @@ LocalInitData& LocalInitData::operator = ( const LocalInitData& from )
     setRenderMode( from.getRenderMode( ));
     setGLSLVertexSource( from.getGLSLVertexSource( ));
     setGLSLFragmentSource( from.getGLSLFragmentSource( ));
+    setMaxGlObjects( from.getMaxGlObjects( ));
     if( from.useGLSL( ))
         enableGLSL();
     if( from.useInvertedFaces( ))
@@ -121,6 +122,7 @@ void LocalInitData::parseArguments( const int argc, char** argv )
     std::string userDefinedRenderMode("");
     std::string userDefinedShaderName("");
     std::string showcaseArgs("");
+    uint32_t    maxGlObjects( 0 );
     bool userDefinedInvertFaces( false );
     bool userDefinedDisableLogo( false );
     bool userDefinedDisableROI( false );
@@ -157,6 +159,9 @@ void LocalInitData::parseArguments( const int argc, char** argv )
         ( "glsl,g",
           po::value<std::string>(&userDefinedShaderName)->implicit_value( "default" ),
           "Enable particular GLSL shader" )
+        ( "maxGlBuffers,x",
+          po::value<uint32_t>(&maxGlObjects)->default_value( 32767 ),
+          "Maximum number of OpenGL buffers used for rendering")
         ( "invertFaces,i"
           , po::bool_switch(&userDefinedInvertFaces)->default_value( false ),
           "Invert faces (valid during binary file creation)" )
@@ -277,6 +282,9 @@ void LocalInitData::parseArguments( const int argc, char** argv )
             setGLSLFragmentSource( buffer.str() );
         }
     }
+
+    if( maxGlObjects > 0 )
+        setMaxGlObjects( maxGlObjects );
 
     if( userDefinedInvertFaces)
             enableInvertedFaces();

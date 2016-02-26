@@ -111,6 +111,13 @@ public:
               colBlocks( numBlocks ), idxBlocks( numBlocks )
         { }
 
+        inline size_t getNumBlocks()
+        {
+            TRIPLYASSERT( vertBlocks.size() == normBlocks.size());
+            TRIPLYASSERT( vertBlocks.size() == idxBlocks.size());
+            return vertBlocks.size();
+        }
+
         inline void resize( size_t numBlocks )
         {
             vertBlocks.resize( numBlocks );
@@ -215,6 +222,7 @@ public:
         for( size_t i=0; i < NUM_BUFFER_TYPES; ++i )
         {
             _totalElems[i] = 0;
+            _freeBlocksCount[i] = 0;
             _mmapData[i] = 0;
         }
     }
@@ -250,10 +258,12 @@ public:
         _cache.resize( numBlocks );
         for( size_t type=VERTEX_BUFFER_TYPE; type <= INDEX_BUFFER_TYPE; ++type )
         {
+            _freeBlocksCount[type] = numBlocks;
             for( size_t idx=0; idx < numBlocks; ++idx )
             {
                 _freeBlocks[type].push_back( idx );
             }
+            TRIPLYASSERT( _freeBlocks[type].size() == _freeBlocksCount[type] );
         }
 
         openBinary();
@@ -279,7 +289,7 @@ public:
             if( _blockMap[type].count( key ) == 0 )
             {
                 // Load data into cache from memory map
-                TRIPLYASSERT( _freeBlocks[type].size() > 0 );
+                TRIPLYASSERT( _freeBlocksCount[type] > 0 );
                 size_t freeBlockId = *( _freeBlocks[type].begin() );
                 BlockKey freeBlockKey = _cache.getKey( type, freeBlockId );
                 if( _blockMap[type].count( freeBlockKey ) > 0 && freeBlockKey != InvalidBlockKey )
@@ -301,13 +311,14 @@ public:
                 ++nextListIt;
                 _busyBlocks[type].splice( _busyBlocks[type].end(), _freeBlocks[type],
                                           blockInfo.listIt, nextListIt );
+                _freeBlocksCount[type]--;
                 TRIPLYASSERT( _busyBlocks[type].size() == oldBusySize + 1);
-                TRIPLYASSERT( _freeBlocks[type].size() == oldFreeSize - 1);
+                TRIPLYASSERT( _freeBlocksCount[type] == oldFreeSize - 1);
             }
             blockInfo.readersCount++;
             _lock[type].unset();
 
-            if( start + length >= ((key + 1) * BlockElements[type]) )
+            if( (key + 1) * BlockElements[type] <= start + length )
             {
                 // Normal block
                 result.addSegment( _cache.getData( type, blockInfo.id )  );
@@ -315,9 +326,9 @@ public:
             else
             {
                 // Truncated last block
-                size_t numElements = std::min( length,
-                                               ( start + length ) % BlockElements[type] );
-                result.setEnd( _cache.getData( type, blockInfo.id ),
+                size_t numElements =
+                    std::min( length, (start + length) - key * BlockElements[type]);
+                result.setLast( _cache.getData( type, blockInfo.id ),
                                 numElements * BufferElementSizes[type]);
             }
         }
@@ -351,8 +362,9 @@ public:
                 ++nextListIt;
                 _freeBlocks[type].splice( _freeBlocks[type].end(), _busyBlocks[type],
                                           blockInfo.listIt, nextListIt );
+                _freeBlocksCount[type]++;
                 TRIPLYASSERT( _busyBlocks[type].size() == oldBusySize - 1);
-                TRIPLYASSERT( _freeBlocks[type].size() == oldFreeSize + 1);
+                TRIPLYASSERT( _freeBlocksCount[type] == oldFreeSize + 1);
             };
         }
         _lock[type].unset();
@@ -458,8 +470,11 @@ private:
         _mmapData[INDEX_BUFFER_TYPE] = reinterpret_cast< char* >( 0 );
     }
 
+    friend class ::triply::TreeDataManager;
+
     BoundingBox         _boundingBox;
     std::size_t         _totalElems[NUM_BUFFER_TYPES];
+    std::size_t         _freeBlocksCount[NUM_BUFFER_TYPES];
     lunchbox::SpinLock  _lock[NUM_BUFFER_TYPES];
     BlockMap            _blockMap[NUM_BUFFER_TYPES];
     BlockIndexList      _freeBlocks[NUM_BUFFER_TYPES];
@@ -554,6 +569,26 @@ void TreeDataManager::discardVertexData( Index start, Index length )
 void TreeDataManager::discardIndexData( Index start, Index length )
 {
     _impl->discard( INDEX_BUFFER_TYPE, start, length );
+}
+
+size_t TreeDataManager::getFreeVertexBlocks()
+{
+    return _impl->_freeBlocksCount[VERTEX_BUFFER_TYPE];
+}
+
+size_t TreeDataManager::getFreeIndexBlocks()
+{
+    return _impl->_freeBlocksCount[INDEX_BUFFER_TYPE];
+}
+
+size_t TreeDataManager::getUsedVertexBlocks()
+{
+    return _impl->_cache.getNumBlocks() - _impl->_freeBlocksCount[VERTEX_BUFFER_TYPE];
+}
+
+size_t TreeDataManager::getUsedIndexBlocks()
+{
+    return _impl->_cache.getNumBlocks() - _impl->_freeBlocksCount[INDEX_BUFFER_TYPE];
 }
 
 } // namespace triply

@@ -41,6 +41,7 @@ RenderState::RenderState( const GLEWContext* glewContext )
         , _useBoundingSpheres( false )
         , _outOfCore( false )
         , _dataManager( 0 )
+        , _maxKeys( 8192 )
 {
     _range[0] = 0.f;
     _range[1] = 1.f;
@@ -109,6 +110,7 @@ void RenderState::updateRegion( const BoundingBox& box )
     _region[3] = std::max( _region[3], normalized[3] );
 }
 
+
 Vector4f RenderState::getRegion() const
 {
     if( _region[0] > _region[2] || _region[1] > _region[3] )
@@ -117,23 +119,71 @@ Vector4f RenderState::getRegion() const
     return _region;
 }
 
+const void* RenderState::addGlObject( const void* key )
+{
+    const void* lruKey = 0;
+    auto it = _keyMap.find( key );
+    if( it != _keyMap.end( ))
+    {
+        _activeKeys.erase( it->second );
+        _keyMap.erase( it );
+    }
+
+    _activeKeys.push_front( key );
+    _keyMap[key] = _activeKeys.begin();
+
+    if( _keyMap.size() > _maxKeys )
+    {
+        TRIPLYASSERT( _activeKeys.rbegin() != _activeKeys.rend() );
+        lruKey = *( _activeKeys.rbegin() );
+        _keyMap.erase( lruKey );
+        _activeKeys.pop_back();
+    }
+
+    return lruKey; // Key of the object to be deleted
+}
+
+void RenderState::touchGlObject( const void* key )
+{
+    auto it = _keyMap.find( key );
+    if( it != _keyMap.end( ))
+        _activeKeys.splice( _activeKeys.begin(), _activeKeys, it->second );
+}
+
+
+// ---- SimpleRenderState
 GLuint SimpleRenderState::getDisplayList( const void* key )
 {
     if( _displayLists.find( key ) == _displayLists.end() )
         return INVALID;
+
+    touchGlObject( key );
     return _displayLists[key];
 }
         
 GLuint SimpleRenderState::newDisplayList( const void* key )
 {
     _displayLists[key] = glGenLists( 1 );
+    const void* oldKey = addGlObject( key );
+    if( oldKey )
+        deleteDisplayList( oldKey );
     return _displayLists[key];
+}
+
+void SimpleRenderState::deleteDisplayList( const void* key )
+{
+    if( _displayLists.find( key ) != _displayLists.end() )
+    {
+        glDeleteLists( _displayLists[key], 2 );
+        _displayLists.erase( key );
+    }
 }
         
 GLuint SimpleRenderState::getBufferObject( const void* key )
 {
     if( _bufferObjects.find( key ) == _bufferObjects.end() )
         return INVALID;
+    touchGlObject( key );
     return _bufferObjects[key];
 }
         
@@ -142,20 +192,45 @@ GLuint SimpleRenderState::newBufferObject( const void* key )
     if( !GLEW_VERSION_1_5 )
         return INVALID;
     glGenBuffers( 1, &_bufferObjects[key] );
+    const void* oldKey = addGlObject( key );
+    if( oldKey )
+        deleteBufferObject( oldKey );
     return _bufferObjects[key];
 }
         
+void SimpleRenderState::deleteBufferObject( const void* key )
+{
+    if( _bufferObjects.find( key ) != _bufferObjects.end() )
+    {
+        glDeleteBuffers( 1, &_bufferObjects[key] );
+        _bufferObjects.erase( key );
+    }
+}
+
 GLuint SimpleRenderState::getVertexArray( const void* key )
 {
     if( _vertexArrays.find( key ) == _vertexArrays.end() )
         return INVALID;
+    touchGlObject( key );
     return _vertexArrays[key];
 }
 
 GLuint SimpleRenderState::newVertexArray( const void* key )
 {
     glGenVertexArrays( 1, &_vertexArrays[key] );
+    const void* oldKey = addGlObject( key );
+    if( oldKey )
+        deleteVertexArray( oldKey );
     return _vertexArrays[key];
+}
+
+void SimpleRenderState::deleteVertexArray( const void* key )
+{
+    if( _vertexArrays.find( key ) != _vertexArrays.end() )
+    {
+        glDeleteVertexArrays( 1, &_vertexArrays[key] );
+        _vertexArrays.erase( key );
+    }
 }
 
 void SimpleRenderState::deleteGlObjects()
