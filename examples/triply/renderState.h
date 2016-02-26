@@ -33,13 +33,13 @@
 #define TRIPLY_RENDERSTATE_H
 
 #include "typedefs.h"
-#include "treeDataManager.h"
+#include "lruCache.h"
 #include <triply/api.h>
 #include <map>
 
 namespace triply
 {
-/*  The abstract base class for kd-tree rendering state.  */
+/*  The abstract base class for model-tree rendering state.  */
 class RenderState
 {
 public:
@@ -47,6 +47,8 @@ public:
     {
         INVALID = 0 //<! return value for failed operations.
     };
+
+    typedef const void* ResourceKey;
 
     TRIPLY_API virtual bool useColors() const { return _useColors; }
     TRIPLY_API virtual void setColors( const bool colors ) { _useColors = colors; }
@@ -76,21 +78,35 @@ public:
     TRIPLY_API virtual void declareRegion( const Vector4f& ) {}
     TRIPLY_API Vector4f getRegion() const;
 
-    TRIPLY_API virtual GLuint getDisplayList( const void* key ) = 0;
-    TRIPLY_API virtual GLuint newDisplayList( const void* key ) = 0;
-    TRIPLY_API virtual GLuint getBufferObject( const void* key ) = 0;
-    TRIPLY_API virtual GLuint newBufferObject( const void* key ) = 0;
-    TRIPLY_API virtual GLuint getVertexArray( const void* key ) = 0;
-    TRIPLY_API virtual GLuint newVertexArray( const void* key ) = 0;
+    TRIPLY_API virtual GLuint getDisplayList( ResourceKey key ) = 0;
+    TRIPLY_API virtual GLuint newDisplayList( ResourceKey key ) = 0;
+    TRIPLY_API virtual void deleteDisplayList( ResourceKey key ) = 0;
+
+    TRIPLY_API virtual GLuint getBufferObject( ResourceKey key ) = 0;
+    TRIPLY_API virtual GLuint newBufferObject( ResourceKey key ) = 0;
+    TRIPLY_API virtual void deleteBufferObject( ResourceKey key ) = 0;
+    TRIPLY_API virtual bool remapBufferObject( ResourceKey deletedKey,
+                                               ResourceKey key ) = 0;
+
+    TRIPLY_API virtual GLuint getVertexArray( ResourceKey key ) = 0;
+    TRIPLY_API virtual GLuint newVertexArray( ResourceKey key ) = 0;
+    TRIPLY_API virtual void deleteVertexArray( ResourceKey key ) = 0;
+
     TRIPLY_API virtual void deleteGlObjects() = 0;
 
     TRIPLY_API const GLEWContext* glewGetContext() const
         { return _glewContext; }
 
-    TRIPLY_API void setDataManager( TreeDataManager* dataManager)
-        { _dataManager = dataManager; }
-    TRIPLY_API TreeDataManager* getDataManager() const
-        { return _dataManager; }
+    TRIPLY_API GLuint reserveBufferObject( ResourceKey key, size_t size,
+                                           GLenum glTarget, GLenum glUsage );
+    TRIPLY_API GLuint bindBufferObject( ResourceKey key, GLenum glTarget );
+    TRIPLY_API GLuint useBufferObject( ResourceKey key );
+    TRIPLY_API void discardBufferObject( ResourceKey key );
+
+    TRIPLY_API void setMaxBufferMemory( size_t maxMemSize )
+        { _maxBufferMemory = maxMemSize; }
+    TRIPLY_API size_t getMaxBufferMemory()
+        { return _maxBufferMemory; }
 
 protected:
     TRIPLY_API explicit RenderState( const GLEWContext* glewContext );
@@ -105,9 +121,15 @@ protected:
     bool                _useFrustumCulling;
     bool                _useBoundingSpheres;
     bool                _outOfCore;
-    TreeDataManager*    _dataManager;
 
 private:
+    static const size_t BufferSizeUnit = 65536; // 64 Kib
+    static const size_t BufferSizesCount = 20;
+
+    size_t _currentBufferMemory;
+    size_t _maxBufferMemory;
+    stde::hash_map< ResourceKey, size_t > _keyCacheMap;
+    std::array< LRUCache< ResourceKey >, BufferSizesCount > _lruBufferCaches;
 };
 
 
@@ -115,19 +137,27 @@ private:
 class SimpleRenderState : public RenderState
 {
 private:
-    typedef std::map< const void*, GLuint > GLMap;
+    typedef std::map< ResourceKey, GLuint > GLMap;
     typedef GLMap::const_iterator GLMapCIter;
 
 public:
     TRIPLY_API explicit SimpleRenderState( const GLEWContext* glewContext )
         : RenderState( glewContext ) {}
 
-    TRIPLY_API virtual GLuint getDisplayList( const void* key );
-    TRIPLY_API virtual GLuint newDisplayList( const void* key );
-    TRIPLY_API virtual GLuint getBufferObject( const void* key );
-    TRIPLY_API virtual GLuint newBufferObject( const void* key );
-    TRIPLY_API virtual GLuint getVertexArray( const void* key );
-    TRIPLY_API virtual GLuint newVertexArray( const void* key );
+    TRIPLY_API virtual GLuint getDisplayList( ResourceKey key );
+    TRIPLY_API virtual GLuint newDisplayList( ResourceKey key );
+    TRIPLY_API virtual void deleteDisplayList( ResourceKey key );
+
+    TRIPLY_API virtual GLuint getBufferObject( ResourceKey key );
+    TRIPLY_API virtual GLuint newBufferObject( ResourceKey key );
+    TRIPLY_API virtual void deleteBufferObject( ResourceKey key );
+    TRIPLY_API virtual bool remapBufferObject( ResourceKey deletedKey,
+                                               ResourceKey key );
+
+    TRIPLY_API virtual GLuint getVertexArray( ResourceKey key );
+    TRIPLY_API virtual GLuint newVertexArray( ResourceKey key );
+    TRIPLY_API virtual void deleteVertexArray( ResourceKey key );
+
     TRIPLY_API virtual void deleteGlObjects();
 
 private:

@@ -40,7 +40,8 @@ RenderState::RenderState( const GLEWContext* glewContext )
         , _useFrustumCulling( true )
         , _useBoundingSpheres( false )
         , _outOfCore( false )
-        , _dataManager( 0 )
+        , _currentBufferMemory( 0 )
+        , _maxBufferMemory( 2ull*1024*1024*1024 ) // 2 Gib
 {
     _range[0] = 0.f;
     _range[1] = 1.f;
@@ -109,6 +110,7 @@ void RenderState::updateRegion( const BoundingBox& box )
     _region[3] = std::max( _region[3], normalized[3] );
 }
 
+
 Vector4f RenderState::getRegion() const
 {
     if( _region[0] > _region[2] || _region[1] > _region[3] )
@@ -117,6 +119,127 @@ Vector4f RenderState::getRegion() const
     return _region;
 }
 
+GLuint RenderState::reserveBufferObject( ResourceKey key, size_t size,
+                                         GLenum glTarget, GLenum glUsage )
+{
+    TRIPLYASSERT( size - 1 < BufferSizeUnit * _lruBufferCaches.size( ));
+
+    const size_t bufferCacheId = ( size - 1 ) / BufferSizeUnit;
+    const size_t bufferSize = ( bufferCacheId + 1 ) * BufferSizeUnit;
+
+    GLuint bufferId = INVALID;
+    if( _keyCacheMap.find( key ) != _keyCacheMap.end())
+    {
+        if( _keyCacheMap[key] == bufferCacheId )
+        {
+            _lruBufferCaches[bufferCacheId].use( key );
+            bufferId = getBufferObject( key );
+            TRIPLYASSERT( bufferId != INVALID );
+            EQ_GL_CALL( glBindBuffer( glTarget, bufferId ));
+            EQ_GL_CALL( glBufferData( glTarget, bufferSize, 0, glUsage ));
+        }
+        else
+        {
+            TRIPLYASSERT( false );
+            return INVALID;
+        }
+    }
+
+    ResourceKey deletedKey = 0;
+    if( _currentBufferMemory + bufferSize > _maxBufferMemory )
+    {
+        if( _lruBufferCaches[bufferCacheId].size() > 0 )
+        {
+            _lruBufferCaches[bufferCacheId].pushPop( key, deletedKey );
+            _keyCacheMap.erase( deletedKey );
+            _keyCacheMap[key] = bufferCacheId;
+            bufferId = getBufferObject( deletedKey );
+            TRIPLYASSERT( bufferId != INVALID );
+            remapBufferObject( deletedKey, key );
+            EQ_GL_CALL( glBindBuffer( glTarget, bufferId ));
+            EQ_GL_CALL( glBufferData( glTarget, bufferSize, 0, glUsage ));
+        }
+        else
+        {
+            size_t tmpCacheId = ( bufferCacheId + 1 ) % _lruBufferCaches.size();
+            size_t tmpBufferSize = ( tmpCacheId + 1 ) * BufferSizeUnit;
+            while( _currentBufferMemory + bufferSize > _maxBufferMemory )
+            {
+                if( _lruBufferCaches[tmpCacheId].size() > 0 )
+                {
+                    deletedKey = 0;
+                    _lruBufferCaches[tmpCacheId].pop( deletedKey );
+                    _keyCacheMap.erase( deletedKey );
+                    if( deletedKey != 0 )
+                    {
+                        bufferId = getBufferObject( deletedKey );
+                        TRIPLYASSERT( bufferId != INVALID );
+                        deleteBufferObject( deletedKey );
+                        _currentBufferMemory -= tmpBufferSize;
+                    }
+                }
+                tmpCacheId = ( tmpCacheId + 1 ) % _lruBufferCaches.size();
+            }
+        }
+    }
+
+    if( bufferId == 0)
+    {
+        bufferId = newBufferObject( key );
+        if( bufferId != INVALID )
+        {
+            _currentBufferMemory += bufferSize;
+            _keyCacheMap[key] = bufferCacheId;
+            _lruBufferCaches[bufferCacheId].push( key );
+            EQ_GL_CALL( glBindBuffer( glTarget, bufferId ));
+            EQ_GL_CALL( glBufferData( glTarget, bufferSize, 0, glUsage ));
+        }
+    }
+
+    TRIPLYASSERT( bufferId != INVALID );
+
+    return bufferId;
+}
+
+GLuint RenderState::bindBufferObject( ResourceKey key, GLenum glTarget )
+{
+    GLuint bufferId = getBufferObject( key );
+    TRIPLYASSERT( bufferId != INVALID );
+    if( bufferId != INVALID )
+    {
+        _lruBufferCaches[_keyCacheMap[key]].use( key );
+        EQ_GL_CALL( glBindBuffer( glTarget, bufferId ));
+    }
+
+    return bufferId;
+}
+
+GLuint RenderState::useBufferObject( ResourceKey key )
+{
+    GLuint bufferId = getBufferObject( key );
+    TRIPLYASSERT( bufferId != INVALID );
+    if( bufferId != INVALID )
+    {
+        _lruBufferCaches[_keyCacheMap[key]].use( key );
+    }
+
+    return bufferId;
+}
+
+void RenderState::discardBufferObject( ResourceKey key )
+{
+    if( _keyCacheMap.find( key ) != _keyCacheMap.end( ))
+    {
+        const size_t bufferCacheId = _keyCacheMap[key];
+        const size_t bufferSize = ( bufferCacheId + 1 ) * BufferSizeUnit;
+        _lruBufferCaches[bufferCacheId].remove( key );
+        _keyCacheMap.erase( key );
+        deleteBufferObject( key );
+        _currentBufferMemory -= bufferSize;
+    }
+}
+
+// ---- SimpleRenderState
 GLuint SimpleRenderState::getDisplayList( const void* key )
 {
     if( _displayLists.find( key ) == _displayLists.end() )
@@ -128,6 +251,15 @@ GLuint SimpleRenderState::newDisplayList( const void* key )
 {
     _displayLists[key] = glGenLists( 1 );
     return _displayLists[key];
+}
+
+void SimpleRenderState::deleteDisplayList( const void* key )
+{
+    if( _displayLists.find( key ) != _displayLists.end() )
+    {
+        EQ_GL_CALL( glDeleteLists( _displayLists[key], 1 ));
+        _displayLists.erase( key );
+    }
 }
         
 GLuint SimpleRenderState::getBufferObject( const void* key )
@@ -141,10 +273,32 @@ GLuint SimpleRenderState::newBufferObject( const void* key )
 {
     if( !GLEW_VERSION_1_5 )
         return INVALID;
-    glGenBuffers( 1, &_bufferObjects[key] );
+    EQ_GL_CALL( glGenBuffers( 1, &_bufferObjects[key] ));
     return _bufferObjects[key];
 }
         
+void SimpleRenderState::deleteBufferObject( const void* key )
+{
+    if( _bufferObjects.find( key ) != _bufferObjects.end() )
+    {
+        EQ_GL_CALL( glDeleteBuffers( 1, &_bufferObjects[key] ));
+        _bufferObjects.erase( key );
+    }
+}
+
+bool SimpleRenderState::remapBufferObject( ResourceKey deletedKey,
+                                           ResourceKey key )
+{
+    GLMap::iterator it = _bufferObjects.find( deletedKey );
+    if( it != _bufferObjects.end() && deletedKey != key )
+    {
+        _bufferObjects[key] = it->second;
+        _bufferObjects.erase( it );
+        return true;
+    }
+    return false;
+}
+
 GLuint SimpleRenderState::getVertexArray( const void* key )
 {
     if( _vertexArrays.find( key ) == _vertexArrays.end() )
@@ -154,20 +308,29 @@ GLuint SimpleRenderState::getVertexArray( const void* key )
 
 GLuint SimpleRenderState::newVertexArray( const void* key )
 {
-    glGenVertexArrays( 1, &_vertexArrays[key] );
+    EQ_GL_CALL( glGenVertexArrays( 1, &_vertexArrays[key] ));
     return _vertexArrays[key];
+}
+
+void SimpleRenderState::deleteVertexArray( const void* key )
+{
+    if( _vertexArrays.find( key ) != _vertexArrays.end() )
+    {
+        EQ_GL_CALL( glDeleteVertexArrays( 1, &_vertexArrays[key] ));
+        _vertexArrays.erase( key );
+    }
 }
 
 void SimpleRenderState::deleteGlObjects()
 {
     for( GLMapCIter i = _displayLists.begin(); i != _displayLists.end(); ++i )
-        glDeleteLists( i->second, 1 );
+        EQ_GL_CALL( glDeleteLists( i->second, 1 ));
 
     for( GLMapCIter i = _bufferObjects.begin(); i != _bufferObjects.end(); ++i )
-        glDeleteBuffers( 1, &(i->second) );
+        EQ_GL_CALL( glDeleteBuffers( 1, &(i->second) ));
 
     for( GLMapCIter i = _vertexArrays.begin(); i != _vertexArrays.end(); ++i )
-        glDeleteVertexArrays( 1, &(i->second) );
+        EQ_GL_CALL( glDeleteVertexArrays( 1, &(i->second) ));
 
     _displayLists.clear();
     _bufferObjects.clear();

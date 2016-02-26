@@ -32,7 +32,6 @@
 #define TRIPLY_MODELTREELEAF_H
 
 #include "modelTreeBase.h"
-#include "segmentedBuffer.h"
 
 namespace triply
 {
@@ -59,36 +58,13 @@ protected:
     virtual void updateRange() override;
 
 private:
-    void setupRendering( RenderState& state, GLuint* data ) const;
-    void loadLeafData( bool useColors,
-                        TreeDataManager *dataManager=0 ) const;
-    void discardLeafData() const;
-
+    void setupRendering(RenderState& state, GLuint* glBuffers ) const;
+    void loadLeafData( bool useColors ) const;
 
     void renderImmediate( RenderState& state ) const;
     void renderDisplayList( RenderState& state ) const;
     void renderBufferObject( RenderState& state ) const;
     void renderVAObject( RenderState& state ) const;
-
-    const Vertex& getVertex( const size_t i ) const
-    {
-        return _buffers[VERTEX_BUFFER_TYPE].at< Vertex >( i );
-    }
-
-    const Color& getColor( const size_t i ) const
-    {
-        return _buffers[COLOR_BUFFER_TYPE].at< Color >( i );
-    }
-
-    const Normal& getNormal( const size_t i ) const
-    {
-        return _buffers[NORMAL_BUFFER_TYPE].at< Normal >( i );
-    }
-
-    const ShortIndex& getIndex( const size_t i ) const
-    {
-        return _buffers[INDEX_BUFFER_TYPE].at< ShortIndex >( i );
-    }
 
     friend class ModelTreeDist;
 
@@ -99,20 +75,9 @@ private:
     Index                       _vertexStart;
     ShortIndex                  _vertexLength;
 
-    // Mutable for indirect draw calls
-    mutable bool                _glReady;
-
     // Mutable for out-of-core rendering
+    mutable char*               _dataBuffers[4];
     mutable bool                _dataLoaded;
-    mutable TreeDataManager*    _dataManager;
-    mutable SegmentedBuffer     _buffers[4];
-
-    enum DrawStatsFields
-    {
-        RENDERED=0, UPLOADED, DATA_READ, DATA_DISCARD, VSEGS_UPLOADED, ISEGS_UPLOADED,
-        DRAW_STATS_FIELDS_ALL
-    };
-    mutable size_t _drawStats[DRAW_STATS_FIELDS_ALL];
 };
 
 } // namespace

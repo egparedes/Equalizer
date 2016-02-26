@@ -516,6 +516,22 @@ void ObjectManager::deleteBuffer( const void* key )
     _impl->buffers.erase( i );
 }
 
+bool ObjectManager::remapBuffer( const void* oldKey,
+                                 const void* newKey )
+{
+    ObjectHash::iterator it = _impl->buffers.find( oldKey );
+    if( it != _impl->buffers.end( ) && oldKey != newKey )
+    {
+        _impl->buffers[newKey] = it->second;
+        _impl->buffers.erase( it );
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 // program object functions
 
 bool ObjectManager::supportsPrograms() const

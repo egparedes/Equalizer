@@ -58,17 +58,29 @@ public:
     GLuint newDisplayList( const void* key ) override
         { return _objectManager.newList( key ); }
 
+    void deleteDisplayList( const void* key ) override
+        { return _objectManager.deleteList( key ); }
+
     GLuint getBufferObject( const void* key ) override
         { return _objectManager.getBuffer( key ); }
 
     GLuint newBufferObject( const void* key ) override
         { return _objectManager.newBuffer( key ); }
 
+    void deleteBufferObject( const void* key ) override
+        { return _objectManager.deleteBuffer( key ); }
+
+    bool remapBufferObject( ResourceKey deletedKey, ResourceKey key ) override
+        { return _objectManager.remapBuffer( deletedKey, key ); }
+
     GLuint getVertexArray( const void* key ) override
         { return _objectManager.getVertexArray( key ); }
 
     GLuint newVertexArray( const void* key ) override
         { return _objectManager.newVertexArray( key ); }
+
+    void deleteVertexArray( const void* key ) override
+        { return _objectManager.deleteVertexArray( key ); }
 
     void deleteGlObjects()  override
         { _objectManager.deleteAll(); }
