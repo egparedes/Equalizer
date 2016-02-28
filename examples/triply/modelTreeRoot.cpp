@@ -186,8 +186,8 @@ bool ModelTreeRoot::setupTree( MeshData& modelData,
     ModelTreeNode::_children.clear( true );
 
     ModelTreeNode::_children.resize( info.arity );
-    _treeData.hasColors = modelData.colors.size() > 0;
-    _treeData.boundingBox = modelData.getBoundingBox(); // _treeData.calculateBoundingBox();
+    _treeData._hasColors = modelData.colors.size() > 0;
+    _treeData._boundingBox = modelData.getBoundingBox(); // _treeData.calculateBoundingBox();
 
     TreeGenerator* treeGenerator = TreeGenerator::instantiate( info.partition );
     if( treeGenerator == 0 )
@@ -299,7 +299,7 @@ bool ModelTreeRoot::readFromFile( const std::string& filename,
 
 bool ModelTreeRoot::hasColors() const
 {
-    return _treeData.hasColors;
+    return _treeData._hasColors;
 }
 
 BoundingBox ModelTreeRoot::getBoundingBox() const
@@ -352,7 +352,8 @@ void ModelTreeRoot::toStream( std:: ostream& os )
 /*  Read root node from memory and continue with other nodes.  */
 void ModelTreeRoot::fromMemory( char* start )
 {
-    char** addr = &start;
+    char* memAddr = start;
+    char** addr = &memAddr;
     size_t version;
     memRead( reinterpret_cast< char* >( &version ), addr, sizeof( size_t ) );
     if( version != FILE_VERSION )
@@ -378,11 +379,16 @@ void ModelTreeRoot::fromMemory( char* start )
                              "node, but found something else instead." );
 
     if( _inCoreData )
+    {
         _treeData.fromMemory( addr );
+    }
     else
-        _treeData.fromMemorySkipData( addr );
+    {
+        std::string binName = getBinaryName();
+        _treeData.fromFile( binName, memAddr - start );
+    }
 
-        ModelTreeNode::fromMemory( addr, _treeData );
+    ModelTreeNode::fromMemory( addr, _treeData );
 }
 
 /*  Functions extracted out of readFromFile to enhance readability.  */
@@ -424,7 +430,7 @@ bool ModelTreeRoot::constructFromPly( const std::string& filename,
     return true;
 }
 
-bool ModelTreeRoot::readBinary(std::string filename)
+bool ModelTreeRoot::readBinary( std::string filename )
 {
     bool result = false;
 

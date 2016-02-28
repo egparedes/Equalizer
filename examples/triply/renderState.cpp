@@ -40,7 +40,6 @@ RenderState::RenderState( const GLEWContext* glewContext )
         , _useFrustumCulling( true )
         , _useBoundingSpheres( false )
         , _outOfCore( false )
-        , _dataManager( 0 )
         , _currentBufferMemory( 0 )
         , _maxBufferMemory( 2ull*1024*1024*1024 ) // 2 Gib
 {
