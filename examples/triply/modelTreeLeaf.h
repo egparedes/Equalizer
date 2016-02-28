@@ -59,7 +59,7 @@ protected:
     virtual void updateRange() override;
 
 private:
-    void setupRendering( RenderState& state, GLuint* data ) const;
+    void setupRendering(RenderState& state, GLuint* glBuffers ) const;
     void loadLeafData( bool useColors,
                         TreeDataManager *dataManager=0 ) const;
     void discardLeafData() const;

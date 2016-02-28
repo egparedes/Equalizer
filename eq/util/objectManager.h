@@ -100,6 +100,7 @@ public:
     EQ_API unsigned newBuffer( const void* key );
     EQ_API unsigned obtainBuffer( const void* key );
     EQ_API void     deleteBuffer( const void* key );
+    EQ_API bool     remapBuffer( const void* oldKey, const void* newKey );
 
     EQ_API bool     supportsPrograms() const;
     EQ_API unsigned getProgram( const void* key ) const;

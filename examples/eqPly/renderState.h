@@ -53,52 +53,31 @@ public:
     virtual ~RenderState() {}
 
     GLuint getDisplayList( const void* key ) override
-    {
-        touchGlObject( key );
-        return _objectManager.getList( key );
-    }
+        { return _objectManager.getList( key ); }
 
     GLuint newDisplayList( const void* key ) override
-    {
-        const void* oldKey = addGlObject( key );
-        if( oldKey )
-            deleteDisplayList( oldKey );
-        return _objectManager.newList( key );
-    }
+        { return _objectManager.newList( key ); }
 
     void deleteDisplayList( const void* key ) override
         { return _objectManager.deleteList( key ); }
 
     GLuint getBufferObject( const void* key ) override
-    {
-        touchGlObject( key );
-        return _objectManager.getBuffer( key );
-    }
+        { return _objectManager.getBuffer( key ); }
 
     GLuint newBufferObject( const void* key ) override
-    {
-        const void* oldKey = addGlObject( key );
-        if( oldKey )
-            deleteBufferObject( oldKey );
-        return _objectManager.newBuffer( key );
-    }
+        { return _objectManager.newBuffer( key ); }
 
     void deleteBufferObject( const void* key ) override
         { return _objectManager.deleteBuffer( key ); }
 
+    bool remapBufferObject( ResourceKey deletedKey, ResourceKey key ) override
+        { return _objectManager.remapBuffer( deletedKey, key ); }
+
     GLuint getVertexArray( const void* key ) override
-    {
-        touchGlObject( key );
-        return _objectManager.getVertexArray( key );
-    }
+        { return _objectManager.getVertexArray( key ); }
 
     GLuint newVertexArray( const void* key ) override
-    {
-        const void* oldKey = addGlObject( key );
-        if( oldKey )
-            deleteVertexArray( oldKey );
-        return _objectManager.newVertexArray( key );
-    }
+        { return _objectManager.newVertexArray( key ); }
 
     void deleteVertexArray( const void* key ) override
         { return _objectManager.deleteVertexArray( key ); }
