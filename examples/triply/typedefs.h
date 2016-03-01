@@ -75,6 +75,29 @@
 #include <string>
 #include <sstream>
 
+#ifdef NDEBUG
+#  define TRIPLY_GL_ERROR( when ) {}
+#  define TRIPLY_GL_CALL( code ) { code; }
+#else // NDEBUG
+#  define TRIPLY_GL_ERROR( when )                                       \
+    {                                                                   \
+        const GLenum eqGlError = glGetError();                          \
+        if( eqGlError )                                                 \
+        {                                                               \
+            TRIPLYWARN << "Got GlError = " << eqGlError << " "          \
+                       << when << " in " << __FILE__ << ':' << __LINE__ \
+                       << std::endl << std::endl;                       \
+            throw RenderException( "GlError" );                         \
+        }                                                               \
+    }
+#  define TRIPLY_GL_CALL( code )                                        \
+    {                                                                   \
+        TRIPLY_GL_ERROR( std::string( "before " ) + #code );            \
+        code;                                                           \
+        TRIPLY_GL_ERROR( std::string( "after " ) + #code );             \
+    }
+#endif
+
 namespace triply
 {
 // class forward declarations
@@ -106,11 +129,21 @@ typedef vmml::vector< 4, float >      Vector4f;
 typedef size_t                        Index;
 typedef unsigned short                ShortIndex;
 
-// mesh exception
+// Mesh exception
 struct MeshException : public std::exception
 {
     explicit MeshException( const std::string& msg ) : _message( msg ) {}
     virtual ~MeshException() throw() {}
+    virtual const char* what() const throw() { return _message.c_str(); }
+private:
+    std::string _message;
+};
+
+// Render exception
+struct RenderException : public std::exception
+{
+    explicit RenderException( const std::string& msg ) : _message( msg ) {}
+    virtual ~RenderException() throw() {}
     virtual const char* what() const throw() { return _message.c_str(); }
 private:
     std::string _message;
