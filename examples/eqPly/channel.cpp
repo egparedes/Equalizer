@@ -40,6 +40,12 @@
 #include "window.h"
 #include "renderState.h"
 
+#define USE_GLFINISH
+
+#ifndef M_SQRT3_2
+#  define M_SQRT3_2  0.86603f  /* sqrt(3)/2 */
+#endif
+
 // light parameters
 static GLfloat lightPosition[] = {0.0f, 0.0f, 1.0f, 0.0f};
 static GLfloat lightAmbient[]  = {0.1f, 0.1f, 0.1f, 1.0f};
@@ -52,10 +58,6 @@ static GLfloat materialDiffuse[]  = {0.8f, 0.8f, 0.8f, 1.0f};
 static GLfloat materialSpecular[] = {0.5f, 0.5f, 0.5f, 1.0f};
 static GLint  materialShininess   = 64;
 
-#ifndef M_SQRT3_2
-#  define M_SQRT3_2  0.86603f  /* sqrt(3)/2 */
-#endif
-
 namespace eqPly
 {
 
@@ -63,6 +65,7 @@ Channel::Channel( eq::Window* parent )
         : eq::Channel( parent )
         , _model(0)
         , _frameRestart( 0 )
+        , _frameCost( 0 )
 {
 }
 
@@ -173,7 +176,7 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
 
     if( model )
     {
-        drawModel( model );
+        _frameCost += drawModel( model );
     }
     else
     {
@@ -279,6 +282,7 @@ void Channel::frameReadback( const eq::uint128_t& frameID,
 void Channel::frameStart( const eq::uint128_t& frameID,
                           const uint32_t frameNumber )
 {
+    _frameCost = 0;
     if( stopRendering( ))
         return;
 
@@ -301,6 +305,7 @@ void Channel::frameViewStart( const eq::uint128_t& frameID )
 void Channel::frameFinish( const eq::uint128_t& frameID,
                            const uint32_t frameNumber )
 {
+    LBINFO << " Data uploaded to GPU: " << _frameCost /( 1024*1024ull ) << " Mbs" << std::endl;
     if( stopRendering( ))
         return;
 
@@ -589,7 +594,7 @@ const Model* Channel::getModel()
     return _model;
 }
 
-void Channel::drawModel( const Model* scene )
+size_t Channel::drawModel( const Model* scene )
 {
     Window* window = static_cast< Window* >( getWindow( ));
     RenderState& state = window->getState();
@@ -619,7 +624,7 @@ void Channel::drawModel( const Model* scene )
     if( program != RenderState::INVALID )
         glUseProgram( program );
 
-    scene->cullDraw( state );
+    size_t cost = scene->cullDraw( state );
 
     state.setChannel( 0 );
     if( program != RenderState::INVALID )
@@ -636,6 +641,12 @@ void Channel::drawModel( const Model* scene )
 #ifndef NDEBUG
     outlineViewport();
 #endif
+
+#ifdef USE_GLFINISH
+    glFinish();
+#endif
+
+    return cost;
 }
 
 void Channel::drawOverlay()

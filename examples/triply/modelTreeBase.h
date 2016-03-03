@@ -53,7 +53,8 @@ public:
 
     TRIPLY_API virtual void clear() = 0;
 
-    TRIPLY_API virtual void draw( RenderState& state ) const = 0;
+    /* return: estimated draw cost */
+    TRIPLY_API virtual size_t draw( RenderState& state ) const = 0;
     TRIPLY_API void drawBoundingSphere(RenderState &state ) const;
     TRIPLY_API virtual Index getNumberOfVertices() const = 0;
 

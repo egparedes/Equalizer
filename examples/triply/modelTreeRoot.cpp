@@ -60,7 +60,7 @@ void ModelTreeRoot::clear()
 }
 
 //#define LOGCULL
-void ModelTreeRoot::cullDraw( RenderState& state ) const
+size_t ModelTreeRoot::cullDraw( RenderState& state ) const
 {
     beginRendering( state );
 
@@ -77,10 +77,11 @@ void ModelTreeRoot::cullDraw( RenderState& state ) const
     std::vector< const triply::ModelTreeBase* > candidates;
     candidates.push_back( this );
 
+    size_t drawCost = 0;
     while( !candidates.empty() )
     {
         if( state.stopRendering( ))
-            return;
+            return drawCost;
 
         const triply::ModelTreeBase* treeNode = candidates.back();
         candidates.pop_back();
@@ -103,7 +104,7 @@ void ModelTreeRoot::cullDraw( RenderState& state ) const
                 if( treeNode->getRange()[0] >= range[0] &&
                     treeNode->getRange()[1] <  range[1] )
                 {
-                    treeNode->draw( state );
+                    drawCost += treeNode->draw( state );
                     if( state.showBoundingSpheres() )
                         treeNode->drawBoundingSphere( state );
 #ifdef LOGCULL
@@ -120,7 +121,7 @@ void ModelTreeRoot::cullDraw( RenderState& state ) const
                 {
                     if( treeNode->getRange()[0] >= range[0] )
                     {
-                        treeNode->draw( state );
+                        drawCost += treeNode->draw( state );
                         if( state.showBoundingSpheres() )
                             treeNode->drawBoundingSphere( state );
 #ifdef LOGCULL
@@ -157,12 +158,14 @@ void ModelTreeRoot::cullDraw( RenderState& state ) const
         << "% of model, overlap <= " << verticesOverlap * 100 / verticesTotal
         << "%" << std::endl;
 #endif
+
+    return drawCost;
 }
 
 /*  Delegate rendering to node routine.  */
-void ModelTreeRoot::draw( RenderState& state ) const
+size_t ModelTreeRoot::draw( RenderState& state ) const
 {
-    ModelTreeNode::draw( state );
+    return ModelTreeNode::draw( state );
 }
 
 bool ModelTreeRoot::setupTree( MeshData& modelData,

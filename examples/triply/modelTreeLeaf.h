@@ -47,7 +47,7 @@ public:
 
     virtual void clear() override;
 
-    virtual void draw( RenderState& state ) const override;
+    virtual size_t draw( RenderState& state ) const override;
     virtual Index getNumberOfVertices() const override { return _indexLength; }
 
 protected:
@@ -58,13 +58,16 @@ protected:
     virtual void updateRange() override;
 
 private:
-    void setupRendering(RenderState& state, GLuint* glBuffers ) const;
+    size_t setupRendering(RenderState& state, GLuint* glBuffers ) const;
     void loadLeafData( bool useColors ) const;
 
-    void renderImmediate( RenderState& state ) const;
-    void renderDisplayList( RenderState& state ) const;
-    void renderBufferObject( RenderState& state ) const;
-    void renderVAObject( RenderState& state ) const;
+    size_t renderImmediate( RenderState& state ) const;
+    size_t renderDisplayList( RenderState& state ) const;
+
+    /* return: data uploaded to the GPU */
+    size_t renderBufferObject( RenderState& state ) const;
+    /* return: data uploaded to the GPU */
+    size_t renderVAObject( RenderState& state ) const;
 
     friend class ModelTreeDist;
 

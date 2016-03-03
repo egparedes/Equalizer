@@ -54,8 +54,8 @@ public:
 
     TRIPLY_API virtual void clear();
 
-    TRIPLY_API virtual void cullDraw( RenderState& state ) const;
-    TRIPLY_API virtual void draw( RenderState& state ) const;
+    TRIPLY_API virtual size_t cullDraw( RenderState& state ) const;
+    TRIPLY_API virtual size_t draw( RenderState& state ) const;
 
     TRIPLY_API bool setupTree( MeshData& modelData,
                                const TreeInfo& info,

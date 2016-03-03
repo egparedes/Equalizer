@@ -52,7 +52,7 @@ public:
 
     virtual void clear() override;
 
-    virtual void draw( RenderState& state ) const override;
+    virtual size_t draw( RenderState& state ) const override;
     virtual Index getNumberOfVertices() const override;
 
     virtual unsigned getNumberOfDescendants( ) const override;

@@ -46,6 +46,8 @@ namespace eqPly
     class Channel : public eq::Channel
     {
     public:
+        static const size_t MaxFrameCost = 512ull*1024*1024; // 512MB
+
         Channel( eq::Window* parent );
 
         bool stopRendering() const;
@@ -71,7 +73,7 @@ namespace eqPly
             { _frameRestart = lastFrameNumber + 1; }
 
     private:
-        void drawModel( const Model* model );
+        size_t drawModel( const Model* model );
         void drawOverlay();
         void drawHelp();
         void updateNearFar( const triply::BoundingSphere& boundingSphere );
@@ -90,6 +92,7 @@ namespace eqPly
         const Model* _model;
         eq::uint128_t _modelID;
         uint32_t _frameRestart;
+        size_t _frameCost;
 
         struct Accum
         {
@@ -102,7 +105,6 @@ namespace eqPly
             bool transfer;
         }
         _accum[ eq::NUM_EYES ];
-
         eq::PixelViewport _currentPVP;
     };
 }

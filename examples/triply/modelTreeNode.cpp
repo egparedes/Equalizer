@@ -73,16 +73,19 @@ void ModelTreeNode::clear()
 }
 
 /*  Draw the node by rendering the children.  */
-void ModelTreeNode::draw(RenderState &state ) const
+size_t ModelTreeNode::draw(RenderState &state ) const
 {
+    size_t drawCost = 0;
     if( state.stopRendering( ) || _children.size() == 0 )
-        return;
+        return 0;
 
     for( unsigned i=0; i < _children.size(); ++i )
     {
         if( _children[i] != 0 )
-            _children[i]->draw( state );
+            drawCost += _children[i]->draw( state );
     }
+
+    return drawCost;
 }
 
 Index ModelTreeNode::getNumberOfVertices() const
