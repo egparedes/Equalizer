@@ -40,7 +40,7 @@ namespace triply
 {
 
 template < typename KeyT >
-class LRUCache
+class LRUQueue
 {
 public:
     typedef KeyT KeyType;
@@ -100,6 +100,16 @@ public:
         }
     }
 
+    TRIPLY_API const KeyT& first()
+    {
+        return _lruList.front();
+    }
+
+    TRIPLY_API const KeyT& last()
+    {
+        return _lruList.back();
+    }
+
     TRIPLY_API bool exists( const KeyT& key ) const
     {
         return _keyMap.find( key ) != _keyMap.end();
@@ -107,7 +117,7 @@ public:
 
     TRIPLY_API size_t size() const
     {
-        return _lruList.size();
+        return _keyMap.size();
     }
 
 private:

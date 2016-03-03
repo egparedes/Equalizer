@@ -6,7 +6,7 @@ set(TRIPLY_PUBLIC_HEADERS
   typedefs.h
   ply.h
   mmap.h
-  lruCache.h
+  lruQueue.h
   meshData.h
   modelTreeBase.h
   modelTreeData.h

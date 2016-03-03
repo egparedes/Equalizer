@@ -40,7 +40,7 @@
 #include "window.h"
 #include "renderState.h"
 
-#define USE_GLFINISH
+//#define USE_GLFINISH
 
 #ifndef M_SQRT3_2
 #  define M_SQRT3_2  0.86603f  /* sqrt(3)/2 */
@@ -249,6 +249,10 @@ void Channel::frameAssemble( const eq::uint128_t& frameID,
         LBWARN << e.what() << std::endl;
     }
 
+#ifdef USE_GLFINISH
+    glFinish();
+#endif
+
     resetAssemblyState();
 }
 
@@ -305,7 +309,9 @@ void Channel::frameViewStart( const eq::uint128_t& frameID )
 void Channel::frameFinish( const eq::uint128_t& frameID,
                            const uint32_t frameNumber )
 {
+#ifndef NDEBUG
     LBINFO << " Data uploaded to GPU: " << _frameCost /( 1024*1024ull ) << " Mbs" << std::endl;
+#endif
     if( stopRendering( ))
         return;
 

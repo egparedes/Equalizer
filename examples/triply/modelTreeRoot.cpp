@@ -62,6 +62,8 @@ void ModelTreeRoot::clear()
 //#define LOGCULL
 size_t ModelTreeRoot::cullDraw( RenderState& state ) const
 {
+static size_t ffCount = 0;
+
     beginRendering( state );
 
 #ifdef LOGCULL
@@ -159,6 +161,19 @@ size_t ModelTreeRoot::cullDraw( RenderState& state ) const
         << "%" << std::endl;
 #endif
 
+if( ffCount++  % 100 == 0)
+{
+    TRIPLYINFO << " GPU memory in use =" << state.getAllocatedBufferMemory() << std::endl;
+    std::vector< std::pair< size_t, size_t > > sizeCountPairs;
+    state.getAllocatedBuffers( sizeCountPairs );
+    TRIPLYINFO << " ---- Buffers ---- " << std::endl;
+    for( auto it=sizeCountPairs.begin(); it < sizeCountPairs.end(); ++it )
+    {
+        if( it->second > 0 )
+            TRIPLYINFO << "[" << it->first << "] = " << it->second << std::endl;
+    }
+    TRIPLYINFO << " " << std::endl;
+}
     return drawCost;
 }
 

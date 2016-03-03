@@ -33,7 +33,7 @@
 #define TRIPLY_RENDERSTATE_H
 
 #include "typedefs.h"
-#include "lruCache.h"
+#include "lruQueue.h"
 #include <triply/api.h>
 #include <lunchbox/spinLock.h>
 #include <map>
@@ -106,11 +106,14 @@ public:
     TRIPLY_API void discardBufferObject( ResourceKey key );
     TRIPLY_API void removeBufferObject( ResourceKey key );
 
+    TRIPLY_API size_t getAllocatedBufferMemory()
+        { return _allocatedBufferMemory; }
     TRIPLY_API void setMaxBufferMemory( size_t maxMemSize )
         { _maxBufferMemory = maxMemSize; }
     TRIPLY_API size_t getMaxBufferMemory()
         { return _maxBufferMemory; }
-    // ----
+
+    void getAllocatedBuffers( std::vector< std::pair< size_t, size_t > >& sizeCountPairs );
 
 protected:
     TRIPLY_API explicit RenderState( const GLEWContext* glewContext );
@@ -128,21 +131,21 @@ protected:
 
 private:
     static const size_t BufferSizeUnit = 65536; // 64 Kib
-    static const size_t BufferSizesCount = 20;
+    static const size_t BufferSizesCount = 10;
 
     struct KeyInfo
     {
-        KeyInfo( size_t id=-1, bool isActive=false )
-            : cacheId( id ), active( isActive ) {}
+        KeyInfo( size_t id=-1, bool isLoaded=false )
+            : cacheId( id ), loaded( isLoaded ) {}
 
         size_t cacheId;
-        bool active;
+        bool loaded;
     };
 
     size_t _allocatedBufferMemory;
     size_t _maxBufferMemory;
     stde::hash_map< ResourceKey, KeyInfo > _cacheMap;
-    std::array< LRUCache< ResourceKey >, BufferSizesCount > _availableBuffers;
+    std::array< LRUQueue< ResourceKey >, BufferSizesCount > _availableBuffers;
     lunchbox::SpinLock _lock;
 };
 

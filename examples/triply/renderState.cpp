@@ -27,6 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+//#define GPU_MEM_MANAGER
 
 #include "renderState.h"
 #include <lunchbox/scopedMutex.h>
@@ -123,6 +124,7 @@ Vector4f RenderState::getRegion() const
 GLuint RenderState::reserveBufferObject( ResourceKey key, size_t size,
                                          GLenum glTarget, GLenum glUsage )
 {
+#ifdef GPU_MEM_MANAGER
     lunchbox::ScopedFastWrite mutex( &_lock );
 
     TRIPLYASSERT( size - 1 < BufferSizeUnit * _availableBuffers.size( ));
@@ -140,9 +142,9 @@ GLuint RenderState::reserveBufferObject( ResourceKey key, size_t size,
             bufferId = getBufferObject( key );
             if( bufferId != INVALID )
             {
-                if( cacheIt->second.active == false )
+                if( cacheIt->second.loaded == false )
                 {
-                    cacheIt->second.active = true;
+                    cacheIt->second.loaded = true;
                     _availableBuffers[cacheIt->second.cacheId].remove( key );
                 }
                 TRIPLY_GL_CALL( glBindBuffer( glTarget, bufferId ));
@@ -152,7 +154,7 @@ GLuint RenderState::reserveBufferObject( ResourceKey key, size_t size,
         return bufferId;
     }
 
-    const size_t MinCacheItems = 0; //( 0.01 * _maxBufferMemory / BufferSizesCount ) / BufferSizeUnit;
+    const size_t MinCacheItems = (0.05 * ( _maxBufferMemory / BufferSizesCount )) / BufferSizeUnit;
     ResourceKey deletedKey = 0;
     if( _allocatedBufferMemory + bufferSize > _maxBufferMemory )
     {
@@ -167,6 +169,8 @@ GLuint RenderState::reserveBufferObject( ResourceKey key, size_t size,
             {
                 _cacheMap[key] = KeyInfo( bufferCacheId, true );
                 remapBufferObject( deletedKey, key );
+                TRIPLYASSERT( getBufferObject( deletedKey) == INVALID );
+                TRIPLYASSERT( getBufferObject( key ) != INVALID );
                 TRIPLY_GL_CALL( glInvalidateBufferData( bufferId ));
             }
         }
@@ -213,6 +217,10 @@ GLuint RenderState::reserveBufferObject( ResourceKey key, size_t size,
             _cacheMap[key] = KeyInfo( bufferCacheId, true );
         }
     }
+#else
+    GLuint bufferId = newBufferObject( key );
+    const size_t bufferSize = size;
+#endif
 
     TRIPLYASSERT( bufferId != INVALID );
 
@@ -238,36 +246,45 @@ GLuint RenderState::bindBufferObject( ResourceKey key, GLenum glTarget )
 
 GLuint RenderState::useBufferObject( ResourceKey key )
 {
+#ifdef GPU_MEM_MANAGER
     lunchbox::ScopedFastWrite mutex( &_lock );
 
     GLuint bufferId = getBufferObject( key );
     if( bufferId != INVALID )
     {
         auto it = _cacheMap.find( key );
-        if( it != _cacheMap.end( ) && it->second.active == false )
+        if( it != _cacheMap.end( ) && it->second.loaded == false )
         {
-            it->second.active = true;
+            it->second.loaded = true;
             _availableBuffers[it->second.cacheId].remove( key );
         }
     }
+#else
+    GLuint bufferId = getBufferObject( key );
+#endif
 
     return bufferId;
 }
 
 void RenderState::discardBufferObject( ResourceKey key )
 {
+#ifdef GPU_MEM_MANAGER
     lunchbox::ScopedFastWrite mutex( &_lock );
 
     auto it = _cacheMap.find( key );
-    if( it != _cacheMap.end( ) && it->second.active == true )
+    if( it != _cacheMap.end( ) && it->second.loaded == true )
     {
-        it->second.active = false;
+        it->second.loaded = false;
         _availableBuffers[it->second.cacheId].push( key );
     }
+#else
+    (void)key;
+#endif
 }
 
 void RenderState::removeBufferObject( ResourceKey key )
 {
+#ifdef GPU_MEM_MANAGER
     lunchbox::ScopedFastWrite mutex( &_lock );
 
     auto it = _cacheMap.find( key );
@@ -280,6 +297,22 @@ void RenderState::removeBufferObject( ResourceKey key )
         deleteBufferObject( key );
         _allocatedBufferMemory -= bufferSize;
     }
+#else
+    deleteBufferObject( key );
+#endif
+}
+
+void RenderState::getAllocatedBuffers( std::vector< std::pair< size_t, size_t > >& sizeCountPairs )
+{
+    (void)sizeCountPairs;
+#ifdef GPU_MEM_MANAGER
+    sizeCountPairs.resize( BufferSizesCount );
+    for( size_t i=0; i < BufferSizesCount; ++i )
+    {
+        sizeCountPairs[i] = std::make_pair( (i+1) * BufferSizeUnit,
+                                            _availableBuffers[i].size() );
+    }
+#endif
 }
 
 // ---- SimpleRenderState
