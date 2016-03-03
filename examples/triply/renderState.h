@@ -32,6 +32,8 @@
 #ifndef TRIPLY_RENDERSTATE_H
 #define TRIPLY_RENDERSTATE_H
 
+#define GPU_MEM_MANAGER
+
 #include "typedefs.h"
 #include "lruQueue.h"
 #include <triply/api.h>
@@ -106,6 +108,7 @@ public:
     TRIPLY_API void discardBufferObject( ResourceKey key );
     TRIPLY_API void removeBufferObject( ResourceKey key );
 
+#ifdef GPU_MEM_MANAGER
     TRIPLY_API size_t getAllocatedBufferMemory()
         { return _allocatedBufferMemory; }
     TRIPLY_API void setMaxBufferMemory( size_t maxMemSize )
@@ -114,6 +117,7 @@ public:
         { return _maxBufferMemory; }
 
     void getAllocatedBuffers( std::vector< std::pair< size_t, size_t > >& sizeCountPairs );
+#endif
 
 protected:
     TRIPLY_API explicit RenderState( const GLEWContext* glewContext );
@@ -130,6 +134,7 @@ protected:
     bool                _outOfCore;
 
 private:
+#ifdef GPU_MEM_MANAGER
     static const size_t BufferSizeUnit = 65536; // 64 Kib
     static const size_t BufferSizesCount = 10;
 
@@ -147,6 +152,7 @@ private:
     stde::hash_map< ResourceKey, KeyInfo > _cacheMap;
     std::array< LRUQueue< ResourceKey >, BufferSizesCount > _availableBuffers;
     lunchbox::SpinLock _lock;
+#endif
 };
 
 

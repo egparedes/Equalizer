@@ -27,7 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-//#define GPU_MEM_MANAGER
 
 #include "renderState.h"
 #include <lunchbox/scopedMutex.h>
@@ -41,9 +40,11 @@ RenderState::RenderState( const GLEWContext* glewContext )
         , _useColors( false )
         , _useFrustumCulling( true )
         , _useBoundingSpheres( false )
+#ifdef GPU_MEM_MANAGER
         , _outOfCore( false )
         , _allocatedBufferMemory( 0 )
         , _maxBufferMemory( 2ull*1024*1024*1024 ) // 2 Gib
+#endif
 {
     _range[0] = 0.f;
     _range[1] = 1.f;
@@ -302,18 +303,18 @@ void RenderState::removeBufferObject( ResourceKey key )
 #endif
 }
 
+#ifdef GPU_MEM_MANAGER
 void RenderState::getAllocatedBuffers( std::vector< std::pair< size_t, size_t > >& sizeCountPairs )
 {
     (void)sizeCountPairs;
-#ifdef GPU_MEM_MANAGER
     sizeCountPairs.resize( BufferSizesCount );
     for( size_t i=0; i < BufferSizesCount; ++i )
     {
         sizeCountPairs[i] = std::make_pair( (i+1) * BufferSizeUnit,
                                             _availableBuffers[i].size() );
     }
-#endif
 }
+#endif
 
 // ---- SimpleRenderState
 GLuint SimpleRenderState::getDisplayList( const void* key )

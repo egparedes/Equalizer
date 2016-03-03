@@ -93,8 +93,9 @@ bool Window::configInitGL( const eq::uint128_t& initID )
                       initData.getGLSLFragmentSource() );
 
     _state->setOutOfCore( initData.useOutOfCore() );
+#ifdef GPU_MEM_MANAGER
     _state->setMaxBufferMemory( 1024ull * 1024 * initData.getMaxGlMemory( ));
-
+#endif
     return true;
 }
 
