@@ -381,6 +381,7 @@ protected:
      */
     EQ_API virtual void frameDrawFinish( const uint128_t& frameID,
                                          const uint32_t frameNumber );
+    friend class Channel;
 
     /** @internal */
     EQ_API virtual void attach( const uint128_t& id, const uint32_t instanceID );

@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2011-2015, Stefan Eilemann <eile@eyescale.h>
+/* Copyright (c) 2011-2016, Stefan Eilemann <eile@eyescale.h>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
  *
@@ -226,8 +226,8 @@ bool Resources::discover( ServerPtr server, Config* config,
             return false;
         }
         LBINFO << "No resources found for session " << session
-               << ", using default config" << std::endl;
-        gpuInfos.push_back( hwsd::GPUInfo( ));
+               << ", aborting" << std::endl;
+        return false;
     }
 
     typedef stde::hash_map< uint128_t, Node* > NodeMap;
@@ -244,9 +244,8 @@ bool Resources::discover( ServerPtr server, Config* config,
 
     std::string excludedDisplays; // for VGL_EXCLUDE
 
-    for( hwsd::GPUInfosCIter i = gpuInfos.begin(); i != gpuInfos.end(); ++i )
+    for( const hwsd::GPUInfo& info : gpuInfos )
     {
-        const hwsd::GPUInfo& info = *i;
         if( info.flags & hwsd::GPUInfo::FLAG_VIRTUALGL_DISPLAY )
             continue; // ignore, default $DISPLAY gpu uses this one
 
@@ -715,14 +714,10 @@ Compound* Resources::_addDSCompound( Compound* root, const Channels& channels )
         // leaf draw + tile readback compound
         Compound* drawChild = new Compound( child );
         if( i+1 == children.end( ) ) // last - correct rounding 'error'
-        {
-            drawChild->setRange(
-                Range( static_cast< float >( start )/100000.f, 1.f ));
-        }
+            drawChild->setRange( Range( float( start )/100000.f, 1.f ));
         else
-            drawChild->setRange(
-                Range( static_cast< float >( start )/100000.f,
-                       static_cast< float >( start + step )/100000.f ));
+            drawChild->setRange( Range( float( start )/100000.f,
+                                        float( start + step )/100000.f ));
 
         size_t y = 0;
         for( CompoundsCIter j = children.begin(); j != children.end(); ++j )

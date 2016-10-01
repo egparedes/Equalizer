@@ -1,6 +1,6 @@
 
 %{
-/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *
  * This library is free software; you can redistribute it and/or modify it under
@@ -31,7 +31,7 @@
 #define yylineno eqLoader_lineno
 #define yylex eqLoader_lex
 
-#ifdef WIN32_API
+#ifdef _MSC_VER
 #  include <io.h>
 #  define isatty _isatty
 #endif
@@ -108,7 +108,7 @@ EQ_NODE_IATTR_HINT_STATISTICS    { return EQTOKEN_NODE_IATTR_HINT_STATISTICS; }
 EQ_PIPE_IATTR_HINT_THREAD        { return EQTOKEN_PIPE_IATTR_HINT_THREAD; }
 EQ_PIPE_IATTR_HINT_AFFINITY      { return EQTOKEN_PIPE_IATTR_HINT_AFFINITY; }
 EQ_PIPE_IATTR_HINT_CUDA_GL_INTEROP { return EQTOKEN_PIPE_IATTR_HINT_CUDA_GL_INTEROP; }
-EQ_VIEW_SATTR_DISPLAYCLUSTER      { return EQTOKEN_VIEW_SATTR_DISPLAYCLUSTER; }
+EQ_VIEW_SATTR_DEFLECT_HOST      { return EQTOKEN_VIEW_SATTR_DEFLECT_HOST; }
 EQ_WINDOW_IATTR_HINT_CORE_PROFILE { return EQTOKEN_WINDOW_IATTR_HINT_CORE_PROFILE; }
 EQ_WINDOW_IATTR_HINT_OPENGL_MAJOR { return EQTOKEN_WINDOW_IATTR_HINT_OPENGL_MAJOR; }
 EQ_WINDOW_IATTR_HINT_OPENGL_MINOR { return EQTOKEN_WINDOW_IATTR_HINT_OPENGL_MINOR; }
@@ -181,9 +181,6 @@ GREEN                           { return EQTOKEN_GREEN; }
 BLUE                            { return EQTOKEN_BLUE; }
 HORIZONTAL                      { return EQTOKEN_HORIZONTAL; }
 VERTICAL                        { return EQTOKEN_VERTICAL; }
-DPLEX                           { return EQTOKEN_DPLEX; }
-DFR                             { return EQTOKEN_DFR; }
-DDS                             { return EQTOKEN_DDS; }
 framerate                       { return EQTOKEN_FRAMERATE; }
 channel                         { return EQTOKEN_CHANNEL; }
 observer                        { return EQTOKEN_OBSERVER; }
@@ -192,7 +189,6 @@ view                            { return EQTOKEN_VIEW; }
 canvas                          { return EQTOKEN_CANVAS; }
 segment                         { return EQTOKEN_SEGMENT; }
 compound                        { return EQTOKEN_COMPOUND; }
-loadBalancer                    { return EQTOKEN_LOADBALANCER; }
 DFR_equalizer                   { return EQTOKEN_DFREQUALIZER; }
 framerate_equalizer             { return EQTOKEN_FRAMERATEEQUALIZER; }
 load_equalizer                  { return EQTOKEN_LOADEQUALIZER; }
@@ -205,7 +201,6 @@ connection                      { return EQTOKEN_CONNECTION; }
 name                            { return EQTOKEN_NAME; }
 type                            { return EQTOKEN_TYPE; }
 TCPIP                           { return EQTOKEN_TCPIP; }
-SDP                             { return EQTOKEN_SDP; }
 PIPE                            { return EQTOKEN_PIPE; }
 RSP                             { return EQTOKEN_RSP; }
 RDMA                            { return EQTOKEN_RDMA; }
@@ -299,7 +294,7 @@ zoom                            { return EQTOKEN_ZOOM; }
 MONO                            { return EQTOKEN_MONO; }
 STEREO                          { return EQTOKEN_STEREO; }
 size                            { return EQTOKEN_SIZE; }
-DisplayCluster                  { return EQTOKEN_DISPLAYCLUSTER; }
+deflect_host                    { return EQTOKEN_DEFLECT_HOST; }
 dump_image                      { return EQTOKEN_DUMP_IMAGE; }
 
 [+-]?[0-9]+[\.][0-9]*           { return EQTOKEN_FLOAT; }

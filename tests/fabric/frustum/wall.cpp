@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2007-2013, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2007-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -15,7 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <test.h>
+#include <lunchbox/test.h>
 
 #include <eq/fabric/wall.h>
 
@@ -57,10 +57,8 @@ int main( int, char** )
     const Wall wall2( Vector3f( -.8f, -.5f, -1.f ),
                       Vector3f(  .8f, -.5f, -1.f ),
                       Vector3f( -.8f,  .5f, -1.f ));
-    Matrix4f inv;
 
-    TEST( frustum.compute_matrix().inverse( inv ));
-    target = inv;
+    target = frustum.computePerspectiveMatrix().inverse();
     TESTINFO( wall2 == target, wall2 << " != " << target );
 
     return EXIT_SUCCESS;

@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2011-2015, Stefan Eilemann <eile@eyescale.ch>
+/* Copyright (c) 2011-2016, Stefan Eilemann <eile@eyescale.ch>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Petros Kataras <petroskataras@gmail.com>
  *
@@ -58,9 +58,14 @@ const GLEWContext* Renderer::glewGetContext() const
     return _impl->glewGetContext();
 }
 
-ViewData* Renderer::createViewData()
+const ViewData* Renderer::getViewData() const
 {
-    return new ViewData;
+    return _impl->getViewData();
+}
+
+ViewData* Renderer::createViewData( View& view )
+{
+    return new ViewData( view );
 }
 
 void Renderer::destroyViewData( ViewData* viewData )
@@ -109,20 +114,24 @@ void Renderer::clear( co::Object* /*frameData*/ )
     _impl->clear();
 }
 
+void Renderer::requestRedraw()
+{
+    _impl->requestRedraw();
+}
+
 void Renderer::updateNearFar( const Vector4f& boundingSphere )
 {
     const Matrix4f& view = getViewMatrix();
-    Matrix4f viewInv;
-    compute_inverse( view, viewInv );
-
+    const Matrix4f& viewInv = view.inverse();
     const Vector3f& zero  = viewInv * Vector3f::ZERO;
     Vector3f        front = viewInv * Vector3f( 0.0f, 0.0f, -1.0f );
     front -= zero;
     front.normalize();
     front *= boundingSphere.w();
 
-    const Vector3f& translation = getModelMatrix().get_translation();
-    const Vector3f& center = translation - boundingSphere.get_sub_vector<3>();
+    const Vector3f& translation = getModelMatrix().getTranslation();
+    const Vector3f& center = translation -
+                             boundingSphere.get_sub_vector< 3, 0 >();
     const Vector3f& nearPoint  = view * ( center - front );
     const Vector3f& farPoint   = view * ( center + front );
 
@@ -140,7 +149,7 @@ void Renderer::updateNearFar( const Vector4f& boundingSphere )
         const float width  = fabs( frustum.right() - frustum.left() );
         const float height = fabs( frustum.top() - frustum.bottom() );
         const float size   = LB_MIN( width, height );
-        const float minNear = frustum.near_plane() / size * .001f;
+        const float minNear = frustum.nearPlane() / size * .001f;
 
         const float zNear = LB_MAX( minNear, -nearPoint.z() );
         const float zFar  = LB_MAX( zNear * 2.f, -farPoint.z() );
@@ -157,6 +166,11 @@ void Renderer::setNearFar( const float nearPlane, const float farPlane )
 void Renderer::applyRenderContext()
 {
     _impl->applyRenderContext();
+}
+
+void Renderer::bindDrawFrameBuffer()
+{
+    _impl->bindDrawFrameBuffer();
 }
 
 const RenderContext& Renderer::getRenderContext() const

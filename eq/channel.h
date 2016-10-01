@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2005-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Enrique <egparedes@ifi.uzh.ch>
@@ -526,13 +526,21 @@ protected:
     EQ_API virtual void frameDraw( const uint128_t& frameID );
 
     /**
-     * Call clear/draw/readback callbacks using the specified context
+     * Execute a rendering pass.
+     *
+     * Depending on the context, invokes frameClear(), frameDraw() and/or
+     * frameReadback(). This method may be overridden to break down a single
+     * rendering pass into multiple passes by "splitting up" the
+     * RenderContext. The sole purpose for overriding this method is to call the
+     * base implementation 0-n times with a modified RenderContext.
      *
      * @param context the RenderContext used in the pass.
-     * @param frames the output frames for readback.
+     * @param inFrames the input frames for assembly.
+     * @param outFrames the output frames for readback.
      */
-    EQ_API virtual bool framePass( const RenderContext& context,
-                                   const Frames& frames );
+    EQ_API virtual bool frameRender( const RenderContext& context,
+                                     const Frames& inFrames,
+                                     const Frames& outFrames );
 
     /**
      * Assemble all input frames.
@@ -634,17 +642,14 @@ private:
     /** Initialize the channel's drawable config. */
     void _initDrawableConfig();
 
-    /** Regular render loop. */
-    void _framePass( const RenderContext& context,
-                     const co::ObjectVersions& frames );
-
-    /** Tile render loop. */
-    void _frameTiles( RenderContext& context, bool isLocal,
-                      const uint128_t& queueID,
-                      const co::ObjectVersions& frames );
+    /** Single render loop. */
+    void _frameRender( const RenderContext& context,
+                       const co::ObjectVersions& inFrames,
+                       const co::ObjectVersions& outFrames,
+                       const uint128_ts& queueIDs );
 
     /** Emit events and set ready output */
-    void _finishFramePass( const RenderContext& context, int64_t startTime,
+    void _finishFrameRender( const RenderContext& context, int64_t startTime,
                            bool hasAsyncReadback, const Frames& frames );
 
     /** Reference the frame for an async operation. */
@@ -705,8 +710,7 @@ private:
     bool _cmdFrameStart( co::ICommand& command );
     bool _cmdFrameFinish( co::ICommand& command );
     bool _cmdFrameClear( co::ICommand& command );
-    bool _cmdFramePass( co::ICommand& cmd );
-    bool _cmdFrameTiles( co::ICommand& command );
+    bool _cmdFrameRender( co::ICommand& command );
     bool _cmdFrameDrawFinish( co::ICommand& command );
     bool _cmdFrameAssemble( co::ICommand& command );
     bool _cmdFrameReadback( co::ICommand& command );

@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Enrique <egparedes@ifi.uzh.ch>
  *
@@ -22,6 +22,7 @@
 #include "frameData.h"
 #include "image.h"
 #include <eq/util/objectManager.h>
+#include <eq/fabric/renderContext.h>
 
 namespace eq
 {
@@ -83,31 +84,6 @@ uint32_t Frame::getBuffers() const
     return _impl->frameData->getBuffers();
 }
 
-const Pixel& Frame::getPixel() const
-{
-    return _impl->frameData->getPixel();
-}
-
-const SubPixel& Frame::getSubPixel() const
-{
-    return _impl->frameData->getSubPixel();
-}
-
-const Range& Frame::getRange() const
-{
-    return _impl->frameData->getRange();
-}
-
-uint32_t Frame::getPeriod() const
-{
-    return _impl->frameData->getPeriod();
-}
-
-uint32_t Frame::getPhase() const
-{
-    return _impl->frameData->getPhase();
-}
-
 const Images& Frame::getImages() const
 {
     return _impl->frameData->getImages();
@@ -142,32 +118,25 @@ void Frame::useCompressor( const Buffer buffer, const uint32_t name )
         _impl->frameData->useCompressor( buffer, name );
 }
 
-void Frame::readback( util::ObjectManager& glObjects, const DrawableConfig& config,
-                      const Range& range )
-{
-    const PixelViewport& pvp = _impl->frameData->getPixelViewport();
-    const Images& images =
-        _impl->frameData->startReadback( *this, glObjects, config,
-                                         PixelViewports( 1, pvp ), range );
-    for( ImagesCIter i = images.begin(); i != images.end(); ++i )
-        (*i)->finishReadback( glObjects.glewGetContext( ));
-}
-
-void Frame::readback( util::ObjectManager& glObjects, const DrawableConfig& config,
-                      const PixelViewports& regions, const Range& range )
+void Frame::readback( util::ObjectManager& glObjects,
+                      const DrawableConfig& config,
+                      const PixelViewports& regions,
+                      const RenderContext& context )
 {
     const Images& images =
-        _impl->frameData->startReadback( *this, glObjects, config, regions, range );
-    for( ImagesCIter i = images.begin(); i != images.end(); ++i )
-        (*i)->finishReadback( glObjects.glewGetContext( ));
+        _impl->frameData->startReadback( *this, glObjects, config, regions,
+                                         context );
+    for( Image* image : images )
+        image->finishReadback( glObjects.glewGetContext( ));
 }
 
 Images Frame::startReadback( util::ObjectManager& glObjects,
                              const DrawableConfig& config,
                              const PixelViewports& regions,
-                             const Range &range )
+                             const RenderContext& context )
 {
-    return _impl->frameData->startReadback( *this, glObjects, config, regions, range );
+    return _impl->frameData->startReadback( *this, glObjects, config, regions,
+                                            context );
 }
 
 void Frame::setReady()

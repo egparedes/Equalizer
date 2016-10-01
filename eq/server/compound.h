@@ -1,7 +1,7 @@
 
-/* Copyright (c) 2005-2014, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2010, Cedric Stalder <cedric.stalder@gmail.com>
- *                    2011, Daniel Nachbaur <danielnachbaur@gmail.com>
+/* Copyright (c) 2005-2016, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -217,9 +217,9 @@ public:
     void setPixel( const Pixel& pixel )    { _data.pixel = pixel; }
     const Pixel& getPixel() const          { return _data.pixel; }
 
-    void setSubPixel( const SubPixel& subpixel )
-    { _data.subpixel = subpixel; }
-    const SubPixel& getSubPixel() const    { return _data.subpixel; }
+    void setSubPixel( const SubPixel& subPixel )
+        { _data.subPixel = subPixel; }
+    const SubPixel& getSubPixel() const    { return _data.subPixel; }
 
     void setZoom( const Zoom& zoom )       { _data.zoom = zoom; }
     const Zoom& getZoom() const            { return _data.zoom; }
@@ -303,8 +303,7 @@ public:
     EQSERVER_API void removeOutputTileQueue( TileQueue* tileQueue );
 
     /** @return the vector of output tile queues. */
-    const TileQueues& getOutputTileQueues() const
-    { return _outputTileQueues; }
+    const TileQueues& getOutputTileQueues() const { return _outputTileQueues; }
 
     /** @return true if the compound is a tile compound. */
     bool hasTiles() const
@@ -319,24 +318,18 @@ public:
      * beginning of each update().
      */
     //@{
+    RenderContext setupRenderContext( Eye eye ) const;
     uint32_t getInheritBuffers() const { return _inherit.buffers; }
-    const PixelViewport& getInheritPixelViewport() const
-    { return _inherit.pvp; }
-    const Vector4i& getInheritOverdraw() const
-    { return _inherit.overdraw; }
-    const Viewport& getInheritViewport() const { return _inherit.vp; }
+    const PixelViewport& getInheritPixelViewport() const { return _inherit.pvp;}
     const Range& getInheritRange()   const { return _inherit.range; }
     const Pixel& getInheritPixel()   const { return _inherit.pixel; }
-    const SubPixel& getInheritSubPixel() const
-    { return _inherit.subpixel; }
+    const SubPixel& getInheritSubPixel() const { return _inherit.subPixel; }
     const Zoom& getInheritZoom()     const { return _inherit.zoom; }
     uint32_t getInheritPeriod()          const { return _inherit.period; }
     uint32_t getInheritPhase()           const { return _inherit.phase; }
     float getInheritMaxFPS()             const { return _inherit.maxFPS; }
     int32_t getInheritIAttribute( const IAttribute attr ) const
-    { return _inherit.iAttributes[attr]; }
-    const FrustumData& getInheritFrustumData() const
-    { return _inherit.frustumData; }
+        { return _inherit.iAttributes[attr]; }
     uint32_t getInheritTasks()           const { return _inherit.tasks; }
     uint32_t getInheritEyes()            const { return _inherit.eyes; }
     Channel* getInheritChannel()               { return _inherit.channel; }
@@ -344,15 +337,13 @@ public:
 
     /** @return true if the task is set, false if not. */
     bool testInheritTask( const fabric::Task task ) const
-    { return (_inherit.tasks & task); }
+        { return (_inherit.tasks & task); }
 
     /** Delete an inherit task, if it was set. */
-    void unsetInheritTask( const fabric::Task task )
-    { _inherit.tasks &= ~task; }
+    void unsetInheritTask( const fabric::Task task ) { _inherit.tasks &= ~task;}
 
     /** @return true if the eye pass is actived, false if not. */
-    bool testInheritEye( const Eye eye ) const
-    { return (_inherit.eyes & eye); }
+    bool testInheritEye( const Eye eye ) const { return (_inherit.eyes & eye); }
     //@}
 
     /** @name Frustum Operations */
@@ -390,10 +381,6 @@ public:
 
     /** Update the frustum from the view or segment. */
     void updateFrustum( const Vector3f& eye, const float ratio );
-
-    /** compute the frustum of the given context */
-    void computeFrustum( RenderContext& context,
-                         const fabric::Eye eye ) const;
 
     /** compute the frustum for a given viewport */
     void computeTileFrustum( Frustumf& frustum, const fabric::Eye eye,
@@ -548,7 +535,7 @@ private:
         Vector4i          overdraw;
         Range             range;
         Pixel             pixel;
-        SubPixel          subpixel;
+        SubPixel          subPixel;
         FrustumData       frustumData;
         Zoom              zoom;
         uint32_t          buffers;
@@ -611,6 +598,7 @@ private:
     void _fireChildAdded( Compound* child );
     void _fireChildRemove( Compound* child );
 
+    void _computeFrustum( RenderContext& context ) const;
     void _computePerspective( RenderContext& context,
                               const Vector3f& eye ) const;
     void _computeOrtho( RenderContext& context, const Vector3f& eye ) const;

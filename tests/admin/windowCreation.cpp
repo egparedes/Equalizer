@@ -15,7 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <test.h>
+#include <lunchbox/test.h>
 #include <eq/eq.h>
 #include <eq/admin/admin.h>
 
@@ -32,17 +32,19 @@ public:
 
         eq::fabric::ConfigParams configParams;
         config = server->chooseConfig( configParams );
-        if( config ) // Autoconfig failed, likely because there are no GPUs
+        if( config )
             TEST( config->init( co::uint128_t( )));
+        // else autoconfig failed, likely because there are no GPUs
     }
 
     ~Application()
     {
-        if( config ) // Autoconfig failed, likely because there are no GPUs
+        if( config )
         {
             TEST( config->exit( ));
             server->releaseConfig( config );
         }
+        // else autoconfig failed, likely because there are no GPUs
 
         TEST( client->disconnectServer( server ));
         TEST( client->exitLocal( ));

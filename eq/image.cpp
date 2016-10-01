@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
@@ -28,8 +28,7 @@
 
 #include <eq/util/frameBufferObject.h>
 #include <eq/util/objectManager.h>
-#include <eq/fabric/colorMask.h>
-#include <eq/fabric/range.h>
+#include <eq/fabric/renderContext.h>
 
 #include <co/global.h>
 
@@ -180,8 +179,8 @@ public:
     /** The rectangle of the current pixel data. */
     PixelViewport pvp;
 
-    /** The data range contained in the image. */
-    Range range;
+    /** The render context producing the image. */
+    RenderContext context;
 
     /** Zoom factor used for compositing. */
     Zoom zoom;
@@ -259,6 +258,7 @@ void Image::reset()
     _impl->ignoreAlpha = false;
     _impl->hasPremultipliedAlpha = false;
     setPixelViewport( PixelViewport( ));
+    setContext( RenderContext( ));
 }
 
 void Image::flush()
@@ -517,32 +517,16 @@ bool Image::upload( const Frame::Buffer buffer, util::Texture* texture,
 //---------------------------------------------------------------------------
 // asynchronous readback
 //---------------------------------------------------------------------------
-#ifndef EQ_2_0_API
-bool Image::readback( const uint32_t buffers, const PixelViewport& pvp,
-                      const Range& range, const Zoom& zoom,
-                      util::ObjectManager& glObjects )
-{
-    if( startReadback( buffers, pvp, range, zoom, glObjects ))
-        finishReadback( zoom, glObjects.glewGetContext( ));
-    return true;
-}
-
-void Image::finishReadback( const Zoom&, const GLEWContext* context )
-{
-    return finishReadback( context );
-}
-#endif
-
 // TODO: 2.0 API: rename to readback and return Future
 bool Image::startReadback( const uint32_t buffers, const PixelViewport& pvp,
-                           const Range& range, const Zoom& zoom,
+                           const RenderContext& context, const Zoom& zoom,
                            util::ObjectManager& glObjects )
 {
     LBLOG( LOG_ASSEMBLY ) << "startReadback " << pvp << ", buffers " << buffers
                           << std::endl;
 
     _impl->pvp = pvp;
-    _impl->range = range;
+    _impl->context = context;
     _impl->color.memory.state = Memory::INVALID;
     _impl->depth.memory.state = Memory::INVALID;
 
@@ -600,7 +584,7 @@ bool Image::startReadback( const Frame::Buffer buffer,
 
     if( !downloader.supports( inputToken, noAlpha, flags ))
         downloader.setup( co::Global::getPluginRegistry(), inputToken,
-                           attachment.quality, noAlpha, flags, gl );
+                          attachment.quality, noAlpha, flags, gl );
 
     if( !downloader.isGood( ))
     {
@@ -1678,16 +1662,6 @@ const PixelViewport& Image::getPixelViewport() const
     return _impl->pvp;
 }
 
-void Image::setRange( const Range& range )
-{
-    _impl->range = range;
-}
-
-const Range& Image::getRange() const
-{
-    return _impl->range;
-}
-
 void Image::setZoom( const Zoom& zoom )
 {
     _impl->zoom = zoom;
@@ -1696,6 +1670,16 @@ void Image::setZoom( const Zoom& zoom )
 const Zoom& Image::getZoom() const
 {
     return _impl->zoom;
+}
+
+void Image::setContext( const RenderContext& context )
+{
+    _impl->context = context;
+}
+
+const RenderContext& Image::getContext() const
+{
+    return _impl->context;
 }
 
 bool Image::hasPixelData( const Frame::Buffer buffer ) const

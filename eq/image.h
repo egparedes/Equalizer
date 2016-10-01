@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Enrique <egparedes@ifi.uzh.ch>
@@ -122,25 +122,17 @@ public:
     /** @return the internal pixel viewport. @version 1.0 */
     EQ_API const PixelViewport& getPixelViewport() const;
 
-    /**
-     * Set the internal DB range associated to the image data.
-     *
-     * The DB range used for the rendering of this image contents. It is needed
-     * for the compositing stage in sort-last rendering, specially when using
-     * transparent objects and volumes.
-     *
-     * @param range the DB range.
-     */
-    EQ_API void setRange( const Range& range );
-
-    /** @return the associated DB range. */
-    EQ_API const Range& getRange() const;
-
     /** Sets the zoom factor to be used for compositing. */
     EQ_API void setZoom( const Zoom& zoom );
 
     /** @return zoom factor to be used for compositing. */
     EQ_API const Zoom& getZoom() const;
+
+    /** Set the render context producing this image. */
+    EQ_API void setContext( const RenderContext& context );
+
+    /** @return the rendering context which created this image, or a default. */
+    EQ_API const RenderContext& getContext() const;
 
     /**
      * Set a compressor to be used during transmission of the image.
@@ -151,8 +143,7 @@ public:
      * @param buffer the frame buffer attachment.
      * @param name the compressor name
      */
-    EQ_API void useCompressor( const Frame::Buffer buffer,
-                               const uint32_t name );
+    EQ_API void useCompressor( Frame::Buffer buffer, uint32_t name );
 
     /**
      * Reset the image to its default state.
@@ -293,38 +284,19 @@ public:
 
     /** @name Operations */
     //@{
-#ifndef EQ_2_0_API
-    /**
-     * Read back an image from the frame buffer.
-     *
-     * @param buffers bit-wise combination of the Frame::Buffer components.
-     * @param pvp the area of the frame buffer wrt the drawable.
-     * @param zoom the scale factor to apply during readback.
-     * @param glObjects the GL object manager for the current GL context.
-     * @return true when data was read back, false on error.
-     * @version 1.0
-     * @deprecated @sa startReadback(), finishReadback()
-     */
-    EQ_API bool readback( const uint32_t buffers, const PixelViewport& pvp,
-                          const Range &range, const Zoom& zoom,
-                          util::ObjectManager& glObjects);
-
-    /* @deprecated Use finishReadback without Zoom */
-    EQ_API void finishReadback( const Zoom&, const GLEWContext* );
-#endif
-
     /**
      * Start reading back an image from the frame buffer.
      *
      * @param buffers bit-wise combination of the Frame::Buffer components.
      * @param pvp the area of the frame buffer wrt the drawable.
+     * @param context the render context producing the pixel data.
      * @param zoom the scale factor to apply during readback.
      * @param glObjects the GL object manager for the current GL context.
      * @return true when the operation requires a finishReadback().
      * @version 1.3.2
      */
     EQ_API bool startReadback( const uint32_t buffers, const PixelViewport& pvp,
-                               const Range &range, const Zoom& zoom,
+                               const RenderContext& context, const Zoom& zoom,
                                util::ObjectManager& glObjects );
 
     /** @internal Start reading back data from a texture. */

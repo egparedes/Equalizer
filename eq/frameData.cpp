@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Enrique <egparedes@ifi.uzh.ch>
@@ -35,6 +35,7 @@
 #include <co/connectionDescription.h>
 #include <co/dataIStream.h>
 #include <co/dataOStream.h>
+#include <co/objectICommand.h>
 #include <lunchbox/monitor.h>
 #include <lunchbox/scopedMutex.h>
 #include <pression/plugins/compressor.h>
@@ -62,8 +63,6 @@ public:
         , depthCompressor( EQ_COMPRESSOR_AUTO )
     {}
 
-    fabric::FrameData data;
-
     Images images;
     Images imageCache;
     lunchbox::Lock imageCacheLock;
@@ -89,7 +88,7 @@ public:
 };
 }
 
-typedef co::CommandFunc<FrameData> CmdFunc;
+typedef co::CommandFunc< FrameData > CmdFunc;
 
 FrameData::FrameData()
     : _impl( new detail::FrameData )
@@ -110,70 +109,9 @@ FrameData::~FrameData()
     delete _impl;
 }
 
-
-Frame::Type FrameData::getType() const
-{
-    return _impl->data.frameType;
-}
-
-void FrameData::setType( const Frame::Type type )
-{
-    _impl->data.frameType = type;
-}
-
-uint32_t FrameData::getBuffers() const
-{
-    return _impl->data.buffers;
-}
-
-void FrameData::setBuffers( const uint32_t buffers )
-{
-    _impl->data.buffers = buffers;
-}
-
-const Range& FrameData::getRange() const
-{
-    return _impl->data.range;
-}
-
-void FrameData::setRange( const Range& range )
-{
-    _impl->data.range = range;
-}
-
-const Pixel& FrameData::getPixel() const
-{
-    return _impl->data.pixel;
-}
-
-const SubPixel& FrameData::getSubPixel() const
-{
-    return _impl->data.subpixel;
-}
-
-uint32_t FrameData::getPeriod() const
-{
-    return _impl->data.period;
-}
-
-uint32_t FrameData::getPhase() const
-{
-    return _impl->data.phase;
-}
-
 const Images& FrameData::getImages() const
 {
     return _impl->images;
-}
-
-void FrameData::setPixelViewport( const PixelViewport& pvp )
-{
-    _impl->data.pvp = pvp;
-}
-
-const PixelViewport& FrameData::getPixelViewport() const
-{
-    return _impl->data.pvp;
 }
 
 void FrameData::setAlphaUsage( const bool useAlpha )
@@ -181,29 +119,9 @@ void FrameData::setAlphaUsage( const bool useAlpha )
     _impl->useAlpha = useAlpha;
 }
 
-void FrameData::setZoom( const Zoom& zoom )
-{
-    _impl->data.zoom = zoom;
-}
-
-const Zoom& FrameData::getZoom() const
-{
-    return _impl->data.zoom;
-}
-
 bool FrameData::isReady() const
 {
     return _impl->readyVersion.get() >= _impl->version;
-}
-
-void FrameData::disableBuffer( const Frame::Buffer buffer )
-{
-    _impl->data.buffers &= ~buffer;
-}
-
-const fabric::FrameData& FrameData::getData() const
-{
-    return _impl->data;
 }
 
 void FrameData::setQuality( Frame::Buffer buffer, float quality )
@@ -233,13 +151,13 @@ void FrameData::useCompressor( const Frame::Buffer buffer, const uint32_t name )
 void FrameData::getInstanceData( co::DataOStream& os )
 {
     LBUNREACHABLE;
-    _impl->data.serialize( os );
+    serialize( os );
 }
 
 void FrameData::applyInstanceData( co::DataIStream& is )
 {
     clear();
-    _impl->data.deserialize( is );
+    deserialize( is );
     LBLOG( LOG_ASSEMBLY ) << "applied " << this << std::endl;
 }
 
@@ -269,9 +187,9 @@ void FrameData::flush()
 
 void FrameData::deleteGLObjects( util::ObjectManager& om )
 {
-    BOOST_FOREACH( Image* image, _impl->images )
+    for( Image* image : _impl->images )
         image->deleteGLObjects( om );
-    BOOST_FOREACH( Image* image, _impl->imageCache )
+    for( Image* image : _impl->imageCache )
         image->deleteGLObjects( om );
 }
 
@@ -347,176 +265,32 @@ Image* FrameData::_allocImage( const eq::Frame::Type type,
     return image;
 }
 
-#ifndef EQ_2_0_API
-void FrameData::readback( const Frame& frame,
-                          util::ObjectManager& glObjects,
-                          const DrawableConfig& config,
-                          const Range& range )
+void FrameData::newImage( co::ObjectICommand& command )
 {
-    const Images& images = startReadback( frame, glObjects, config,
-                                       PixelViewports( 1, getPixelViewport( )),
-                                       range );
+    // Counterpart in Channel::_transmitImage
+    const PixelViewport& pvp = command.read< PixelViewport >();
+    const Zoom& zoom = command.read< Zoom >();
+    const RenderContext& context = command.read< RenderContext >();
+    const uint32_t imageBuffers = command.read< uint32_t >();
+    const bool useAlpha = command.read< bool >();
 
-    for( ImagesCIter i = images.begin(); i != images.end(); ++i )
-        (*i)->finishReadback( frame.getZoom(), glObjects.glewGetContext( ));
-}
-#endif
+    // Note on the cast: since the PixelData structure stores non-const
+    // pointers, we have to go non-const at some point, even though we do not
+    // modify the data.
+    uint8_t* data = (uint8_t*)( command.getRemainingBuffer(
+                                    command.getRemainingBufferSize( )));
 
-Images FrameData::startReadback( const Frame& frame,
-                                 util::ObjectManager& glObjects,
-                                 const DrawableConfig& config,
-                                 const PixelViewports& regions,
-                                 const Range &range )
-{
-    if( _impl->data.buffers == Frame::BUFFER_NONE )
-        return Images();
-
-    const Zoom& zoom = frame.getZoom();
-    if( !zoom.isValid( ))
-    {
-        LBWARN << "Invalid zoom factor, skipping frame" << std::endl;
-        return Images();
-    }
-
-    const eq::PixelViewport& framePVP = getPixelViewport();
-    const PixelViewport      absPVP   = framePVP + frame.getOffset();
-    if( !absPVP.isValid( ))
-        return Images();
-
-    Images images;
-
-    // readback the whole screen when using textures
-    if( getType() == eq::Frame::TYPE_TEXTURE )
-    {
-        Image* image = newImage( getType(), config );
-        if( image->startReadback( getBuffers(), absPVP, range, zoom, glObjects ))
-            images.push_back( image );
-        image->setOffset( 0, 0 );
-        return images;
-    }
-    //else read only required regions
-
-#if 0
-    // TODO: issue #85: move automatic ROI detection to eq::Channel
-    PixelViewports regions;
-    if( _impl->data.buffers & Frame::BUFFER_DEPTH && zoom == Zoom::NONE )
-        regions = _impl->roiFinder->findRegions( _impl->data.buffers, absPVP,
-                                                 zoom, frame.getAssemblyStage(),
-                                                 frame.getFrameID(), glObjects);
-    else
-        regions.push_back( absPVP );
-#endif
-
-    LBASSERT( getType() == eq::Frame::TYPE_MEMORY );
-    const eq::Pixel& pixel = getPixel();
-
-    for( uint32_t i = 0; i < regions.size(); ++i )
-    {
-        PixelViewport pvp = regions[ i ] + frame.getOffset();
-        pvp.intersect( absPVP );
-        if( !pvp.hasArea( ))
-            continue;
-
-        Image* image = newImage( getType(), config );
-        if( image->startReadback( getBuffers(), pvp, range, zoom, glObjects ))
-            images.push_back( image );
-
-        pvp -= frame.getOffset();
-        pvp.apply( zoom );
-        image->setOffset( (pvp.x - framePVP.x) * pixel.w,
-                          (pvp.y - framePVP.y) * pixel.h );
-    }
-    return images;
-}
-
-void FrameData::setVersion( const uint64_t version )
-{
-    LBASSERTINFO( _impl->version <= version, _impl->version << " > "
-                                                            << version );
-    _impl->version = version;
-    LBLOG( LOG_ASSEMBLY ) << "New v" << version << std::endl;
-}
-
-void FrameData::waitReady( const uint32_t timeout ) const
-{
-    if( !_impl->readyVersion.timedWaitGE( _impl->version, timeout ))
-        throw Exception( Exception::TIMEOUT_INPUTFRAME );
-}
-
-void FrameData::setReady()
-{
-    _setReady( _impl->version );
-}
-
-void FrameData::setReady( const co::ObjectVersion& frameData,
-                          const fabric::FrameData& data )
-{
-    clear();
-    LBASSERT(  frameData.version.high() == 0 );
-    LBASSERT( _impl->readyVersion < frameData.version.low( ));
-    LBASSERT( _impl->readyVersion == 0 ||
-              _impl->readyVersion + 1 == frameData.version.low( ));
-    LBASSERT( _impl->version == frameData.version.low( ));
-
-    _impl->images.swap( _impl->pendingImages );
-    _impl->data = data;
-    _setReady( frameData.version.low());
-
-    LBLOG( LOG_ASSEMBLY ) << this << " applied v"
-                          << frameData.version.low() << std::endl;
-}
-
-void FrameData::_setReady( const uint64_t version )
-{
-    LBASSERTINFO( _impl->readyVersion <= version,
-                  "v" << _impl->version << " ready " << _impl->readyVersion
-                      << " new " << version );
-
-    lunchbox::ScopedMutex< lunchbox::SpinLock > mutex( _impl->listeners );
-    if( _impl->readyVersion >= version )
-        return;
-
-    _impl->readyVersion = version;
-    LBLOG( LOG_ASSEMBLY ) << "set ready " << this << ", "
-                          << _impl->listeners->size() << " monitoring"
-                          << std::endl;
-
-    BOOST_FOREACH( Listener* listener, _impl->listeners.data )
-        ++(*listener);
-}
-
-void FrameData::addListener( Listener& listener )
-{
-    lunchbox::ScopedFastWrite mutex( _impl->listeners );
-
-    _impl->listeners->push_back( &listener );
-    if( _impl->readyVersion >= _impl->version )
-        ++listener;
-}
-
-void FrameData::removeListener( Listener& listener )
-{
-    lunchbox::ScopedFastWrite mutex( _impl->listeners );
-
-    Listeners::iterator i = lunchbox::find( _impl->listeners.data, &listener );
-    LBASSERT( i != _impl->listeners->end( ));
-    _impl->listeners->erase( i );
-}
-
-bool FrameData::addImage( const co::ObjectVersion& frameDataVersion,
-                          const PixelViewport& pvp, const Range& range,
-                          const Zoom& zoom, const uint32_t buffers_,
-                          const bool useAlpha, uint8_t* data )
-{
-    LBASSERT( _impl->readyVersion < frameDataVersion.version.low( ));
-    if( _impl->readyVersion >= frameDataVersion.version.low( ))
-        return false;
+    LBASSERT( pvp.isValid( ));
+    LBLOG( LOG_ASSEMBLY )
+        << "new image data for " << co::ObjectVersion( this ) << ", buffers "
+        << imageBuffers << " pvp " << pvp << std::endl;
 
     Image* image = _allocImage( Frame::TYPE_MEMORY, DrawableConfig(),
                                 false /* set quality */ );
 
     image->setPixelViewport( pvp );
-    image->setRange( range );
+    image->setZoom( zoom );
+    image->setContext( context );
     image->setAlphaUsage( useAlpha );
 
     Frame::Buffer buffers[] = { Frame::BUFFER_COLOR, Frame::BUFFER_DEPTH };
@@ -524,7 +298,7 @@ bool FrameData::addImage( const co::ObjectVersion& frameDataVersion,
     {
         const Frame::Buffer buffer = buffers[i];
 
-        if( buffers_ & buffer )
+        if( imageBuffers & buffer )
         {
             PixelData pixelData;
             const ImageHeader* header = reinterpret_cast<ImageHeader*>( data );
@@ -571,7 +345,147 @@ bool FrameData::addImage( const co::ObjectVersion& frameDataVersion,
     }
 
     _impl->pendingImages.push_back( image );
-    return true;
+}
+
+Images FrameData::startReadback( const Frame& frame,
+                                 util::ObjectManager& om,
+                                 const DrawableConfig& config,
+                                 const PixelViewports& regions,
+                                 const RenderContext& context )
+{
+    if( _buffers == Frame::BUFFER_NONE )
+        return Images();
+
+    const Zoom& frameZoom = frame.getZoom();
+    if( !frameZoom.isValid( ))
+    {
+        LBWARN << "Invalid zoom factor, skipping frame" << std::endl;
+        return Images();
+    }
+
+    const eq::PixelViewport& framePVP = getPixelViewport();
+    const PixelViewport      absPVP   = framePVP + frame.getOffset();
+    if( !absPVP.isValid( ))
+        return Images();
+
+    Images images;
+
+    // readback the whole screen when using textures
+    if( getType() == eq::Frame::TYPE_TEXTURE )
+    {
+        Image* image = newImage( getType(), config );
+        if( image->startReadback( getBuffers(), absPVP, context, frameZoom, om ))
+            images.push_back( image );
+
+        image->setOffset( 0, 0 );
+        return images;
+    }
+    //else read only required regions
+
+#if 0
+    // TODO: issue #85: move automatic ROI detection to eq::Channel
+    PixelViewports regions;
+    if( buffers & Frame::BUFFER_DEPTH && frameZoom == Zoom::NONE )
+        regions = _impl->roiFinder->findRegions( buffers, absPVP, frameZoom,
+                                                 frame.getAssemblyStage(),
+                                                 frame.getFrameID(), om);
+    else
+        regions.push_back( absPVP );
+#endif
+
+    LBASSERT( getType() == eq::Frame::TYPE_MEMORY );
+
+    for( uint32_t i = 0; i < regions.size(); ++i )
+    {
+        PixelViewport pvp = regions[ i ] + frame.getOffset();
+        pvp.intersect( absPVP );
+        if( !pvp.hasArea( ))
+            continue;
+
+        Image* image = newImage( getType(), config );
+        if( image->startReadback( getBuffers(), pvp, context, frameZoom, om ))
+            images.push_back( image );
+
+        pvp -= frame.getOffset();
+        pvp.apply( frameZoom );
+        image->setOffset( (pvp.x - framePVP.x) * context.pixel.w,
+                          (pvp.y - framePVP.y) * context.pixel.h );
+    }
+    return images;
+}
+
+void FrameData::setVersion( const uint64_t version )
+{
+    LBASSERTINFO( _impl->version <= version, _impl->version << " > "
+                                                            << version );
+    _impl->version = version;
+    LBLOG( LOG_ASSEMBLY ) << "New v" << version << std::endl;
+}
+
+void FrameData::waitReady( const uint32_t timeout ) const
+{
+    if( !_impl->readyVersion.timedWaitGE( _impl->version, timeout ))
+        throw Exception( Exception::TIMEOUT_INPUTFRAME );
+}
+
+void FrameData::setReady()
+{
+    _setReady( _impl->version );
+}
+
+void FrameData::setReady( const co::ObjectVersion& frameData,
+                          const fabric::FrameData& data )
+{
+    clear();
+    LBASSERT(  frameData.version.high() == 0 );
+    LBASSERT( _impl->readyVersion < frameData.version.low( ));
+    LBASSERT( _impl->readyVersion == 0 ||
+              _impl->readyVersion + 1 == frameData.version.low( ));
+    LBASSERT( _impl->version == frameData.version.low( ));
+
+    _impl->images.swap( _impl->pendingImages );
+    fabric::FrameData::operator = ( data );
+    _setReady( frameData.version.low());
+
+    LBLOG( LOG_ASSEMBLY ) << this << " applied v"
+                          << frameData.version.low() << std::endl;
+}
+
+void FrameData::_setReady( const uint64_t version )
+{
+    LBASSERTINFO( _impl->readyVersion <= version,
+                  "v" << _impl->version << " ready " << _impl->readyVersion
+                      << " new " << version );
+
+    lunchbox::ScopedMutex< lunchbox::SpinLock > mutex( _impl->listeners );
+    if( _impl->readyVersion >= version )
+        return;
+
+    _impl->readyVersion = version;
+    LBLOG( LOG_ASSEMBLY ) << "set ready " << this << ", "
+                          << _impl->listeners->size() << " monitoring"
+                          << std::endl;
+
+    BOOST_FOREACH( Listener* listener, _impl->listeners.data )
+        ++(*listener);
+}
+
+void FrameData::addListener( Listener& listener )
+{
+    lunchbox::ScopedFastWrite mutex( _impl->listeners );
+
+    _impl->listeners->push_back( &listener );
+    if( _impl->readyVersion >= _impl->version )
+        ++listener;
+}
+
+void FrameData::removeListener( Listener& listener )
+{
+    lunchbox::ScopedFastWrite mutex( _impl->listeners );
+
+    Listeners::iterator i = lunchbox::find( _impl->listeners.data, &listener );
+    LBASSERT( i != _impl->listeners->end( ));
+    _impl->listeners->erase( i );
 }
 
 std::ostream& operator << ( std::ostream& os, const FrameData& data )

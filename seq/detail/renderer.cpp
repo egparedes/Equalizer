@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2011-2015, Stefan Eilemann <eile@eyescale.ch>
+/* Copyright (c) 2011-2016, Stefan Eilemann <eile@eyescale.ch>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Petros Kataras <petroskataras@gmail.com>
  *
@@ -25,6 +25,7 @@
 #include "objectMap.h"
 
 #include <seq/renderer.h>
+#include <eq/config.h>
 
 namespace seq
 {
@@ -79,22 +80,30 @@ ObjectManager& Renderer::getObjectManager()
     return _window->getObjectManager();
 }
 
+const ViewData* Renderer::getViewData() const
+{
+    return _channel->getViewData();
+}
+
 const Frustumf& Renderer::getFrustum() const
 {
     LBASSERT( _channel );
-    return _channel ? _channel->getFrustum() : Frustumf::DEFAULT;
+    static Frustumf none;
+    return _channel ? _channel->getFrustum() : none;
 }
 
 const Matrix4f& Renderer::getViewMatrix() const
 {
     LBASSERT( _channel );
-    return _channel ? _channel->getViewMatrix() : Matrix4f::IDENTITY;
+    static const Matrix4f identity;
+    return _channel ? _channel->getViewMatrix() : identity;
 }
 
 const Matrix4f& Renderer::getModelMatrix() const
 {
     LBASSERT( _channel );
-    return _channel ? _channel->getModelMatrix() : Matrix4f::IDENTITY;
+    static const Matrix4f identity;
+    return _channel ? _channel->getModelMatrix() : identity;
 }
 
 const PixelViewport& Renderer::getPixelViewport() const
@@ -160,11 +169,25 @@ void Renderer::clear()
         _channel->clear();
 }
 
+void Renderer::requestRedraw()
+{
+    LBASSERT( _channel );
+    if( _channel )
+        _channel->getConfig()->sendEvent( EVENT_REDRAW );
+}
+
 void Renderer::applyRenderContext()
 {
     LBASSERT( _channel );
     if( _channel )
         _channel->applyRenderContext();
+}
+
+void Renderer::bindDrawFrameBuffer()
+{
+    LBASSERT( _channel );
+    if( _channel )
+        _channel->bindDrawFrameBuffer();
 }
 
 const RenderContext& Renderer::getRenderContext() const

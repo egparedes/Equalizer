@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2005-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *
  * This library is free software; you can redistribute it and/or modify it under
@@ -88,6 +88,8 @@ Config* Server::chooseConfig( const fabric::ConfigParams& p )
         params.setWorkDir( Global::getWorkDir( ));
     if( params.getRenderClient().empty( ))
         params.setRenderClient( Global::getProgramName( ));
+    if( params.getRenderClientArgs().empty( ))
+        params.setRenderClientArgs( client->getCommandLine( ));
     if( params.getGPUFilter().empty( ))
         params.setGPUFilter( client->getGPUFilter( ));
 
@@ -96,7 +98,7 @@ Config* Server::chooseConfig( const fabric::ConfigParams& p )
 
     lunchbox::Request< void* > request = client->registerRequest< void* >();
     send( fabric::CMD_SERVER_CHOOSE_CONFIG )
-        << request << params << eq::Global::getConfigFile();
+        << request << params << eq::Global::getConfig();
 
     while( !request.isReady( ))
         getClient()->processCommand();

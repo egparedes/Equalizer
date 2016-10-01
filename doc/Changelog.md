@@ -1,13 +1,56 @@
 Changelog {#Changelog}
 =========
 
-# git master
+# Release 1.13 (git master)
 
+* [578](https://github.com/Eyescale/Equalizer/pull/578):
+  Application command line arguments are transmitted to render clients.
+  Subsets of environmental variables can also be transmitted based on their
+  prefixes.
+* [574](https://github.com/Eyescale/Equalizer/pull/574):
+  Deflect proxy: Consider DEFLECT_ID, use deflect env for render clients
+* [572](https://github.com/Eyescale/Equalizer/pull/572):
+  Sequel: Fix crash on exit
+* [570](https://github.com/Eyescale/Equalizer/pull/570):
+  Use new Collage launch code
+
+# Release 1.12 (30-Jul-2016)
+
+* [563](https://github.com/Eyescale/Equalizer/pull/563):
+  Add seq::Renderer::requestRedraw()
+* [561](https://github.com/Eyescale/Equalizer/pull/561):
+  Change Deflect streaming activation
+
+  * Use environment variable from
+    [Deflect#98](https://github.com/BlueBrain/Deflect/pull/98)
+  * Obsolete DisplayCluster view attributes, use deflect_host attribute now
+* [560](https://github.com/Eyescale/Equalizer/pull/560):
+  Add seq::Renderer::bindDrawFrameBuffer()
+* [554](https://github.com/Eyescale/Equalizer/pull/554):
+  Expose current view data in seq::Renderer
+* [548](https://github.com/Eyescale/Equalizer/pull/548):
+  Sequel tweaks for seqSplotch
+
+  * configInit()/configExit() for eq::View
+  * seq::Application::createViewData receives eq::View as parameter
+  * seq::Renderer::createViewData receives eq::View as parameter
+  * seq::ViewData considers eq::View::getModelUnit for model matrix manipulation
+
+
+# Release 1.11 (21-Mar-2016)
+
+* [542](https://github.com/Eyescale/Equalizer/pull/542):
+  Fix missing/wrong handling of key events from Deflect host
+* [538](https://github.com/Eyescale/Equalizer/pull/538):
+  Support sorted image-based compositing. Minor API changes in the
+  compositor, frame and image code
+* [532](https://github.com/Eyescale/Equalizer/pull/532):
+  Compositor::blendFrames() replaces Compositor::assembleFramesSorted()
 * [529](https://github.com/Eyescale/Equalizer/pull/529):
   Pan/rotate mode switch for deflect::Proxy on tap & hold,
   add Channel::frameDrawOverlay()
 * [529](https://github.com/Eyescale/Equalizer/pull/529):
-  Add apply/resetOverlayState in Channel for 2D overlay rendering  
+  Add apply/resetOverlayState in Channel for 2D overlay rendering
 * [527](https://github.com/Eyescale/Equalizer/pull/527):
   Fix Deflect wheel event to consider pixel delta from pinch
 * [520](https://github.com/Eyescale/Equalizer/issues/520):

@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2007-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
 #include <seq/sequel.h>
 #include <stdlib.h>
 
-#include <fragmentShader.glsl.h>
-#include <vertexShader.glsl.h>
+#include <eqHello/fragmentShader.glsl.h>
+#include <eqHello/vertexShader.glsl.h>
 
 namespace eqHello
 {
@@ -223,11 +223,11 @@ void eqHello::Renderer::draw( co::Object* /*frameData*/ )
 {
     applyRenderContext(); // set up OpenGL State
 
-    const seq::Matrix4f mvp = getFrustum().compute_matrix() * getViewMatrix() *
-                              getModelMatrix();
+    const seq::Matrix4f mvp = getFrustum().computePerspectiveMatrix() *
+                              getViewMatrix() * getModelMatrix();
 
     EQ_GL_CALL( glUseProgram( _program ));
-    EQ_GL_CALL( glUniformMatrix4fv( _matrixUniform, 1, GL_FALSE, &mvp[0] ));
+    EQ_GL_CALL( glUniformMatrix4fv( _matrixUniform, 1, GL_FALSE, mvp.data( )));
     EQ_GL_CALL( glBindVertexArray( _vertexArray ));
     EQ_GL_CALL( glEnableVertexAttribArray( 0 ));
     EQ_GL_CALL( glEnableVertexAttribArray( 1 ));

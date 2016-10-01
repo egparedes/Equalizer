@@ -1,8 +1,8 @@
 
-/* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2005-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Cedric Stalder  <cedric Stalder@gmail.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
- *                    2015, Enrique <egparedes@ifi.uzh.ch>
+ *                          Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -166,8 +166,7 @@ namespace fabric
         CMD_CHANNEL_FRAME_FINISH,
         CMD_CHANNEL_FRAME_FINISH_REPLY,
         CMD_CHANNEL_FRAME_CLEAR,
-        CMD_CHANNEL_FRAME_PASS,
-        CMD_CHANNEL_FRAME_TILES,
+        CMD_CHANNEL_FRAME_RENDER,
         CMD_CHANNEL_FRAME_DRAW_FINISH,
         CMD_CHANNEL_FRAME_ASSEMBLE,
         CMD_CHANNEL_FRAME_READBACK,

@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2015 Stefan Eilemann <eile@eyescale.ch>
+# Copyright (c) 2011-2016 Stefan Eilemann <eile@eyescale.ch>
 
 include_directories(SYSTEM ${OPENGL_INCLUDE_DIR} ${GLEW_MX_INCLUDE_DIRS})
 if(CUDA_FOUND)
@@ -52,6 +52,7 @@ set(EQUALIZER_PUBLIC_HEADERS
   glx/window.h
   glx/windowEvent.h
   image.h
+  imageOp.h
   init.h
   layout.h
   log.h
@@ -63,14 +64,6 @@ set(EQUALIZER_PUBLIC_HEADERS
   os.h
   pipe.h
   pixelData.h
-  qt/eventHandler.h
-  qt/messagePump.h
-  qt/pipe.h
-  qt/shareContextWindow.h
-  qt/types.h
-  qt/window.h
-  qt/windowEvent.h
-  qt/windowSystem.h
   resultImageListener.h
   segment.h
   server.h
@@ -145,6 +138,7 @@ set(EQUALIZER_SOURCES
   global.cpp
   half.cpp
   image.cpp
+  imageOp.cpp
   init.cpp
   jitter.cpp
   layout.cpp
@@ -183,7 +177,7 @@ set(EQUALIZER_LINK_LIBRARIES
           ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_FILESYSTEM_LIBRARY}
           ${Boost_SYSTEM_LIBRARY} ${Boost_THREAD_LIBRARY})
 
-if(DEFLECT_FOUND)
+if(TARGET Deflect)
   list(APPEND EQUALIZER_SOURCES
     deflect/connection.h
     deflect/eventHandler.cpp
@@ -242,13 +236,21 @@ if(WIN32)
 endif()
 
 if(EQ_QT_USED)
-  qt5_wrap_cpp(QT_MOC_OUTFILES
+  list(APPEND EQUALIZER_PUBLIC_HEADERS
+    qt/eventHandler.h
+    qt/messagePump.h
+    qt/pipe.h
+    qt/shareContextWindow.h
+    qt/types.h
+    qt/window.h
+    qt/windowEvent.h
+    qt/windowSystem.h)
+  list(APPEND EQUALIZER_HEADERS
     qt/window.h
     qt/windowFactory.h
     qt/windowSystem.h
     )
   list(APPEND EQUALIZER_SOURCES
-    ${QT_MOC_OUTFILES}
     qt/eventHandler.cpp
     qt/messagePump.cpp
     qt/pipe.cpp
@@ -257,8 +259,7 @@ if(EQ_QT_USED)
     qt/windowFactory.cpp
     qt/windowSystem.cpp
     )
-  list(APPEND EQUALIZER_LINK_LIBRARIES
-    Qt5::Core Qt5::Gui Qt5::Widgets)
+  list(APPEND EQUALIZER_LINK_LIBRARIES Qt5::Core Qt5::Gui Qt5::Widgets)
 endif()
 
 if(OpenCV_FOUND)
@@ -293,6 +294,10 @@ endif()
 set(EQUALIZER_OMIT_LIBRARY_HEADER ON)
 common_library(Equalizer)
 target_compile_definitions(Equalizer PRIVATE EQUALIZERFABRIC_SHARED_INL)
+if(CMAKE_COMPILER_IS_CLANG)
+  target_compile_options(Equalizer PUBLIC -Wno-overloaded-virtual)
+endif()
+add_dependencies(Equalizer EqualizerServer) # dlopen'ed
 
 add_subdirectory(fabric)
 add_subdirectory(server)

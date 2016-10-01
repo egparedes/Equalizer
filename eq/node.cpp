@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2005-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2005-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder<cedric.stalder@gmail.com>
  *
@@ -710,35 +710,14 @@ bool Node::_cmdFrameTasksFinish( co::ICommand& cmd )
 bool Node::_cmdFrameDataTransmit( co::ICommand& cmd )
 {
     co::ObjectICommand command( cmd );
-
-    const co::ObjectVersion& frameDataVersion =
-                                             command.read< co::ObjectVersion >();
-    const PixelViewport& pvp = command.read< PixelViewport >();
-    const Range& range = command.read< Range >();
-    const Zoom& zoom = command.read< Zoom >();
-    const uint32_t buffers = command.read< uint32_t >();
+    const co::ObjectVersion& frameDataID = command.read< co::ObjectVersion >();
     const uint32_t frameNumber = command.read< uint32_t >();
-    const bool useAlpha = command.read< bool >();
-    const uint8_t* data = reinterpret_cast< const uint8_t* >(
-                command.getRemainingBuffer( command.getRemainingBufferSize( )));
-
-    LBLOG( LOG_ASSEMBLY )
-        << "received image data for " << frameDataVersion << ", buffers "
-        << buffers << " pvp " << pvp << std::endl;
-
-    LBASSERT( pvp.isValid( ));
-
-    FrameDataPtr frameData = getFrameData( frameDataVersion );
-    LBASSERT( !frameData->isReady() );
-
+    FrameDataPtr frameData = getFrameData( frameDataID );
     NodeStatistics event( Statistic::NODE_FRAME_DECOMPRESS, this,
                           frameNumber );
 
-    // Note on the const_cast: since the PixelData structure stores non-const
-    // pointers, we have to go non-const at some point, even though we do not
-    // modify the data.
-    LBCHECK( frameData->addImage( frameDataVersion, pvp, range, zoom, buffers,
-                                  useAlpha, const_cast< uint8_t* >( data )));
+    LBASSERT( !frameData->isReady() );
+    frameData->newImage( command );
     return true;
 }
 
@@ -748,7 +727,8 @@ bool Node::_cmdFrameDataReady( co::ICommand& cmd )
 
     const co::ObjectVersion& frameDataVersion =
                                             command.read< co::ObjectVersion >();
-    const fabric::FrameData& data = command.read< fabric::FrameData >();
+    fabric::FrameData data;
+    data.deserialize( command );
 
     LBLOG( LOG_ASSEMBLY ) << "received ready for " << frameDataVersion
                           << std::endl;

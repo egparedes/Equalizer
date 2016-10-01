@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2015 Daniel Pfeifer <daniel@pfeifer-mail.de>
+# Copyright (c) 2011-2016 Daniel Pfeifer <daniel@pfeifer-mail.de>
 #                         Stefan Eilemann <eile@eyescale.ch>
 
 if(GLEW_MX_FOUND)
@@ -6,9 +6,8 @@ if(GLEW_MX_FOUND)
   set(GLEW_LIBRARY ${GLEW_MX_LIBRARIES})
 else()
   set(GLEW_VERSION 1.9.0)
-  set(VERSION ${GLEW_VERSION})
   set(GLEW_DIR "${PROJECT_BINARY_DIR}/glew-${GLEW_VERSION}")
-  set(GLEW_MX_INCLUDE_DIRS "${OUTPUT_INCLUDE_DIR}/eq")
+  set(GLEW_MX_INCLUDE_DIRS "${PROJECT_BINARY_DIR}/include/eq")
   set(GLEW_LIBRARY GLEW_MX_Equalizer)
   set(GLEW_TGZ "${CMAKE_CURRENT_SOURCE_DIR}/GLEW/glew-${GLEW_VERSION}.tgz")
 
@@ -40,10 +39,10 @@ else()
     set(GLEW_MX_EQUALIZER_LINK_LIBRARIES ${OPENGL_gl_LIBRARY})
   endif()
   foreach(file ${GLEW_INCLUDES})
-    configure_file("${GLEW_DIR}/include/${file}" "${OUTPUT_INCLUDE_DIR}/eq/${file}"
-      COPYONLY)
+    configure_file("${GLEW_DIR}/include/${file}"
+      "${PROJECT_BINARY_DIR}/include/eq/${file}" COPYONLY)
     list(APPEND GLEW_MX_EQUALIZER_PUBLIC_HEADERS
-      "${OUTPUT_INCLUDE_DIR}/eq/${file}")
+      "${PROJECT_BINARY_DIR}/include/eq/${file}")
   endforeach()
 
   set(GLEW_MX_EQUALIZER_INCLUDE_NAME eq/GL)

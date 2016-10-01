@@ -87,8 +87,11 @@ bool startLocalServer( const std::string& config )
     eq::server::Loader loader;
     eq::server::ServerPtr server;
 
-    if( config.length() > 3 && config.find( ".eqc" ) == config.length() - 4 )
+    if( config.length() > 3 &&
+        config.compare( config.size() - 4, 4, ".eqc" ) == 0 )
+    {
         server = loader.loadFile( config );
+    }
     else
     {
 #ifdef EQUALIZER_USE_HWSD
@@ -129,13 +132,16 @@ bool startLocalServer( const std::string& config )
 
 co::ConnectionPtr connectLocalServer()
 {
+    if( !_serverThread.getServer( ))
+        return nullptr;
+
     co::ConnectionDescriptionPtr desc = new co::ConnectionDescription;
     desc->type = co::CONNECTIONTYPE_PIPE;
     co::ConnectionPtr connection = co::Connection::create( desc );
     if( !connection->connect( ))
     {
         LBERROR << "Failed to set up server connection" << std::endl;
-        return 0;
+        return nullptr;
     }
 
     co::ConnectionPtr sibling = connection->acceptSync();

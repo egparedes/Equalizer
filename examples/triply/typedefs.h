@@ -1,7 +1,7 @@
 
-/* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
- *               2009, Cedric Stalder <cedric.stalder@gmail.com>
- *               2011-2014, Stefan Eilemann <eile@eyescale.ch>
+/* Copyright (c) 2007-2016, Tobias Wolf <twolf@access.unizh.ch>
+ *                          Cedric Stalder <cedric.stalder@gmail.com>
+ *                          Stefan Eilemann <eile@eyescale.ch>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,7 +46,6 @@
 #  define PLYLIBINFO    LBINFO
 #else
 #  include <GL/glew.h>
-#  include <vmmlib/vmmlib.hpp>
 #  ifdef _WIN32
 #    include <Winsock2.h>
 #    include <Windows.h>
@@ -63,6 +62,7 @@
 #  define PLYLIBINFO    std::cout
 #endif
 
+#include<vmmlib/types.hpp>
 #include <boost/progress.hpp>
 #include <exception>
 #include <iostream>
@@ -79,13 +79,13 @@ class VertexBufferState;
 class VertexData;
 
 // basic type definitions
-typedef vmml::vector< 3, float >      Vertex;
-typedef vmml::vector< 3, uint8_t >    Color;
-typedef vmml::vector< 3, float >      Normal;
-typedef vmml::matrix< 4, 4, float >   Matrix4f;
-typedef vmml::vector< 4, float >      Vector4f;
-typedef size_t                        Index;
-typedef unsigned short                ShortIndex;
+typedef vmml::Vector3f Vertex;
+typedef vmml::vector< 3, uint8_t > Color;
+typedef vmml::Vector3f Normal;
+using vmml::Matrix4f;
+using vmml::Vector4f;
+typedef size_t Index;
+typedef unsigned short ShortIndex;
 
 // mesh exception
 struct MeshException : public std::exception

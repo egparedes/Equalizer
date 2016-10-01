@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2007-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
@@ -61,9 +61,11 @@ class Window;
 class WindowSettings;
 class WindowSystem;
 struct ConfigEvent; //!< @deprecated
+struct ImageOp;
 struct PixelData;
 
 using namespace fabric::eventEnums;
+using namespace fabric::taskEnums;
 
 using fabric::ANAGLYPH;
 using fabric::ASYNC;
@@ -171,6 +173,8 @@ typedef std::vector< Segment* > Segments;
 typedef std::vector< View* > Views;
 /** A vector of eq::PixelViewport */
 typedef std::vector< PixelViewport > PixelViewports;
+/** A vector of image compositing operations. */
+typedef std::vector< ImageOp > ImageOps;
 
 /** A const_iterator over a eq::Config vector */
 typedef Configs::const_iterator ConfigsCIter;
@@ -228,6 +232,7 @@ using fabric::Vector3f;   //!< A three-component float vector
 using fabric::Vector4f;   //!< A four-component float vector
 using fabric::Vector3ub;  //!< A three-component byte vector
 using fabric::Frustumf;   //!< A frustum definition
+using fabric::Quaternionf; // !< A float quaternion
 
 using fabric::EventOCommand;
 using fabric::FocusMode;
@@ -240,9 +245,10 @@ using fabric::Statistics;   //!< A vector of Statistic events
 using fabric::Strings;      //!< A vector of std::strings
 using fabric::StringsCIter; //!< A const_iterator over a std::string vector
 using fabric::Viewports;    //!< A vector of eq::Viewport
+using fabric::uint128_ts;
 
 /** Frustum culling helper */
-typedef vmml::frustum_culler< float >  FrustumCullerf;
+using vmml::FrustumCullerf;
 
 /** A vector of bytes */
 typedef std::vector< uint8_t >    Vectorub;

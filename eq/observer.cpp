@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2009-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2009-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -26,6 +26,7 @@
 #include <eq/fabric/paths.h>
 #include <eq/fabric/commands.h>
 #include <co/bufferConnection.h>
+#include <vmmlib/quaternion.hpp>
 
 #ifdef EQUALIZER_USE_OPENCV
 #  include "detail/cvTracker.h"
@@ -100,12 +101,9 @@ void VRPN_CALLBACK trackerCB( void* userdata, const vrpn_TRACKERCB data )
     if( data.sensor != 0 )
         return; // Only use first sensor
 
-    eq::Matrix4f head( eq::Matrix4f::IDENTITY );
-    const vmml::quaternion<float> quat( data.quat[0], data.quat[1],
-                                        data.quat[2], data.quat[3] );
-    quat.get_rotation_matrix( head );
-    head.set_translation( data.pos[0], data.pos[1], data.pos[2] );
-
+    const Matrix4f head( Quaternionf( data.quat[0], data.quat[1],
+                                      data.quat[2], data.quat[3] ),
+                         Vector3f( data.pos[0], data.pos[1], data.pos[2] ));
     Observer *observer = static_cast< Observer* >( userdata );
     Config* config = observer->getConfig();
 

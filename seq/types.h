@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2011-2015, Stefan Eilemann <eile@eyescale.ch>
+/* Copyright (c) 2011-2016, Stefan Eilemann <eile@eyescale.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -19,19 +19,25 @@
 #define EQSEQUEL_TYPES_H
 
 #include <seq/api.h>
+
 #include <eq/types.h>
+#include <eq/fabric/event.h>
 
 namespace seq
 {
+using namespace eq::util::shader;
+
+using eq::fabric::RenderContext;
 using eq::Frustumf;
 using eq::Matrix4f;
 using eq::PixelViewport;
+using eq::uint128_t;
+using eq::util::ObjectManager;
+using eq::Vector2i;
+using eq::Vector2f;
 using eq::Vector3f;
 using eq::Vector4f;
-using eq::uint128_t;
-using eq::fabric::RenderContext;
-using eq::util::ObjectManager;
-using namespace eq::util::shader;
+using eq::View;
 
 class Application;
 class ObjectFactory;
@@ -39,6 +45,12 @@ class Renderer;
 class ViewData;
 
 typedef lunchbox::RefPtr< Application > ApplicationPtr;
+
+enum EventType
+{
+    EVENT_REDRAW = eq::Event::USER,
+    EVENT_USER
+};
 
 /** @cond IGNORE */
 namespace detail

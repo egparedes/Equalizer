@@ -1,7 +1,7 @@
 
-/* Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
- *               2011-2012, Daniel Nachbaur <danielnachbaur@gmail.com>
- *               2010, Cedric Stalder <cedric.stalder@gmail.com>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Daniel Nachbaur <danielnachbaur@gmail.com>
+ *                          Cedric Stalder <cedric.stalder@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
 
 #include "config.h"
 #include "configEvent.h"
+#include "eqPly.h"
 #include "view.h"
 #include "modelAssigner.h"
 
@@ -226,7 +227,7 @@ void Config::_deregisterData()
 bool Config::loadInitData( const eq::uint128_t& id )
 {
     LBASSERT( !_initData.isAttached( ));
-    return getClient()->syncObject( &_initData, getApplicationNode(), id );
+    return getClient()->syncObject( &_initData, id, getApplicationNode() );
 }
 
 const Model* Config::getModel( const eq::uint128_t& modelID )
@@ -536,7 +537,7 @@ bool Config::_handleKeyEvent( const eq::KeyEvent& event )
             _spinY   = 0;
             _advance = 0;
             _frameData.reset();
-            _setHeadMatrix( eq::Matrix4f::IDENTITY );
+            _setHeadMatrix( eq::Matrix4f( ));
             return true;
 
         case 'i':
@@ -636,8 +637,12 @@ bool Config::_handleKeyEvent( const eq::KeyEvent& event )
 
         case 'r':
         case 'R':
-            _frameData.toggleRenderMode();
+        {
+            std::ostringstream os;
+            os << "Switched to " <<  _frameData.toggleRenderMode();
+            _setMessage( os.str( ));
             return true;
+        }
         case 'g':
         case 'G':
             _switchViewMode();
@@ -658,42 +663,42 @@ bool Config::_handleKeyEvent( const eq::KeyEvent& event )
         case eq::KC_UP:
         {
             eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.y() += 0.1f;
+            headMatrix.array[13] += 0.1f;
             _setHeadMatrix( headMatrix );
             return true;
         }
         case eq::KC_DOWN:
         {
             eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.y() -= 0.1f;
+            headMatrix.array[13] -= 0.1f;
             _setHeadMatrix( headMatrix );
             return true;
         }
         case eq::KC_RIGHT:
         {
             eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.x() += 0.1f;
+            headMatrix.array[12] += 0.1f;
             _setHeadMatrix( headMatrix );
             return true;
         }
         case eq::KC_LEFT:
         {
             eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.x() -= 0.1f;
+            headMatrix.array[12] -= 0.1f;
             _setHeadMatrix( headMatrix );
             return true;
         }
         case eq::KC_PAGE_DOWN:
         {
             eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.z() += 0.1f;
+            headMatrix.array[14] += 0.1f;
             _setHeadMatrix( headMatrix );
             return true;
         }
         case eq::KC_PAGE_UP:
         {
             eq::Matrix4f headMatrix = _getHeadMatrix();
-            headMatrix.z() -= 0.1f;
+            headMatrix.array[14] -= 0.1f;
             _setHeadMatrix( headMatrix );
             return true;
         }
@@ -920,10 +925,10 @@ void Config::_adjustEyeBase( const float delta )
         observer->setEyePosition( eq::EYE_RIGHT,
                                   observer->getEyePosition( eq::EYE_RIGHT ) +
                                   eq::Vector3f( delta, 0.f, 0.f ));
-        std::ostringstream stream;
-        stream << "Set eyes to " << observer->getEyePosition( eq::EYE_LEFT )
-               << ", " <<  observer->getEyePosition( eq::EYE_RIGHT );
-        _setMessage( stream.str( ));
+        std::ostringstream os;
+        os << "Set eyes to " << observer->getEyePosition( eq::EYE_LEFT ) << ", "
+           <<  observer->getEyePosition( eq::EYE_RIGHT );
+        _setMessage( os.str( ));
     }
 }
 
@@ -1019,18 +1024,17 @@ void Config::_setHeadMatrix( const eq::Matrix4f& matrix )
         (*i)->setHeadMatrix( matrix );
     }
 
-    eq::Vector3f trans;
-    matrix.get_translation( trans );
     std::ostringstream stream;
-    stream << "Observer at " << trans;
+    stream << "Observer at " << matrix.getTranslation();
     _setMessage( stream.str( ));
 }
 
 const eq::Matrix4f& Config::_getHeadMatrix() const
 {
     const eq::Observers& observers = getObservers();
+    static const eq::Matrix4f identity;
     if( observers.empty( ))
-        return eq::Matrix4f::IDENTITY;
+        return identity;
 
     return observers[0]->getHeadMatrix();
 }

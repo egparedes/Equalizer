@@ -240,6 +240,7 @@ protected:
      */
     EQ_API virtual void frameDrawFinish( const uint128_t& frameID,
                                          const uint32_t frameNumber );
+    friend class Channel;
 
     /**
      * Finish all rendering tasks.

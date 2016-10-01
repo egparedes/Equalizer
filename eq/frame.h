@@ -52,36 +52,6 @@ public:
     /** @name Data Access */
     //@{
     /**
-     * @return the database range relative to the destination channel.
-     * @version 1.0
-     */
-    EQ_API const Range& getRange() const;
-
-    /**
-     * @return the pixel parameters relative to the destination channel.
-     * @version 1.0
-     */
-    EQ_API const Pixel& getPixel() const;
-
-    /**
-     * @return the subpixel parameters wrt the destination channel.
-     * @version 1.0
-     */
-    EQ_API const SubPixel& getSubPixel() const;
-
-    /**
-     * @return the DPlex period relative to the destination channel.
-     * @version 1.0
-     */
-    EQ_API uint32_t getPeriod() const;
-
-    /**
-     * @return the DPlex phase relative to the destination channel.
-     * @version 1.0
-     */
-    EQ_API uint32_t getPhase() const;
-
-    /**
      * Set the filter applied to zoomed assemble operations.
      * @version 1.0
      */
@@ -135,20 +105,6 @@ public:
     void deleteGLObjects( util::ObjectManager& om );
 
     /**
-     * Read back an image.
-     *
-     * The image is added to the data, existing images are retained.
-     *
-     * @param glObjects the GL object manager for the current GL context.
-     * @param config the configuration of the source frame buffer.
-     * @param range the DB range associated to this image data.
-     * @version 1.0
-     */
-    EQ_API void readback( util::ObjectManager& glObjects,
-                          const DrawableConfig& config,
-                          const Range& range );
-
-    /**
      * Read back a set of images.
      *
      * The images are added to the data, existing images are retained.
@@ -156,13 +112,13 @@ public:
      * @param glObjects the GL object manager for the current GL context.
      * @param config the configuration of the source frame buffer.
      * @param regions the areas to read back.
-     * @param range the DB range associated to this image data.
+     * @param context the render context producing the pixel data.
      * @version 1.0
      */
     EQ_API void readback( util::ObjectManager& glObjects,
                           const DrawableConfig& config,
                           const PixelViewports& regions,
-                          const Range& range );
+                          const RenderContext& context );
 
     /**
      * Start reading back a set of images for this frame.
@@ -174,13 +130,14 @@ public:
      * @param glObjects the GL object manager for the current GL context.
      * @param config the configuration of the source frame buffer.
      * @param regions the areas to read back.
+     * @param context the render context producing the pixel data.
      * @return the new images which need finishReadback.
      * @version 1.3.2
      */
     EQ_API Images startReadback( util::ObjectManager& glObjects,
                                  const DrawableConfig& config,
                                  const PixelViewports& regions,
-                                 const Range& range );
+                                 const RenderContext& context );
 
     /**
      * Set the frame ready.

@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2007-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Enrique <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
@@ -58,11 +58,7 @@ private:
     bool _skipCompound( const Compound* compound );
     void _sendClear( const RenderContext& context );
 
-    void _updateDraw( const Compound* compound, const RenderContext& context );
-    void _updateDrawPass( const Compound* compound,
-                          const RenderContext& context );
-    void _updateDrawTiles( const Compound* compound,
-                           const RenderContext& context );
+    void _updateRender( const Compound*, const RenderContext& );
     void _updateDrawFinish( const Compound* compound ) const;
     void _updateFrameRate( const Compound* compound ) const;
 
@@ -70,12 +66,12 @@ private:
     fabric::ColorMask _getDrawBufferMask( const Compound* compound ) const;
 
     co::ObjectVersions _selectFrames( const Frames& frames ) const;
+    uint128_ts _selectQueues( const Compound* compound,
+                              const RenderContext& context ) const;
 
-    void _setupRenderContext( const Compound* compound,
-                              RenderContext& context );
+    RenderContext _setupRenderContext( const Compound* compound );
+    void _setupDrawFinishTasks( const Compound*, RenderContext& ) const;
 
-    void _updatePostDraw( const Compound* compound,
-                          const fabric::RenderContext& context );
     void _updateAssemble( const Compound* compound,
                           const fabric::RenderContext& context );
     void _updateReadback( const Compound* compound,

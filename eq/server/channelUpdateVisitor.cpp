@@ -1,6 +1,6 @@
 
-/* Copyright (c) 2007-2015, Stefan Eilemann <eile@equalizergraphics.com>
- *                           Daniel Nachbaur <danielnachbaur@gmail.com>
+/* Copyright (c) 2007-2016, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
@@ -57,7 +57,7 @@ namespace
 {
 static bool _setDrawBuffers();
 static uint32_t _drawBuffer[2][2][NUM_EYES];
-static bool _drawBufferInit = _setDrawBuffers();
+static bool LB_UNUSED _drawBufferInit = _setDrawBuffers();
 bool _setDrawBuffers()
 {
     const int32_t cyclop = lunchbox::getIndexOfLastBit( EYE_CYCLOP );
@@ -112,9 +112,7 @@ VisitorResult ChannelUpdateVisitor::visitPre( const Compound* compound )
     if( _skipCompound( compound ))
         return TRAVERSE_CONTINUE;
 
-    RenderContext context;
-    _setupRenderContext( compound, context );
-
+    const RenderContext& context = _setupRenderContext( compound );
     _updateFrameRate( compound );
     _updateViewStart( compound, context );
 
@@ -134,13 +132,11 @@ VisitorResult ChannelUpdateVisitor::visitLeaf( const Compound* compound )
         return TRAVERSE_CONTINUE;
     }
 
-    RenderContext context;
-    _setupRenderContext( compound, context );
+    const RenderContext& context = _setupRenderContext( compound );
     _updateFrameRate( compound );
     _updateViewStart( compound, context );
-    _updateDraw( compound, context );
-    _updateDrawFinish( compound );
-    _updatePostDraw( compound, context );
+    _updateRender( compound, context );
+    _updateViewFinish( compound, context );
     return TRAVERSE_CONTINUE;
 }
 
@@ -149,48 +145,25 @@ VisitorResult ChannelUpdateVisitor::visitPost( const Compound* compound )
     if( _skipCompound( compound ))
         return TRAVERSE_CONTINUE;
 
-    RenderContext context;
-    _setupRenderContext( compound, context );
-    _updatePostDraw( compound, context );
+    const RenderContext& context = _setupRenderContext( compound );
+    _updateAssemble( compound, context );
+    _updateReadback( compound, context );
+    _updateViewFinish( compound, context );
 
     return TRAVERSE_CONTINUE;
 }
 
-co::ObjectVersions ChannelUpdateVisitor::_selectFrames( const Frames& frames )
-    const
-{
-    co::ObjectVersions frameIDs;
-    for( Frame* frame : frames )
-        if( frame->hasData( _eye ))
-            frameIDs.push_back( co::ObjectVersion( frame ));
-    return frameIDs;
-}
-
-void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
-                                                RenderContext& context )
+RenderContext ChannelUpdateVisitor::_setupRenderContext(
+    const Compound* compound )
 {
     const Channel* destChannel = compound->getInheritChannel();
     LBASSERT( destChannel );
 
+    RenderContext context = compound->setupRenderContext( _eye );
     context.frameID       = _frameID;
-    context.pvp           = compound->getInheritPixelViewport();
-    context.overdraw      = compound->getInheritOverdraw();
-    context.vp            = compound->getInheritViewport();
-    context.range         = compound->getInheritRange();
-    context.pixel         = compound->getInheritPixel();
-    context.subpixel      = compound->getInheritSubPixel();
-    context.zoom          = compound->getInheritZoom();
-    context.period        = compound->getInheritPeriod();
-    context.phase         = compound->getInheritPhase();
-    context.offset.x()    = context.pvp.x;
-    context.offset.y()    = context.pvp.y;
-    context.eye           = _eye;
     context.buffer        = _getDrawBuffer( compound );
     context.bufferMask    = _getDrawBufferMask( compound );
     context.view          = destChannel->getViewVersion();
-    context.taskID        = compound->getTaskID();
-    context.tasks         = compound->getInheritTasks();
-    context.finishDraw    = _channel->hasListeners(); // finish for eq stats
 
     const View* view = destChannel->getView();
     LBASSERT( context.view == co::ObjectVersion( view ));
@@ -215,59 +188,56 @@ void ChannelUpdateVisitor::_setupRenderContext( const Compound* compound,
     }
     // TODO: pvp size overcommit check?
 
-    compound->computeFrustum( context, _eye );
+    _setupDrawFinishTasks( compound, context );
+    return context;
 }
 
-void ChannelUpdateVisitor::_updateDraw( const Compound* compound,
+co::ObjectVersions ChannelUpdateVisitor::_selectFrames( const Frames& frames )
+    const
+{
+    co::ObjectVersions frameIDs;
+    for( Frame* frame : frames )
+        if( frame->hasData( _eye ))
+            frameIDs.push_back( co::ObjectVersion( frame ));
+    return frameIDs;
+}
+
+uint128_ts ChannelUpdateVisitor::_selectQueues(
+    const Compound* compound, const RenderContext& context ) const
+{
+    uint128_ts queues;
+    const TileQueues& inputQueues = compound->getInputTileQueues();
+    for( const TileQueue* inputQueue : inputQueues )
+    {
+        const TileQueue* outputQueue = inputQueue->getOutputQueue( context.eye);
+        queues.push_back( outputQueue->getQueueMasterID( context.eye ));
+    }
+    return queues;
+}
+
+void ChannelUpdateVisitor::_updateRender( const Compound* compound,
                                         const RenderContext& context )
 {
-    if( compound->hasTiles( ))
-        _updateDrawTiles( compound, context );
-    else if( context.tasks & eq::fabric::TASK_DRAW )
-        _updateDrawPass( compound, context );
-    else if( context.tasks & fabric::TASK_CLEAR )
-        _sendClear( context );
-}
+    if( !(context.tasks & fabric::TASK_RENDER) )
+        return;
 
-void ChannelUpdateVisitor::_updateDrawPass( const Compound* compound,
-                                            const RenderContext& context )
-{
-    const co::ObjectVersions& frameIDs =
-        (context.tasks & eq::fabric::TASK_READBACK) ?
-            _selectFrames( compound->getOutputFrames( )) :
-            co::ObjectVersions();
+    const co::ObjectVersions& inFrames =
+        (context.tasks & fabric::TASK_ASSEMBLE) ?
+            _selectFrames( compound->getInputFrames( )) : co::ObjectVersions();
+    const co::ObjectVersions& outFrames =
+        (context.tasks & fabric::TASK_READBACK) ?
+            _selectFrames( compound->getOutputFrames( )) : co::ObjectVersions();
+    const uint128_ts& queues = _selectQueues( compound, context );
 
-    _channel->send( fabric::CMD_CHANNEL_FRAME_PASS ) << context << frameIDs;
+    _channel->send( fabric::CMD_CHANNEL_FRAME_RENDER )
+        << context << inFrames << outFrames << queues;
     _updated = true;
-    LBLOG( LOG_TASKS ) << "TASK pass " << _channel->getName() <<  " "
+    LBLOG( LOG_TASKS ) << "TASK render " << _channel->getName() <<  " "
                        << std::endl;
 }
 
-void ChannelUpdateVisitor::_updateDrawTiles( const Compound* compound,
-                                             const RenderContext& context )
-{
-    const co::ObjectVersions& frameIDs =
-        _selectFrames( compound->getOutputFrames( ));
-    const Channel* destChannel = compound->getInheritChannel();
-    const TileQueues& inputQueues = compound->getInputTileQueues();
-    for( TileQueuesCIter i = inputQueues.begin(); i != inputQueues.end(); ++i )
-    {
-        const TileQueue* inputQueue = *i;
-        const TileQueue* outputQueue = inputQueue->getOutputQueue( context.eye);
-        const uint128_t& id = outputQueue->getQueueMasterID( context.eye );
-        LBASSERT( id != 0 );
-
-        const bool isLocal = (_channel == destChannel);
-
-        _channel->send( fabric::CMD_CHANNEL_FRAME_TILES )
-                << context << isLocal << id << frameIDs;
-        _updated = true;
-        LBLOG( LOG_TASKS ) << "TASK tiles " << _channel->getName() <<  " "
-                           << std::endl;
-    }
-}
-
-void ChannelUpdateVisitor::_updateDrawFinish( const Compound* compound ) const
+void ChannelUpdateVisitor::_setupDrawFinishTasks( const Compound* compound,
+                                                  RenderContext& context ) const
 {
     const Compound* lastDrawCompound = _channel->getLastDrawCompound();
     if( lastDrawCompound && lastDrawCompound != compound )
@@ -281,28 +251,16 @@ void ChannelUpdateVisitor::_updateDrawFinish( const Compound* compound ) const
         _channel->setLastDrawCompound( compound );
 
     // Channel::frameDrawFinish
-    Node* node = _channel->getNode();
-
-    node->send( fabric::CMD_CHANNEL_FRAME_DRAW_FINISH, _channel->getID( ))
-            << _frameID << _frameNumber;
-    LBLOG( LOG_TASKS ) << "TASK channel draw finish " << _channel->getName()
-                       << " frame " << _frameNumber
-                       << " id " << _frameID << std::endl;
+    context.tasks |= fabric::TASK_CHANNEL_DRAW_FINISH;
 
     // Window::frameDrawFinish
     Window* window = _channel->getWindow();
     const Channel* lastDrawChannel = window->getLastDrawChannel();
-
     if( lastDrawChannel && lastDrawChannel != _channel )
         return;
 
     window->setLastDrawChannel( _channel ); // in case not set
-
-    node->send( fabric::CMD_WINDOW_FRAME_DRAW_FINISH, window->getID( ))
-            << _frameID << _frameNumber;
-    LBLOG( LOG_TASKS ) << "TASK window draw finish "  << window->getName()
-                           <<  " frame " << _frameNumber
-                           << " id " << _frameID << std::endl;
+    context.tasks |= fabric::TASK_WINDOW_DRAW_FINISH;
 
     // Pipe::frameDrawFinish
     Pipe* pipe = _channel->getPipe();
@@ -311,24 +269,60 @@ void ChannelUpdateVisitor::_updateDrawFinish( const Compound* compound ) const
         return;
 
     pipe->setLastDrawWindow( window ); // in case not set
-
-    node->send( fabric::CMD_PIPE_FRAME_DRAW_FINISH, pipe->getID( ))
-            << _frameID << _frameNumber;
-    LBLOG( LOG_TASKS ) << "TASK pipe draw finish " << pipe->getName()
-                       << " frame " << _frameNumber
-                       << " id " << _frameID << std::endl;
+    context.tasks |= fabric::TASK_PIPE_DRAW_FINISH;
 
     // Node::frameDrawFinish
+    Node* node = _channel->getNode();
     const Pipe* lastDrawPipe = node->getLastDrawPipe();
     if( lastDrawPipe && lastDrawPipe != pipe )
         return;
 
     node->setLastDrawPipe( pipe ); // in case not set
+    context.tasks |= fabric::TASK_NODE_DRAW_FINISH;
+}
 
-    node->send( fabric::CMD_NODE_FRAME_DRAW_FINISH, node->getID( ))
+void ChannelUpdateVisitor::_updateDrawFinish( const Compound* compound ) const
+{
+    Node* node = _channel->getNode();
+    RenderContext context;
+    _setupDrawFinishTasks( compound, context );
+
+    if( context.tasks & fabric::TASK_CHANNEL_DRAW_FINISH )
+    {
+        node->send( fabric::CMD_CHANNEL_FRAME_DRAW_FINISH, _channel->getID( ))
             << _frameID << _frameNumber;
-    LBLOG( LOG_TASKS ) << "TASK node draw finish " << node->getName() <<  " "
-                       << std::endl;
+        LBLOG( LOG_TASKS ) << "TASK channel draw finish " << _channel->getName()
+                           << " frame " << _frameNumber
+                           << " id " << _frameID << std::endl;
+    }
+
+    if( context.tasks & fabric::TASK_WINDOW_DRAW_FINISH )
+    {
+        const Window* window = _channel->getWindow();
+        node->send( fabric::CMD_WINDOW_FRAME_DRAW_FINISH, window->getID( ))
+            << _frameID << _frameNumber;
+        LBLOG( LOG_TASKS ) << "TASK window draw finish "  << window->getName()
+                           <<  " frame " << _frameNumber
+                           << " id " << _frameID << std::endl;
+    }
+
+    if( context.tasks & fabric::TASK_PIPE_DRAW_FINISH )
+    {
+        const Pipe* pipe = _channel->getPipe();
+        node->send( fabric::CMD_PIPE_FRAME_DRAW_FINISH, pipe->getID( ))
+            << _frameID << _frameNumber;
+        LBLOG( LOG_TASKS ) << "TASK pipe draw finish " << pipe->getName()
+                           << " frame " << _frameNumber
+                           << " id " << _frameID << std::endl;
+    }
+
+    if( context.tasks & fabric::TASK_NODE_DRAW_FINISH )
+    {
+        node->send( fabric::CMD_NODE_FRAME_DRAW_FINISH, node->getID( ))
+            << _frameID << _frameNumber;
+        LBLOG( LOG_TASKS ) << "TASK node draw finish " << node->getName()
+                           <<  " " << std::endl;
+    }
 }
 
 void ChannelUpdateVisitor::_sendClear( const RenderContext& context )
@@ -382,14 +376,6 @@ ChannelUpdateVisitor::_getDrawBufferMask(const Compound* compound) const
     }
 }
 
-void ChannelUpdateVisitor::_updatePostDraw( const Compound* compound,
-                                            const RenderContext& context )
-{
-    _updateAssemble( compound, context );
-    _updateReadback( compound, context );
-    _updateViewFinish( compound, context );
-}
-
 void ChannelUpdateVisitor::_updateAssemble( const Compound* compound,
                                             const RenderContext& context )
 {
@@ -397,50 +383,44 @@ void ChannelUpdateVisitor::_updateAssemble( const Compound* compound,
         return;
 
     const Frames& inputFrames = compound->getInputFrames();
-    const co::ObjectVersions& frameIDs = _selectFrames( inputFrames );
+    const co::ObjectVersions& frames = _selectFrames( inputFrames );
     LBASSERT( !inputFrames.empty( ));
-    if( frameIDs.empty( ))
+    if( frames.empty( ))
         return;
 
     // assemble task
     LBLOG( LOG_ASSEMBLY | LOG_TASKS )
-        << "TASK assemble " << _channel->getName()
-        << " nFrames " << frameIDs.size() << std::endl;
-    _channel->send( fabric::CMD_CHANNEL_FRAME_ASSEMBLE )
-            << context << frameIDs;
+        << "TASK assemble " << _channel->getName() << " nFrames "
+        << frames.size() << std::endl;
+    _channel->send( fabric::CMD_CHANNEL_FRAME_ASSEMBLE ) << context << frames;
     _updated = true;
 }
 
 void ChannelUpdateVisitor::_updateReadback( const Compound* compound,
                                             const RenderContext& context )
 {
-    if( !compound->testInheritTask( fabric::TASK_READBACK ) ||
-        compound->testInheritTask( fabric::TASK_DRAW ) ||
-        ( compound->hasTiles() && compound->isLeaf( )))
-    {
+    if( !compound->testInheritTask( fabric::TASK_READBACK ))
         return;
-    }
 
     const std::vector< Frame* >& outputFrames = compound->getOutputFrames();
-    const co::ObjectVersions& frameIDs = _selectFrames( outputFrames );
+    const co::ObjectVersions& frames = _selectFrames( outputFrames );
     LBASSERT( !outputFrames.empty( ));
-    if( frameIDs.empty() )
+    if( frames.empty() )
         return;
 
     // readback task
-    _channel->send( fabric::CMD_CHANNEL_FRAME_READBACK )
-            << context << frameIDs;
+    _channel->send( fabric::CMD_CHANNEL_FRAME_READBACK ) << context << frames;
     _updated = true;
     LBLOG( LOG_ASSEMBLY | LOG_TASKS )
-        << "TASK readback " << _channel->getName()
-        << " nFrames " << frameIDs.size() << std::endl;
+        << "TASK readback " << _channel->getName() << " nFrames "
+        << frames.size() << std::endl;
 }
 
 void ChannelUpdateVisitor::_updateViewStart( const Compound* compound,
                                              const RenderContext& context )
 {
     LBASSERT( !_skipCompound( compound ));
-    if( !(context.tasks & fabric::TASK_VIEW ))
+    if( _skipCompound( compound ) || !(context.tasks & fabric::TASK_VIEW ))
         return;
 
     // view start task
@@ -453,7 +433,7 @@ void ChannelUpdateVisitor::_updateViewFinish( const Compound* compound,
                                               const RenderContext& context )
 {
     LBASSERT( !_skipCompound( compound ));
-    if( !(context.tasks & fabric::TASK_VIEW ))
+    if( _skipCompound( compound ) || !(context.tasks & fabric::TASK_VIEW ))
         return;
 
     // view finish task

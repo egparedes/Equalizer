@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2006-2015, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *                          Cedric Stalder <cedric.stalder@gmail.com>
  *                          Tobias Wolf <twolf@access.unizh.ch>
@@ -74,17 +74,6 @@ bool Channel::configInit( const eq::uint128_t& initID )
     _model = 0;
     _modelID = 0;
     return true;
-}
-
-bool Channel::configExit()
-{
-    for( size_t i = 0; i < eq::NUM_EYES; ++i )
-    {
-        delete _accum[ i ].buffer;
-        _accum[ i ].buffer = 0;
-    }
-
-    return eq::Channel::configExit();
 }
 
 void Channel::frameClear( const eq::uint128_t& /*frameID*/ )
@@ -190,7 +179,7 @@ void Channel::frameDraw( const eq::uint128_t& frameID )
 }
 
 void Channel::frameAssemble( const eq::uint128_t& frameID,
-                             const eq::Frames& frames  )
+                             const eq::Frames& frames )
 {
     if( stopRendering( ))
         return;
@@ -217,16 +206,16 @@ void Channel::frameAssemble( const eq::uint128_t& frameID,
     // else
 
     accum.transfer = true;
-    for( eq::Frames::const_iterator i = frames.begin(); i != frames.end(); ++i )
+    for( eq::Frame* frame : frames )
     {
-        eq::Frame* frame = *i;
-        const eq::SubPixel& curSubPixel = frame->getSubPixel();
+        const eq::SubPixel& subPixel =
+            frame->getFrameData()->getContext().subPixel;
 
-        if( curSubPixel != eq::SubPixel::ALL )
+        if( subPixel != eq::SubPixel::ALL )
             accum.transfer = false;
 
-        accum.stepsDone = LB_MAX( accum.stepsDone, frame->getSubPixel().size *
-                                                   frame->getPeriod( ));
+        accum.stepsDone = LB_MAX( accum.stepsDone, subPixel.size *
+                                  frame->getFrameData()->getContext().period );
     }
 
     applyBuffer();
@@ -235,7 +224,7 @@ void Channel::frameAssemble( const eq::uint128_t& frameID,
 
     try
     {
-        eq::Compositor::assembleFrames( frames, this, accum.buffer );
+        eq::Compositor::assembleFrames( frames, this, accum.buffer.get( ));
     }
     catch( const co::Exception& e )
     {
@@ -449,8 +438,7 @@ bool Channel::_initAccum()
                        << std::endl;
                 for( size_t j = 0; j < eq::NUM_EYES; ++j )
                 {
-                    delete _accum[ j ].buffer;
-                    _accum[ j ].buffer = 0;
+                    _accum[ j ].buffer.reset();
                     _accum[ j ].step = -1;
                 }
 
@@ -461,7 +449,7 @@ bool Channel::_initAccum()
     }
 
     // set up accumulation buffer
-    accum.buffer = new eq::util::Accum( glewGetContext( ));
+    accum.buffer.reset( new eq::util::Accum( glewGetContext( )));
     const eq::PixelViewport& pvp = getPixelViewport();
     LBASSERT( pvp.isValid( ));
 
@@ -470,8 +458,7 @@ bool Channel::_initAccum()
     {
         LBWARN <<"Accumulation buffer initialization failed, "
                << "idle AA not available." << std::endl;
-        delete accum.buffer;
-        accum.buffer = 0;
+        accum.buffer.reset();
         accum.step = -1;
         return false;
     }
@@ -510,8 +497,8 @@ eq::Vector2f Channel::getJitter() const
     const eq::PixelViewport& pvp = getPixelViewport();
     const float pvp_w = float( pvp.w );
     const float pvp_h = float( pvp.h );
-    const float frustum_w = float(( getFrustum().get_width( )));
-    const float frustum_h = float(( getFrustum().get_height( )));
+    const float frustum_w = float(( getFrustum().getWidth( )));
+    const float frustum_h = float(( getFrustum().getHeight( )));
 
     const float pixel_w = frustum_w / pvp_w;
     const float pixel_h = frustum_h / pvp_h;
@@ -599,12 +586,12 @@ void Channel::_drawModel( const Model* scene )
     // Compute cull matrix
     const eq::Matrix4f& rotation = frameData.getCameraRotation();
     const eq::Matrix4f& modelRotation = frameData.getModelRotation();
-    eq::Matrix4f position = eq::Matrix4f::IDENTITY;
-    position.set_translation( frameData.getCameraPosition());
+    eq::Matrix4f position;
+    position.setTranslation( frameData.getCameraPosition( ));
 
     const eq::Frustumf& frustum = getFrustum();
-    const eq::Matrix4f projection = useOrtho() ? frustum.compute_ortho_matrix():
-                                                 frustum.compute_matrix();
+    const eq::Matrix4f projection = useOrtho() ? frustum.computeOrthoMatrix() :
+                                           frustum.computePerspectiveMatrix();
     const eq::Matrix4f& view = getHeadTransform();
     const eq::Matrix4f model = rotation * position * modelRotation;
 
@@ -748,9 +735,7 @@ void Channel::_updateNearFar( const triply::BoundingSphere& boundingSphere )
     const FrameData& frameData = _getFrameData();
     const eq::Matrix4f& rotation = frameData.getCameraRotation();
     const eq::Matrix4f& view = getHeadTransform() * rotation;
-
-    eq::Matrix4f viewInv;
-    compute_inverse( view, viewInv );
+    const eq::Matrix4f& viewInv = view.inverse();
 
     const eq::Vector3f& zero  = viewInv * eq::Vector3f::ZERO;
     eq::Vector3f        front = viewInv * eq::Vector3f( 0.0f, 0.0f, -1.0f );
@@ -760,7 +745,7 @@ void Channel::_updateNearFar( const triply::BoundingSphere& boundingSphere )
     front *= boundingSphere.w();
 
     const eq::Vector3f& center = frameData.getCameraPosition() -
-                                 boundingSphere.get_sub_vector< 3 >();
+                                 boundingSphere.get_sub_vector< 3, 0 >();
     const eq::Vector3f nearPoint  = view * ( center - front );
     const eq::Vector3f farPoint   = view * ( center + front );
 
@@ -778,7 +763,7 @@ void Channel::_updateNearFar( const triply::BoundingSphere& boundingSphere )
         const float width  = std::fabs( frustum.right() - frustum.left() );
         const float height = std::fabs( frustum.top() - frustum.bottom() );
         const float size   = std::min( width, height );
-        const float minNear = std::fabs( frustum.near_plane() / size * .001f );
+        const float minNear = std::fabs( frustum.nearPlane() / size * .001f );
 
         const float zNear = std::max( minNear, -nearPoint.z() );
         const float zFar  = std::max( zNear * 2.f, -farPoint.z() );

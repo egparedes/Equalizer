@@ -139,6 +139,7 @@ using fabric::Viewports;
 using fabric::Wall;
 using fabric::WindowSettings;
 using fabric::Zoom;
+using fabric::uint128_ts;
 
 using fabric::NodePath;
 using fabric::PipePath;

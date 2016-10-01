@@ -1,6 +1,6 @@
 
-/* Copyright (c) 2006-2012, Stefan Eilemann <eile@equalizergraphics.com>
- *                    2015, Enrique G. Paredes <egparedes@ifi.uzh.ch>
+/* Copyright (c) 2006-2016, Stefan Eilemann <eile@equalizergraphics.com>
+ *                          Enrique G. Paredes <egparedes@ifi.uzh.ch>
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License version 2.1 as published
@@ -25,9 +25,8 @@
 #include <eq/fabric/pixelViewport.h>    // member
 #include <eq/fabric/range.h>            // member
 #include <eq/fabric/subPixel.h>         // member
-#include <eq/fabric/types.h>
+#include <eq/fabric/vmmlib.h>
 #include <eq/fabric/zoom.h>             // member
-
 #include <co/objectVersion.h>
 #include <eq/fabric/api.h>
 
@@ -35,46 +34,46 @@ namespace eq
 {
 namespace fabric
 {
-    /** The context applied to a channel during rendering operations. */
-    class RenderContext
-    {
-    public:
-        EQFABRIC_API RenderContext();
-        EQFABRIC_API void apply( const Tile& tile ); //!< @internal
+/** The context applied to a channel during rendering operations. */
+class RenderContext
+{
+public:
+    EQFABRIC_API RenderContext();
+    EQFABRIC_API void apply( const Tile& tile ); //!< @internal
 
-        Frustumf       frustum;        //!< frustum for projection matrix
-        Frustumf       ortho;          //!< ortho frustum for projection matrix
+    Frustumf       frustum;        //!< frustum for projection matrix
+    Frustumf       ortho;          //!< ortho frustum for projection matrix
 
-        Matrix4f       headTransform;  //!< frustum transform for modelview
-        Matrix4f       orthoTransform; //!< orthographic frustum transform
+    Matrix4f       headTransform;  //!< frustum transform for modelview
+    Matrix4f       orthoTransform; //!< orthographic frustum transform
 
-        co::ObjectVersion view;        //!< destination view id and version
-        uint128_t      frameID;        //!< identifier from Config::beginFrame
-        PixelViewport  pvp;            //!< pixel viewport of channel wrt window
-        Pixel          pixel;          //!< pixel decomposition wrt to dest
-        Vector4i       overdraw;       //!< @internal for pw pp filters
-        Viewport       vp;             //!< fractional viewport wrt dest view
+    co::ObjectVersion view;        //!< destination view id and version
+    uint128_t      frameID;        //!< identifier from Config::beginFrame
+    PixelViewport  pvp;            //!< pixel viewport of channel wrt window
+    Pixel          pixel;          //!< pixel decomposition wrt to dest
+    Vector4i       overdraw;       //!< @internal for pw pp filters
+    Viewport       vp;             //!< fractional viewport wrt dest view
 
-        Vector2i       offset;         //!< absolute position wrt dest channel
-        Range          range;          //!< database-range wrt to dest channel
-        SubPixel       subpixel;       //!< subpixel decomposition wrt to dest
-        Zoom           zoom;           //!< up/downsampling wrt to dest
+    Vector2i       offset;         //!< absolute position wrt dest channel
+    Range          range;          //!< database-range wrt to dest channel
+    SubPixel       subPixel;       //!< subpixel decomposition wrt to dest
+    Zoom           zoom;           //!< up/downsampling wrt to dest
 
-        uint32_t       tasks;          //!< channel tasks
-        uint32_t       buffer;         //!< buffer as passed to glDrawBuffer()
-        uint32_t       taskID;         //!< @internal per-channel task counter
-        uint32_t       period;         //!< DPlex period
-        uint32_t       phase;          //!< DPlex phase
-        Eye            eye;            //!< current eye pass
-        // uint32_t       alignToEight;   //!< @internal padding
+    uint32_t       tasks;          //!< channel tasks
+    uint32_t       buffer;         //!< buffer as passed to glDrawBuffer()
+    uint32_t       taskID;         //!< @internal per-channel task counter
+    uint32_t       period;         //!< DPlex period
+    uint32_t       phase;          //!< DPlex phase
+    Eye            eye;            //!< current eye pass
+    //uint32_t       alignToEight;   //!< @internal padding
 
-        ColorMask      bufferMask;     //!< color mask for anaglyph stereo
-        bool           finishDraw;     //!< Precise draw statistics needed
-        bool           alignDummy[27]; //!< @internal padding
-    };
+    ColorMask      bufferMask;     //!< color mask for anaglyph stereo
+    bool           finishDraw;     //!< Precise draw statistics needed
+    bool           isLocal;        //!< src==dest channel
+    bool           alignDummy[26]; //!< @internal padding
+};
 
-    EQFABRIC_API std::ostream& operator << ( std::ostream& os,
-                                             const RenderContext& ctx );
+EQFABRIC_API std::ostream& operator << ( std::ostream&, const RenderContext& );
 }
 }
 
@@ -97,7 +96,7 @@ template<> inline void byteswap( eq::fabric::RenderContext& value )
 
     byteswap( value.offset );
     byteswap( value.range );
-    byteswap( value.subpixel );
+    byteswap( value.subPixel );
     byteswap( value.zoom );
 
     byteswap( value.tasks );

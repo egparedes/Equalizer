@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2012-2015, Stefan Eilemann <eile@eyescale.ch>
+/* Copyright (c) 2012-2016, Stefan Eilemann <eile@eyescale.ch>
  *                          Julio Delgado Mangas <julio.delgadomangas@epfl.ch>
  *                          Daniel Nachbaur <danielnachbaur@gmail.com>
  *
@@ -119,7 +119,7 @@ public:
 
         if( framebufferImage.startReadback( eq::Frame::BUFFER_COLOR,
                                             channel.getPixelViewport(),
-                                            channel.getRange(),
+                                            channel.getContext(),
                                             channel.getZoom(),
                                             channel.getObjectManager( )))
         {
@@ -133,7 +133,7 @@ public:
     /** A random, unique color for this channel. */
     Vector3ub color;
 
-    enum { ClearTime=0, DrawTime, ReadbackTime, _TimesCount };
+    enum { ClearTime=0, DrawTime, AssembleTime, ReadbackTime, _TimesCount };
     int64_t framePassTimings[_TimesCount];
 
     typedef std::vector< Statistic > Statistics;
